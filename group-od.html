@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Група ОД | Навчальний портал з Механіки</title>
+    <!-- Підключення сучасного дизайну з style.css -->
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <header>
+        <h1>Навчальний портал з Механіки</h1>
+        <p>Сторінка групи: Опорядження будівель і споруд та дизайн</p>
+    </header>
+
+    <nav>
+        <a href="index.html">Головна</a>
+        <a href="literature.html">Основна література</a>
+        <a href="groups.html">Навчальні групи</a>
+    </nav>
+
+    <div class="container">
+        <a href="groups.html" class="back-link">← Назад до вибору груп</a>
+
+        <!-- Блок ідентифікації / реєстрації студента -->
+        <div id="auth-section">
+            <h3>Будь ласка, представтеся для доступу до матеріалів групи</h3>
+            <p style="font-size: 13px; color: #64748b; margin-bottom: 12px;">Введіть ваші ПІБ, щоб сайт фіксував ваші результати тестів та робіт</p>
+            <input type="text" id="studentName" placeholder="Наприклад: Іван Петренко">
+            <button class="btn" onclick="registerStudent()">Увійти в систему</button>
+        </div>
+
+        <!-- Основний контент (прихований до реєстрації) -->
+        <div id="main-content" style="display: none;">
+            <div class="card" style="background: #f0fdf4; border-left: 5px solid #10b981;">
+                <span class="group-badge">Група ОД</span>
+                <h3 id="welcomeUser" style="color: #065f46; margin-bottom: 5px;"></h3>
+                <p style="font-size: 13px; color: #047857;">Ви успішно авторизовані. Усі ваші результати тестів та здані роботи фіксуватимуться під цим ім'ям.</p>
+                <button onclick="logoutStudent()" style="margin-top: 10px; background: none; border: none; color: #dc2626; cursor: pointer; font-size: 12px; text-decoration: underline;">Змінити ім'я / Вийти</button>
+            </div>
+
+            <div class="card">
+                <h2>📋 Практичні та розрахункові роботи</h2>
+                <div class="task-item">
+                    <div class="task-info">
+                        <h4>Практична робота №1: «Визначення геометричних характеристик перерізів»</h4>
+                        <p>Розрахунок статичних моментів та моментів інерції складних перерізів.</p>
+                    </div>
+                    <a href="literature.html" class="btn">Методичка</a>
+                </div>
+            </div>
+
+            <!-- Інтерактивний тест -->
+            <div class="card">
+                <h2>✍️ Експрес-тест з теорії механіки</h2>
+                <form id="mechanicsTest">
+                    <div class="test-question">
+                        <p>1. Що є основною мірою інертності тіла при поступальному русі?</p>
+                        <div class="options">
+                            <label><input type="radio" name="q1" value="a"> А) Вага тіла</label>
+                            <label><input type="radio" name="q1" value="b"> Б) Маса тіла</label>
+                            <label><input type="radio" name="q1" value="c"> В) Швидкість</label>
+                        </div>
+                    </div>
+
+                    <div class="test-question">
+                        <p>2. Як називається деформація від поздовжньої сили?</p>
+                        <div class="options">
+                            <label><input type="radio" name="q2" value="a"> А) Чистий зріз</label>
+                            <label><input type="radio" name="q2" value="b"> Б) Кручення</label>
+                            <label><input type="radio" name="q2" value="c"> В) Розтяг або стиск</label>
+                        </div>
+                    </div>
+
+                    <button type="button" class="btn" onclick="checkTest()">Здати тест</button>
+                    <div id="testResult" class="result-box"></div>
+                </form>
+            </div>
+
+            <!-- Форма здачі роботи -->
+            <div class="card">
+                <h2>📤 Здати виконану практичну роботу</h2>
+                <form onsubmit="submitWork(event)">
+                    <div class="form-group">
+                        <label>Номер практичної роботи:</label>
+                        <select id="workNumber">
+                            <option>Практична робота №1</option>
+                            <option>Практична робота №2</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Прикріпити файл з розрахунками (PDF, Word або архів):</label>
+                        <input type="file" id="workFile" required>
+                    </div>
+                    <button type="submit" class="btn">Надіслати викладачу</button>
+                </form>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // Перевірка при завантаженні сторінки, чи студент вже вводив своє ім'я
+        window.onload = function() {
+            const savedName = localStorage.getItem('studentName_OD');
+            if (savedName) {
+                showPortal(savedName);
+            }
+        };
+
+        function registerStudent() {
+            const nameInput = document.getElementById('studentName').value.trim();
+            if (nameInput === '') {
+                alert('Будь ласка, введіть ваші ПІБ!');
+                return;
+            }
+            localStorage.setItem('studentName_OD', nameInput);
+            showPortal(nameInput);
+        }
+
+        function showPortal(name) {
+            document.getElementById('auth-section').style.display = 'none';
+            document.getElementById('main-content').style.display = 'block';
+            document.getElementById('welcomeUser').innerText = `Вітаємо, ${name}!`;
+        }
+
+        function logoutStudent() {
+            localStorage.removeItem('studentName_OD');
+            location.reload();
+        }
+
+        function checkTest() {
+            const studentName = localStorage.getItem('studentName_OD');
+            let score = 0;
+            const q1 = document.querySelector('input[name="q1"]:checked');
+            const q2 = document.querySelector('input[name="q2"]:checked');
+
+            if (q1 && q1.value === 'b') score++;
+            if (q2 && q2.value === 'c') score++;
+
+            const resultBox = document.getElementById('testResult');
+            resultBox.style.display = 'block';
+            resultBox.innerHTML = `Студент: <b>${studentName}</b><br>Результат: правильних відповідей <b>${score} з 2</b>. Збережено в пам'яті браузера!`;
+        }
+
+        function submitWork(event) {
+            event.preventDefault();
+            const studentName = localStorage.getItem('studentName_OD');
+            const workNum = document.getElementById('workNumber').value;
+            alert(`Дякуємо, ${studentName}! ${workNum} успішно надіслано викладачу на перевірку.`);
+        }
+    </script>
+
+    <footer>
+        <p>© Навчальний портал з механіки | Група ОД</p>
+    </footer>
+
+</body>
+</html>
