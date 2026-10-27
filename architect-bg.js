@@ -12,6 +12,11 @@ function applyArchitectBackground() {
   });
   document.body.prepend(c);
 
+  // Force transparent page backgrounds so the canvas is never hidden by CSS
+  [document.documentElement, document.body].forEach(el => {
+    el.style.setProperty("background", "transparent", "important");
+  });
+
   const ctx = c.getContext("2d");
   let W, H;
 
