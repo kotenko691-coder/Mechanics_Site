@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Основна література | Механіка</title>
-    <!-- Підключення сучасного дизайну з style.css -->
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -21,72 +20,61 @@
     </nav>
 
     <div class="container">
-        
+
         <div class="card">
-            <h2>📚 Посібники та конспекти лекцій</h2>
+            <h2>📚 Посібники (Архів)</h2>
             <ul class="item-list">
                 <li>
                     <div class="file-info">
-                        <strong>Конспект лекцій з технічної механіки (Базовий курс)</strong>
-                        <span>Основні закони статики, кінематики та динаміки • PDF</span>
+                        <strong>Навчальні посібники та літературна база з механіки</strong>
+                        <span>Комплект матеріалів для студентів • PDF</span>
                     </div>
-                    <a href="#" class="btn">Завантажити</a>
-                </li>
-                <li>
-                    <div class="file-info">
-                        <strong>Опір матеріалів: Курс лекцій та основні формули</strong>
-                        <span>Розтяг-стиск, згин, кручення, геометричні характеристики перерізів • PDF</span>
-                    </div>
-                    <a href="#" class="btn">Завантажити</a>
+                    <a href="https://drive.google.com/drive/folders/1_Cnj-jj0m9PW2jEJ30teIrY-avokk7uP?usp=sharing" target="_blank" class="btn">Перейти до посібників</a>
                 </li>
             </ul>
         </div>
 
-        <div class="card">
-            <h2>📑 Методичні вказівки</h2>
-            <ul class="item-list">
-                <li>
-                    <div class="file-info">
-                        <strong>Методичка з розрахунку статично визначуваних балок</strong>
-                        <span>Побудова епюр внутрішніх зусиль (згинальні моменти, поперечні сили) • PDF</span>
-                    </div>
-                    <a href="#" class="btn">Завантажити</a>
-                </li>
-                <li>
-                    <div class="file-info">
-                        <strong>Правила та вимоги до оформлення розрахунково-графічних робіт (РГР)</strong>
-                        <span>Стандарти оформлення титульних аркушів, схематичних креслень • PDF</span>
-                    </div>
-                    <a href="#" class="btn">Завантажити</a>
-                </li>
-            </ul>
-        </div>
-
-        <div class="card">
-            <h2>📊 Довідникові матеріали та сортамент</h2>
-            <ul class="item-list">
-                <li>
-                    <div class="file-info">
-                        <strong>Таблиці сортаменту металопрокату (Двотаври, швелери, кутники)</strong>
-                        <span>Геометричні характеристики стандартних профілів • PDF</span>
-                    </div>
-                    <a href="#" class="btn">Завантажити</a>
-                </li>
-                <li>
-                    <div class="file-info">
-                        <strong>Механічні характеристики будівельних матеріалів</strong>
-                        <span>Допустимі напруження для сталі, бетону, деревини • PDF</span>
-                    </div>
-                    <a href="#" class="btn">Завантажити</a>
-                </li>
-            </ul>
-        </div>
+        <!-- Сюди JavaScript виводить підручники з mechanicsTextbooks.js -->
+        <div id="textbooks-container"></div>
 
     </div>
 
     <footer>
         <p>© Навчальний портал з механіки | Загальна література</p>
     </footer>
+
+    <!-- charset="UTF-8" — щоб замість української не з'являлися знаки питання та «ієрогліфи» -->
+    <script src="mechanicsTextbooks.js" charset="UTF-8"></script>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", () => {
+            const container = document.getElementById("textbooks-container");
+
+            if (typeof mechanicsTextbooks !== 'undefined') {
+                mechanicsTextbooks.forEach(book => {
+                    const card = document.createElement("div");
+                    card.className = "card";
+
+                    const topicsHtml = book.topics.map(topic => `<li>${topic}</li>`).join("");
+
+                    card.innerHTML = `
+                        <h2>📖 ${book.title} (${book.year})</h2>
+                        <p><strong>Автори:</strong> ${book.authors.join(", ")}</p>
+                        <p><strong>Видавництво:</strong> ${book.publisher}</p>
+                        <p><em>${book.purpose}</em></p>
+                        ${book.features ? `<p><strong>Особливості:</strong> ${book.features}</p>` : ""}
+                        <p style="margin-top: 15px; font-weight: bold;">Основні теми:</p>
+                        <ul class="item-list">
+                            ${topicsHtml}
+                        </ul>
+                    `;
+                    container.appendChild(card);
+                });
+            } else {
+                console.error("Файл mechanicsTextbooks.js не знайдено або дані не завантажились.");
+            }
+        });
+    </script>
 
 </body>
 </html>
