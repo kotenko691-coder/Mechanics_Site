@@ -3,94 +3,96 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Група АП | Навчальний портал з Механіки</title>
-    <!-- Підключення сучасного дизайну з style.css -->
+    <title>Р“СЂСѓРїР° РђРџ | РќР°РІС‡Р°Р»СЊРЅРёР№ РїРѕСЂС‚Р°Р» Р· РњРµС…Р°РЅС–РєРё</title>
+    <!-- РџС–РґРєР»СЋС‡РµРЅРЅСЏ СЃСѓС‡Р°СЃРЅРѕРіРѕ РґРёР·Р°Р№РЅСѓ Р· style.css -->
     <link rel="stylesheet" href="style.css">
+    <!-- РџС–РґРєР»СЋС‡РµРЅРЅСЏ РґРёРЅР°РјС–С‡РЅРѕРіРѕ Р°СЂС…С–С‚РµРєС‚СѓСЂРЅРѕРіРѕ С„РѕРЅСѓ -->
+    <script src="architect-bg.js"></script>
 </head>
 <body>
 
     <header>
-        <h1>Навчальний портал з Механіки</h1>
-        <p>Сторінка групи: Архітектура та планування</p>
+        <h1>РќР°РІС‡Р°Р»СЊРЅРёР№ РїРѕСЂС‚Р°Р» Р· РњРµС…Р°РЅС–РєРё</h1>
+        <p>РЎС‚РѕСЂС–РЅРєР° РіСЂСѓРїРё: РђСЂС…С–С‚РµРєС‚СѓСЂР° С‚Р° РїР»Р°РЅСѓРІР°РЅРЅСЏ</p>
     </header>
 
     <nav>
-        <a href="index.html">Головна</a>
-        <a href="literature.html">Основна література</a>
-        <a href="groups.html">Навчальні групи</a>
+        <a href="index.html">Р“РѕР»РѕРІРЅР°</a>
+        <a href="literature.html">РћСЃРЅРѕРІРЅР° Р»С–С‚РµСЂР°С‚СѓСЂР°</a>
+        <a href="groups.html">РќР°РІС‡Р°Р»СЊРЅС– РіСЂСѓРїРё</a>
     </nav>
 
     <div class="container">
-        <a href="groups.html" class="back-link">← Назад до вибору груп</a>
+        <a href="groups.html" class="back-link">в†ђ РќР°Р·Р°Рґ РґРѕ РІРёР±РѕСЂСѓ РіСЂСѓРї</a>
 
         <div id="auth-section">
-            <h3>Будь ласка, представтеся для доступу до матеріалів групи</h3>
-            <p style="font-size: 13px; color: #64748b; margin-bottom: 12px;">Введіть ваші ПІБ для фіксації результатів</p>
-            <input type="text" id="studentName" placeholder="Наприклад: Іван Петренко">
-            <button class="btn" onclick="registerStudent()">Увійти в систему</button>
+            <h3>Р‘СѓРґСЊ Р»Р°СЃРєР°, РїСЂРµРґСЃС‚Р°РІС‚РµСЃСЏ РґР»СЏ РґРѕСЃС‚СѓРїСѓ РґРѕ РјР°С‚РµСЂС–Р°Р»С–РІ РіСЂСѓРїРё</h3>
+            <p style="font-size: 13px; color: #64748b; margin-bottom: 12px;">Р’РІРµРґС–С‚СЊ РІР°С€С– РџР†Р‘ РґР»СЏ С„С–РєСЃР°С†С–С— СЂРµР·СѓР»СЊС‚Р°С‚С–РІ</p>
+            <input type="text" id="studentName" placeholder="РќР°РїСЂРёРєР»Р°Рґ: Р†РІР°РЅ РџРµС‚СЂРµРЅРєРѕ">
+            <button class="btn" onclick="registerStudent()">РЈРІС–Р№С‚Рё РІ СЃРёСЃС‚РµРјСѓ</button>
         </div>
 
         <div id="main-content" style="display: none;">
-            <div class="card" style="background: #f0fdf4; border-left: 5px solid #10b981;">
-                <span class="group-badge">Група АП</span>
+            <div class="card" style="background: rgba(240, 253, 244, 0.9); border-left: 5px solid #10b981; backdrop-filter: blur(8px);">
+                <span class="group-badge">Р“СЂСѓРїР° РђРџ</span>
                 <h3 id="welcomeUser" style="color: #065f46; margin-bottom: 5px;"></h3>
-                <p style="font-size: 13px; color: #047857;">Ви успішно авторизовані.</p>
-                <button onclick="logoutStudent()" style="margin-top: 10px; background: none; border: none; color: #dc2626; cursor: pointer; font-size: 12px; text-decoration: underline;">Змінити ім'я / Вийти</button>
+                <p style="font-size: 13px; color: #047857;">Р’Рё СѓСЃРїС–С€РЅРѕ Р°РІС‚РѕСЂРёР·РѕРІР°РЅС–.</p>
+                <button onclick="logoutStudent()" style="margin-top: 10px; background: none; border: none; color: #dc2626; cursor: pointer; font-size: 12px; text-decoration: underline;">Р—РјС–РЅРёС‚Рё С–Рј'СЏ / Р’РёР№С‚Рё</button>
             </div>
 
-            <!-- Блок інженерних калькуляторів -->
-            <div class="card">
-                <h2>🧮 Інженерні калькулятори для самоперевірки</h2>
-                <p style="margin-bottom: 15px; color: #555;">Використовуйте ці онлайн-інструменти для перевірки ваших розрахунково-графічних робіт:</p>
+            <!-- Р‘Р»РѕРє С–РЅР¶РµРЅРµСЂРЅРёС… РєР°Р»СЊРєСѓР»СЏС‚РѕСЂС–РІ -->
+            <div class="card" style="background: rgba(255, 255, 255, 0.9); backdrop-filter: blur(8px);">
+                <h2>рџ§® Р†РЅР¶РµРЅРµСЂРЅС– РєР°Р»СЊРєСѓР»СЏС‚РѕСЂРё РґР»СЏ СЃР°РјРѕРїРµСЂРµРІС–СЂРєРё</h2>
+                <p style="margin-bottom: 15px; color: #555;">Р’РёРєРѕСЂРёСЃС‚РѕРІСѓР№С‚Рµ С†С– РѕРЅР»Р°Р№РЅ-С–РЅСЃС‚СЂСѓРјРµРЅС‚Рё РґР»СЏ РїРµСЂРµРІС–СЂРєРё РІР°С€РёС… СЂРѕР·СЂР°С…СѓРЅРєРѕРІРѕ-РіСЂР°С„С–С‡РЅРёС… СЂРѕР±С–С‚:</p>
                 
                 <div style="display: flex; gap: 15px; flex-wrap: wrap;">
                     <a href="calc-statics.html" class="btn" style="text-decoration: none; text-align: center; flex: 1; min-width: 220px;">
-                        📊 Опорні реакції балки
+                        рџ“Љ РћРїРѕСЂРЅС– СЂРµР°РєС†С–С— Р±Р°Р»РєРё
                     </a>
                     <a href="calc-tension.html" class="btn" style="text-decoration: none; text-align: center; flex: 1; min-width: 220px;">
-                        📐 Розтяг і стиск
+                        рџ“ђ Р РѕР·С‚СЏРі С– СЃС‚РёСЃРє
                     </a>
                 </div>
             </div>
 
-            <div class="card">
-                <h2>📋 Практичні завдання</h2>
+            <div class="card" style="background: rgba(255, 255, 255, 0.9); backdrop-filter: blur(8px);">
+                <h2>рџ“‹ РџСЂР°РєС‚РёС‡РЅС– Р·Р°РІРґР°РЅРЅСЏ</h2>
                 <div class="task-item">
                     <div class="task-info">
-                        <h4>Практична робота №1: «Основи розрахунку архітектурних конструкцій на міцність»</h4>
-                        <p>Визначення навантажень та перевірка елементів.</p>
+                        <h4>РџСЂР°РєС‚РёС‡РЅР° СЂРѕР±РѕС‚Р° в„–1: В«РћСЃРЅРѕРІРё СЂРѕР·СЂР°С…СѓРЅРєСѓ Р°СЂС…С–С‚РµРєС‚СѓСЂРЅРёС… РєРѕРЅСЃС‚СЂСѓРєС†С–Р№ РЅР° РјС–С†РЅС–СЃС‚СЊВ»</h4>
+                        <p>Р’РёР·РЅР°С‡РµРЅРЅСЏ РЅР°РІР°РЅС‚Р°Р¶РµРЅСЊ С‚Р° РїРµСЂРµРІС–СЂРєР° РµР»РµРјРµРЅС‚С–РІ.</p>
                     </div>
-                    <a href="literature.html" class="btn">Методичка</a>
+                    <a href="literature.html" class="btn">РњРµС‚РѕРґРёС‡РєР°</a>
                 </div>
             </div>
 
-            <div class="card">
-                <h2>✍️ Експрес-тест з механіки</h2>
+            <div class="card" style="background: rgba(255, 255, 255, 0.9); backdrop-filter: blur(8px);">
+                <h2>вњЌпёЏ Р•РєСЃРїСЂРµСЃ-С‚РµСЃС‚ Р· РјРµС…Р°РЅС–РєРё</h2>
                 <form id="mechanicsTest">
                     <div class="test-question">
-                        <p>1. Що є мірою інертності тіла?</p>
+                        <p>1. Р©Рѕ С” РјС–СЂРѕСЋ С–РЅРµСЂС‚РЅРѕСЃС‚С– С‚С–Р»Р°?</p>
                         <div class="options">
-                            <label><input type="radio" name="q1" value="a"> А) Вага</label>
-                            <label><input type="radio" name="q1" value="b"> Б) Маса</label>
+                            <label><input type="radio" name="q1" value="a"> Рђ) Р’Р°РіР°</label>
+                            <label><input type="radio" name="q1" value="b"> Р‘) РњР°СЃР°</label>
                         </div>
                     </div>
-                    <button type="button" class="btn" onclick="checkTest()">Здати тест</button>
-                    <div id="testResult" class="result-box"></div>
+                    <button type="button" class="btn" onclick="checkTest()">Р—РґР°С‚Рё С‚РµСЃС‚</button>
+                    <div id="testResult" class="result-box" style="display: none; margin-top: 10px; padding: 10px; background: #eef2f7; border-radius: 6px;"></div>
                 </form>
             </div>
 
-            <div class="card">
-                <h2>📤 Здати виконану роботу</h2>
+            <div class="card" style="background: rgba(255, 255, 255, 0.9); backdrop-filter: blur(8px);">
+                <h2>рџ“¤ Р—РґР°С‚Рё РІРёРєРѕРЅР°РЅСѓ СЂРѕР±РѕС‚Сѓ</h2>
                 <form onsubmit="submitWork(event)">
-                    <div class="form-group">
-                        <label>Оберіть роботу:</label>
-                        <select id="workNumber"><option>Практична робота №1</option></select>
+                    <div class="form-group" style="margin-bottom: 12px;">
+                        <label style="display: block; margin-bottom: 5px;">РћР±РµСЂС–С‚СЊ СЂРѕР±РѕС‚Сѓ:</label>
+                        <select id="workNumber" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #cbd5e0;"><option>РџСЂР°РєС‚РёС‡РЅР° СЂРѕР±РѕС‚Р° в„–1</option></select>
                     </div>
-                    <div class="form-group">
-                        <label>Прикріпити файл:</label>
-                        <input type="file" required>
+                    <div class="form-group" style="margin-bottom: 15px;">
+                        <label style="display: block; margin-bottom: 5px;">РџСЂРёРєСЂС–РїРёС‚Рё С„Р°Р№Р»:</label>
+                        <input type="file" required style="width: 100%;">
                     </div>
-                    <button type="submit" class="btn">Надіслати викладачу</button>
+                    <button type="submit" class="btn">РќР°РґС–СЃР»Р°С‚Рё РІРёРєР»Р°РґР°С‡Сѓ</button>
                 </form>
             </div>
         </div>
@@ -103,14 +105,14 @@
         };
         function registerStudent() {
             const name = document.getElementById('studentName').value.trim();
-            if (!name) { alert('Введіть ПІБ!'); return; }
+            if (!name) { alert('Р’РІРµРґС–С‚СЊ РџР†Р‘!'); return; }
             localStorage.setItem('studentName_AP', name);
             showPortal(name);
         }
         function showPortal(name) {
             document.getElementById('auth-section').style.display = 'none';
             document.getElementById('main-content').style.display = 'block';
-            document.getElementById('welcomeUser').innerText = `Вітаємо, ${name}!`;
+            document.getElementById('welcomeUser').innerText = `Р’С–С‚Р°С”РјРѕ, ${name}!`;
         }
         function logoutStudent() {
             localStorage.removeItem('studentName_AP');
@@ -122,16 +124,16 @@
             let score = (q1 && q1.value === 'b') ? 1 : 0;
             const res = document.getElementById('testResult');
             res.style.display = 'block';
-            res.innerHTML = `Студент: <b>${name}</b> | Балів: <b>${score} з 1</b>`;
+            res.innerHTML = `РЎС‚СѓРґРµРЅС‚: <b>${name}</b> | Р‘Р°Р»С–РІ: <b>${score} Р· 1</b>`;
         }
         function submitWork(e) {
             e.preventDefault();
-            alert('Роботу успішно надіслано!');
+            alert('Р РѕР±РѕС‚Сѓ СѓСЃРїС–С€РЅРѕ РЅР°РґС–СЃР»Р°РЅРѕ!');
         }
     </script>
 
     <footer>
-        <p>© Навчальний портал з механіки | Група АП</p>
+        <p>В© РќР°РІС‡Р°Р»СЊРЅРёР№ РїРѕСЂС‚Р°Р» Р· РјРµС…Р°РЅС–РєРё | Р“СЂСѓРїР° РђРџ</p>
     </footer>
 
 </body>
