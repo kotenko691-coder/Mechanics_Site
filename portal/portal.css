@@ -173,29 +173,31 @@ body.pseudo-full .lec-top { display: none; }
 /* герой-блок: моє місце */
 .rt-hero { display: flex; align-items: center; gap: 18px; padding: 16px 18px; margin: 4px 0 6px;
   background: linear-gradient(135deg, var(--ink), #1d3f73); color: #fff; border-radius: var(--radius); border-bottom: 5px solid var(--amber); }
-.rt-bigplace { flex: none; width: 92px; height: 92px; border-radius: 50%; display: flex; flex-direction: column; align-items: center; justify-content: center;
-  color: var(--ink); border: 4px solid #fff; box-shadow: 0 4px 14px rgba(0,0,0,0.35); animation: pop 0.6s ease backwards; }
-.rt-bigplace small { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; }
-.rt-bigplace b { font-size: 40px; line-height: 1; }
+.rt-bigplace { flex: none; position: relative; width: 96px; text-align: center; line-height: 0; animation: pop 0.6s ease backwards; }
+.rt-bigplace b { position: absolute; left: 0; right: 0; top: 22px; font-size: 30px; line-height: 1; color: var(--ink); }
+.rt-bigplace small { display: block; margin-top: 6px; line-height: 1.2; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; color: #d7e2f3; }
 .rt-hero-title { font-size: 28px; font-weight: 800; }
 .rt-hero-sub { margin-top: 4px; color: #d7e2f3; font-size: 15px; }
 @keyframes pop { from { transform: scale(0.4); opacity: 0; } to { transform: none; opacity: 1; } }
 
 /* вежі груп */
 .rt-towers { overflow-x: auto; margin: 6px 0 4px; padding-bottom: 4px; }
-.rt-svg { width: 100%; min-width: 440px; height: auto; display: block; }
+.rt-svg { width: 100%; min-width: 520px; border: 2px solid var(--ink); border-radius: var(--radius); height: auto; display: block; }
 .rt-tower { transform-box: fill-box; transform-origin: bottom; animation: tower-up 0.7s ease backwards; }
 @keyframes tower-up { from { transform: scaleY(0.05); opacity: 0; } to { transform: none; opacity: 1; } }
 
-/* подіум */
+/* бригада: цегляні стовпи */
 .rt-podium { display: flex; justify-content: center; align-items: flex-end; gap: 10px; margin: 8px 0 14px; padding: 8px 4px 0; }
 .rt-podium[hidden] { display: none; }
 .pd-col { flex: 1 1 0; max-width: 170px; display: flex; flex-direction: column; align-items: center; text-align: center; animation: rise 0.7s ease backwards; }
-.pd-ava { width: 52px; height: 52px; border-radius: 50%; display: grid; place-items: center; font-weight: 800; font-size: 18px; color: var(--ink); border: 3px solid var(--ink); margin-bottom: 6px; }
+.pd-ava { line-height: 0; margin-bottom: 4px; }
 .pd-name { font-weight: 700; font-size: 14px; line-height: 1.2; overflow-wrap: anywhere; }
 .pd-pts { font-weight: 800; color: var(--ink); margin: 2px 0 6px; }
-.pd-block { width: 100%; display: grid; place-items: center; background: linear-gradient(180deg, #2b4f86, var(--ink)); color: #fff; border-radius: 6px 6px 0 0; font-size: 34px; font-weight: 800; }
-.pd-col.me .pd-block { background: linear-gradient(180deg, #ffbf3d, var(--amber)); color: var(--ink); }
+.pd-block { width: 100%; display: grid; place-items: center; color: #fff; font-size: 34px; font-weight: 800; text-shadow: 0 2px 0 rgba(0,0,0,0.35);
+  border: 2px solid var(--ink); border-bottom: 0; border-radius: 4px 4px 0 0; background-color: #b5533c;
+  background-image: linear-gradient(rgba(0,0,0,0.28) 2px, transparent 2px), linear-gradient(90deg, rgba(0,0,0,0.28) 2px, transparent 2px);
+  background-size: 100% 18px, 38px 18px; }
+.pd-col.me .pd-block { background-color: #f5a300; color: var(--ink); text-shadow: none; }
 .pd-col.me .pd-name { color: var(--ink); text-decoration: underline; text-decoration-color: var(--amber); text-decoration-thickness: 3px; }
 @keyframes rise { from { transform: translateY(30px); opacity: 0; } to { transform: none; opacity: 1; } }
 @media (max-width: 520px) {
