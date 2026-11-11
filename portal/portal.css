@@ -279,3 +279,6 @@ body.pseudo-full .lec-top { display: none; }
 .tk-locker-door{transform-box:fill-box;transform-origin:left center;transition:transform 1s}
 .tk-locker-door.tk-swing{transform:scaleX(.12)}
 .tk-boxes{transition:transform .8s}
+
+.tk-lift{transition:transform 2s ease-in-out}
+.tk-lift.tk-up{transform:translateY(-120px)}

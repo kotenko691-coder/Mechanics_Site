@@ -554,5 +554,119 @@
     });
   };
 
+
+  /* ---------- завдання 4: «Склад» (розтяг стержня: напруження і подовження) ---------- */
+  SCENES.z4 = function (g) {
+    var opened = false, hasCaliper = false, knowsMass = false, knowsCode = false, hasFormulas = false, hasE = false, drawerOpen = false;
+    var h = '<svg viewBox="0 0 800 480" class="tk-svg" role="group" aria-label="Склад із підвішеним вантажем">' +
+      '<rect width="800" height="480" fill="#c9cfd2"/>' +
+      '<rect y="372" width="800" height="108" fill="#7d7f80"/><rect y="364" width="800" height="10" fill="#5e6061"/>' +
+      '<g stroke="#9aa0a3" stroke-width="2"><line x1="0" y1="120" x2="800" y2="120"/><line x1="0" y1="240" x2="800" y2="240"/></g>' +
+      // балка під стелею
+      '<rect x="280" y="20" width="240" height="26" fill="#566570" stroke="#26323a" stroke-width="3"/>' +
+      // стержень
+      '<g class="tk-hot" data-id="rod"><rect class="tk-rod" x="394" y="46" width="12" height="166" fill="#9fb0ba" stroke="#26323a" stroke-width="2"/><rect x="388" y="46" width="24" height="8" fill="#6c7d88" stroke="#26323a" stroke-width="2"/></g>' +
+      // ящик
+      '<g class="tk-lift"><g class="tk-hot" data-id="crate"><rect x="340" y="212" width="120" height="110" fill="#c28b4c" stroke="#5a3a14" stroke-width="4"/>' +
+        '<g stroke="#5a3a14" stroke-width="3"><line x1="340" y1="212" x2="460" y2="322"/><line x1="460" y1="212" x2="340" y2="322"/></g>' +
+        '<rect x="372" y="248" width="56" height="26" fill="#fff9e3" stroke="#5a3a14" stroke-width="2"/><text x="400" y="266" text-anchor="middle" font-size="11" fill="#5a3a14">бирка</text></g></g>' +
+      '<rect x="320" y="322" width="160" height="14" fill="none"/>' +
+      // полиця з книгою
+      '<g class="tk-hot" data-id="book"><rect x="40" y="130" width="170" height="10" fill="#6b4a1f"/>' +
+        '<rect x="60" y="94" width="26" height="36" fill="#3f64a0" stroke="#1b2f55" stroke-width="2"/><rect x="90" y="100" width="22" height="30" fill="#b5392b" stroke="#4e130d" stroke-width="2"/><rect x="116" y="90" width="30" height="40" fill="#2f7d4f" stroke="#12381f" stroke-width="2"/>' +
+        '<text x="131" y="116" text-anchor="middle" font-size="8" fill="#fff">ОМ</text></g>' +
+      // таблиця властивостей на стіні
+      '<g class="tk-hot" data-id="chart"><rect x="50" y="180" width="160" height="90" fill="#fffbe8" stroke="#6b4a1f" stroke-width="4"/>' +
+        '<g stroke="#9a8a5a" stroke-width="1"><line x1="50" y1="206" x2="210" y2="206"/><line x1="50" y1="232" x2="210" y2="232"/><line x1="120" y1="180" x2="120" y2="270"/></g>' +
+        '<text x="130" y="198" text-anchor="middle" font-size="10" fill="#12284a">Матеріали</text></g>' +
+      // шухляда
+      '<g class="tk-hot" data-id="drawer"><rect x="60" y="300" width="130" height="64" fill="#5d6d79" stroke="#1c262e" stroke-width="3"/><rect x="72" y="314" width="106" height="38" fill="#6c7d89" stroke="#1c262e" stroke-width="2"/><rect x="110" y="328" width="30" height="8" rx="3" fill="#c9d4da"/></g>' +
+      // планшет із записами
+      '<g class="tk-hot" data-id="clip"><rect x="585" y="160" width="62" height="80" fill="#e8d9a8" stroke="#6b4a1f" stroke-width="3"/><rect x="605" y="154" width="22" height="12" fill="#777" stroke="#333" stroke-width="2"/>' +
+        '<g stroke="#8a7a4a" stroke-width="2"><line x1="595" y1="186" x2="637" y2="186"/><line x1="595" y1="200" x2="637" y2="200"/><line x1="595" y1="214" x2="620" y2="214"/></g></g>' +
+      // пульт
+      '<g class="tk-hot" data-id="panel"><rect x="620" y="260" width="130" height="104" fill="#4d5b66" stroke="#1c262e" stroke-width="4"/>' +
+        '<rect x="636" y="274" width="98" height="30" fill="#0e1a14" stroke="#1c262e" stroke-width="2"/><text class="tk-led" x="685" y="296" text-anchor="middle" font-size="18" font-family="monospace" fill="#5dff9a">----</text>' +
+        '<g fill="#aab6bb"><circle cx="650" cy="325" r="6"/><circle cx="672" cy="325" r="6"/><circle cx="694" cy="325" r="6"/><circle cx="716" cy="325" r="6"/><circle cx="650" cy="347" r="6"/><circle cx="672" cy="347" r="6"/><circle cx="694" cy="347" r="6"/><circle cx="716" cy="347" r="6"/></g></g>' +
+      '</svg>';
+    g.stage.innerHTML = h;
+    var svg = g.stage.querySelector('svg');
+    g.say('Склад. На стержні висить ящик, а пульт підйомника заблокований кодом. Огляньте все навколо.');
+
+    function openKeypad() {
+      var code = '', busy = false;
+      var body = g.modal('<h3>Пульт підйомника</h3><div class="kp-disp">----</div>' +
+        '<div class="kp-grid">' + [1, 2, 3, 4, 5, 6, 7, 8, 9].map(function (n) { return '<button type="button" data-k="' + n + '">' + n + '</button>'; }).join('') +
+        '<button type="button" data-k="C">C</button><button type="button" data-k="0">0</button><button type="button" data-k="ok" class="kp-ok">OK</button></div><p class="kp-msg muted"></p>');
+      var disp = body.querySelector('.kp-disp'), msg = body.querySelector('.kp-msg');
+      function showCode() { disp.textContent = (code + '----').slice(0, 4); }
+      body.querySelector('.kp-grid').addEventListener('click', function (e) {
+        var b = e.target.closest('button[data-k]'); if (!b || busy) return;
+        var k = b.getAttribute('data-k');
+        if (k === 'C') { code = ''; msg.textContent = ''; showCode(); return; }
+        if (k === 'ok') {
+          if (code.length < 4) { msg.textContent = 'Код має 4 цифри.'; return; }
+          busy = true; msg.textContent = 'Перевіряємо…';
+          g.submit(code).then(function (r) {
+            busy = false;
+            if (r.expired) { return; }
+            if (!r.correct) { msg.textContent = 'Пульт не відповідає. Перевірте розрахунок.'; code = ''; showCode(); return; }
+            opened = true; g.close();
+            svg.querySelector('.tk-led').textContent = 'OK';
+            svg.querySelector('.tk-lift').classList.add('tk-up');
+            g.say('Підйомник запрацював, ящик плавно піднявся. Стержень витримав!');
+            setTimeout(function () { g.finish(r); }, 2200);
+          }).catch(function (err) {
+            busy = false; msg.textContent = err && err.message === 'NETWORK' ? 'Немає зв’язку. Спробуйте ще раз.' : 'Не вдалося перевірити (' + (err && err.message) + ').';
+          });
+          return;
+        }
+        if (code.length < 4) { code += k; showCode(); }
+      });
+    }
+
+    var ACT = {
+      crate: function () {
+        knowsMass = true;
+        g.modal('<h3>Ящик</h3><p>На бирці написано:</p><div class="tk-note"><p><b>«Маса 4 т»</b></p></div>');
+      },
+      rod: function () {
+        if (!hasCaliper) { g.say('Сталевий стержень, на якому висить ящик. Розміри перерізу на око не визначити, потрібен штангенциркуль.'); return; }
+        g.modal('<h3>Вимірювання стержня</h3><p>Ви виміряли стержень штангенциркулем і рулеткою:</p><div class="tk-note"><p>Переріз квадратний, сторона <b>20 мм</b>.</p><p>Довжина стержня <b>2 м</b>.</p></div>');
+      },
+      drawer: function () {
+        if (drawerOpen) { g.say(hasCaliper ? 'Шухляда порожня. Штангенциркуль вже у вас.' : 'Шухляда відчинена.'); return; }
+        drawerOpen = true; hasCaliper = true;
+        svg.querySelector('[data-id="drawer"]').setAttribute('opacity', '0.6');
+        g.say('У шухляді лежить штангенциркуль. Ви його забрали.');
+      },
+      book: function () {
+        hasFormulas = true;
+        g.modal('<h3>Підручник «Опір матеріалів»</h3><p>На закладці:</p><div class="tk-note">' +
+          '<p><b>Розтяг стержня.</b> Сила, що розтягує, дорівнює вазі вантажу: <b>N = m · g</b>, беріть <b>g = 10 м/с²</b>.</p>' +
+          '<p>Нормальне напруження: <b>σ = N / A</b>. Подовження за законом Гука: <b>Δl = σ · l / E</b>.</p>' +
+          '<p>Підказка до одиниць: 1 Н/мм² = 1 МПа.</p></div>');
+      },
+      chart: function () {
+        hasE = true;
+        g.modal('<h3>Таблиця матеріалів</h3><div class="tk-note"><p>Сталь: модуль пружності <b>E = 2·10<sup>5</sup> МПа</b>.</p><p>Алюміній: E = 0,7·10<sup>5</sup> МПа.</p><p>Мідь: E = 1,2·10<sup>5</sup> МПа.</p></div><p class="muted">Стержень на складі сталевий.</p>');
+      },
+      clip: function () {
+        knowsCode = true;
+        g.modal('<h3>Планшет оператора</h3><p>Запис від руки:</p><div class="tk-note"><p><b>«Код пульта: напруження σ у МПа (три цифри), потім подовження Δl у міліметрах (одна цифра). Разом чотири цифри без пробілів».</b></p></div>');
+      },
+      panel: function () {
+        if (opened) { g.say('Підйомник уже працює.'); return; }
+        openKeypad();
+      }
+    };
+
+    svg.addEventListener('click', function (e) {
+      var t = e.target.closest('[data-id]'); if (!t) return;
+      var id = t.getAttribute('data-id');
+      if (ACT[id]) ACT[id]();
+    });
+  };
+
   window.PortalTasks = { run: run, scenes: SCENES, mmss: mmss, pointsNow: pointsNow };
 })();

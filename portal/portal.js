@@ -803,8 +803,8 @@
   // Показ без входу: portal/?demo=task (перевірка коду локально, на сервер нічого не йде)
   function demoTask() {
     var t0 = Date.now();
-    var z3 = /[?&]demo=task3/.test(location.search), z2 = /[?&]demo=task2/.test(location.search), code = z3 ? '0302' : z2 ? '2016' : '84';
-    openTask({ id: z3 ? 'z3' : z2 ? 'z2' : 'z1', name: z3 ? 'Лабораторія' : z2 ? 'Будмайданчик' : 'Майстерня', limit: 600, max: 100, min: 10, elapsed: 0 }, function (answer) {
+    var z4 = /[?&]demo=task4/.test(location.search), z3 = /[?&]demo=task3/.test(location.search), z2 = /[?&]demo=task2/.test(location.search), code = z4 ? '1001' : z3 ? '0302' : z2 ? '2016' : '84';
+    openTask({ id: z4 ? 'z4' : z3 ? 'z3' : z2 ? 'z2' : 'z1', name: z4 ? 'Склад' : z3 ? 'Лабораторія' : z2 ? 'Будмайданчик' : 'Майстерня', limit: 600, max: 100, min: 10, elapsed: 0 }, function (answer) {
       return new Promise(function (res) {
         setTimeout(function () {
           var sec = Math.round((Date.now() - t0) / 1000);
