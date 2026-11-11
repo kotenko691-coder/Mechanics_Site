@@ -42,12 +42,63 @@
   };
   var pending = 0, loaderTimer = null;
 
+  /* Заставки завантаження з механіки: щоразу випадкова */
+  function gearPath(cx, cy, r, n) {
+    var pts = [], step = Math.PI * 2 / n, ri = r * 0.78;
+    for (var i = 0; i < n; i++) {
+      var a = i * step;
+      [[0, ri], [0.18, r], [0.5, r], [0.68, ri]].forEach(function (p) {
+        var ang = a + p[0] * step;
+        pts.push((cx + Math.cos(ang) * p[1]).toFixed(1) + ',' + (cy + Math.sin(ang) * p[1]).toFixed(1));
+      });
+    }
+    return 'M' + pts.join('L') + 'Z';
+  }
+  var LOADERS = [
+    // шестерні
+    function () {
+      return '<svg viewBox="0 0 64 48"><g class="ld-spin" style="transform-origin:22px 24px"><path d="' + gearPath(22, 24, 15, 10) + '" fill="#f5a300" stroke="#fff" stroke-width="1.5"/><circle cx="22" cy="24" r="4.5" fill="#12284a"/></g>' +
+        '<g class="ld-spin-r" style="transform-origin:46px 21px"><path d="' + gearPath(46, 21, 10, 8) + '" fill="#fff" stroke="#f5a300" stroke-width="1.5"/><circle cx="46" cy="21" r="3.2" fill="#12284a"/></g></svg>';
+    },
+    // маятник Ньютона
+    function () {
+      var b = '';
+      for (var i = 0; i < 5; i++) {
+        var x = 14 + i * 9, cls = i === 0 ? ' class="ld-swing-l"' : i === 4 ? ' class="ld-swing-r"' : '';
+        b += '<g' + cls + ' style="transform-origin:' + x + 'px 6px"><line x1="' + x + '" y1="6" x2="' + x + '" y2="30" stroke="#fff" stroke-width="1.3"/><circle cx="' + x + '" cy="34" r="4.5" fill="#f5a300" stroke="#fff" stroke-width="1.3"/></g>';
+      }
+      return '<svg viewBox="0 0 64 48"><line x1="6" y1="6" x2="58" y2="6" stroke="#fff" stroke-width="3" stroke-linecap="round"/>' + b + '</svg>';
+    },
+    // важіль: балка з вантажами хитається на опорі
+    function () {
+      return '<svg viewBox="0 0 64 48"><polygon points="32,24 24,42 40,42" fill="#fff"/>' +
+        '<g class="ld-tilt" style="transform-origin:32px 24px"><rect x="6" y="21" width="52" height="5" rx="2" fill="#f5a300" stroke="#fff" stroke-width="1.2"/>' +
+        '<rect x="8" y="8" width="12" height="13" fill="#fff"/><rect x="46" y="14" width="8" height="7" fill="#fff"/></g></svg>';
+    },
+    // блок: колесо з канатом і вантажем
+    function () {
+      return '<svg viewBox="0 0 64 48"><line x1="32" y1="2" x2="32" y2="10" stroke="#fff" stroke-width="2"/>' +
+        '<g class="ld-spin" style="transform-origin:32px 17px"><circle cx="32" cy="17" r="8" fill="none" stroke="#f5a300" stroke-width="3"/><line x1="32" y1="9" x2="32" y2="25" stroke="#f5a300" stroke-width="2"/><line x1="24" y1="17" x2="40" y2="17" stroke="#f5a300" stroke-width="2"/></g>' +
+        '<line x1="24" y1="17" x2="24" y2="30" stroke="#fff" stroke-width="1.5"/><line x1="40" y1="17" x2="40" y2="30" stroke="#fff" stroke-width="1.5"/>' +
+        '<rect class="ld-up" x="19" y="30" width="10" height="9" fill="#fff"/><rect class="ld-down" x="35" y="30" width="10" height="9" fill="#f5a300"/></svg>';
+    }
+  ];
+  var lastLoader = -1;
+  function pickLoader() {
+    var ico = $('#loader-ico');
+    if (!ico) return;
+    var k;
+    do { k = Math.floor(Math.random() * LOADERS.length); } while (k === lastLoader && LOADERS.length > 1);
+    lastLoader = k;
+    ico.innerHTML = LOADERS[k]();
+  }
+
   function loaderOn(action) {
     pending++;
     var lt = $('#loader-text'), lb = $('#loader');
     if (!lt || !lb) return;
     lt.textContent = LOADING[action] || 'Завантаження…';
-    if (!loaderTimer) loaderTimer = setTimeout(function () { lb.hidden = false; }, 200);
+    if (!loaderTimer) loaderTimer = setTimeout(function () { pickLoader(); lb.hidden = false; }, 200);
   }
 
   function loaderOff() {
@@ -763,7 +814,14 @@
   $('#nav-logout').addEventListener('click', function (e) { e.preventDefault(); logout(''); });
 
   /* ---------- запуск ---------- */
-  if (/[?&]demo=rating/.test(location.search)) {
+  if (/[?&]demo=loader/.test(location.search)) {
+    var dl = 0;
+    (function tick() {
+      lastLoader = -1; var ico = $('#loader-ico'); ico.innerHTML = LOADERS[dl % LOADERS.length](); dl++;
+      $('#loader').hidden = false; setTimeout(tick, 2500);
+    })();
+    show('v-login');
+  } else if (/[?&]demo=rating/.test(location.search)) {
     demoRating();
   } else if (token) {
     boot();
