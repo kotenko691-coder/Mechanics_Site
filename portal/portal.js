@@ -806,8 +806,9 @@
     openTask({ id: 'z1', name: 'Майстерня', limit: 600, max: 100, min: 10, elapsed: 0 }, function (answer) {
       return new Promise(function (res) {
         setTimeout(function () {
-          if (String(answer) !== '84') { res({ ok: true, correct: false }); return; }
           var sec = Math.round((Date.now() - t0) / 1000);
+          if (sec > 600) { res({ ok: true, correct: false, expired: true, points: 0, seconds: sec }); return; }
+          if (String(answer) !== '84') { res({ ok: true, correct: false }); return; }
           res({ ok: true, correct: true, seconds: sec, points: window.PortalTasks.pointsNow({ limit: 600, max: 100, min: 10 }, sec) });
         }, 300);
       });

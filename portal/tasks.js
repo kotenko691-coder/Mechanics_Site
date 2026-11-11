@@ -16,10 +16,11 @@
     var m = Math.floor(sec / 60), s = sec % 60;
     return (m < 10 ? '0' : '') + m + ':' + (s < 10 ? '0' : '') + s;
   }
+  // Перша хвилина = максимум; далі лінійно до мінімуму на ліміті; після ліміту = 0 (як на сервері)
   function pointsNow(info, sec) {
-    if (sec <= info.limit) return info.max;
-    if (sec >= 2 * info.limit) return info.min;
-    return Math.round(info.max - (info.max - info.min) * (sec - info.limit) / info.limit);
+    if (sec <= 60) return info.max;
+    if (sec > info.limit) return 0;
+    return Math.round(info.max - (info.max - info.min) * (sec - 60) / Math.max(1, info.limit - 60));
   }
 
   /* ---------- оболонка: таймер, підписи, результат ---------- */
@@ -30,6 +31,7 @@
         '<div><small>Ліміт</small><b>' + mmss(info.limit) + '</b></div>' +
         '<div><small>Бали зараз</small><b class="tk-pts">' + info.max + '</b></div>' +
       '</div>' +
+      '<p class="tk-rule muted">Перша хвилина: ' + info.max + ' балів, далі менше, на ліміті ' + info.min + ', після ліміту 0.</p>' +
       '<div class="tk-stage"></div>' +
       '<p class="tk-say" role="status" aria-live="polite"></p>' +
       '<div class="tk-modal" hidden><div class="tk-modal-box"><button type="button" class="tk-x" aria-label="Закрити">×</button><div class="tk-modal-body"></div></div></div>';
@@ -44,9 +46,16 @@
     function tick() {
       if (stopped) return;
       var e = elapsed();
+      if (e > info.limit && !expiring) { expire(); return; }
       timeEl.textContent = mmss(e);
       ptsEl.textContent = pointsNow(info, e);
-      box.classList.toggle('tk-late', e > info.limit);
+      box.classList.toggle('tk-late', e > 60);
+    }
+    var expiring = false;
+    function expire() {
+      expiring = true;
+      var done = function (r) { api.finish({ seconds: (r && r.seconds) || info.limit, points: 0, expired: true, preview: r && r.preview }); };
+      ctx.submit('').then(done).catch(function () { done(null); });
     }
     var timer = setInterval(function () { if (!box.isConnected) { clearInterval(timer); return; } tick(); }, 500);
     tick();
@@ -69,8 +78,8 @@
       timeEl.textContent = mmss(r.seconds);
       ptsEl.textContent = r.points;
       var card = api.modal(
-        '<h3>Готово!</h3>' +
-        '<p class="tk-res">Ваш час: <b>' + mmss(r.seconds) + '</b></p>' +
+        (r.expired ? '<h3>Час вийшов</h3>' : '<h3>Готово!</h3>') +
+        '<p class="tk-res">' + (r.expired ? 'Ліміт: ' : 'Ваш час: ') + '<b>' + mmss(r.seconds) + '</b></p>' +
         '<p class="tk-res">Бали: <b>' + r.points + '</b></p>' +
         (r.preview ? '<p class="muted">Це тестовий прохід викладача: бали не записано.</p>' : '<p class="muted">Бали вже в рейтингу. Повторно за цей квест бали не нараховуються.</p>') +
         '<button type="button" class="btn" data-act="list">До списку завдань</button>');
