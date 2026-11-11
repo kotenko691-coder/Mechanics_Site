@@ -555,22 +555,98 @@
       '<span class="rt-pts">' + esc(String(Math.round(value * 100) / 100)) + '</span></li>';
   }
 
+  var MEDAL = { 1: '#f5c542', 2: '#d5dbe3', 3: '#e0a572' };
+
+  function num(v) { return String(Math.round(v * 100) / 100); }
+
+  // Змагання груп: вежі, висота залежить від суми балів
+  function towersSvg(groups, gmax) {
+    var cw = 78, W = groups.length * cw, H = 262, base = 196, fh = 17, maxF = 8;
+    var s = '<svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Рейтинг груп" class="rt-svg">';
+    s += '<line x1="2" y1="' + base + '" x2="' + (W - 2) + '" y2="' + base + '" stroke="#12284a" stroke-width="3"/>';
+    groups.forEach(function (g, i) {
+      var x = i * cw + 11, w = 56;
+      var fl = g.total > 0 && gmax > 0 ? Math.max(1, Math.round(g.total / gmax * maxF)) : 0;
+      var fill = g.mine ? '#f5a300' : '#6c86ad';
+      var top = base - fl * fh;
+      s += '<g class="rt-tower" style="animation-delay:' + (i * 120) + 'ms">';
+      for (var f = 0; f < fl; f++) {
+        var y = base - (f + 1) * fh;
+        s += '<rect x="' + x + '" y="' + y + '" width="' + w + '" height="' + (fh - 2) + '" fill="' + fill + '" stroke="#12284a" stroke-width="1.6"/>' +
+             '<rect x="' + (x + 12) + '" y="' + (y + 4) + '" width="9" height="' + (fh - 10) + '" fill="#fff" opacity="0.7"/>' +
+             '<rect x="' + (x + 35) + '" y="' + (y + 4) + '" width="9" height="' + (fh - 10) + '" fill="#fff" opacity="0.7"/>';
+      }
+      if (fl > 0) {
+        if (g.place === 1) {
+          s += '<line x1="' + (x + w / 2) + '" y1="' + top + '" x2="' + (x + w / 2) + '" y2="' + (top - 26) + '" stroke="#12284a" stroke-width="2.5"/>' +
+               '<polygon points="' + (x + w / 2) + ',' + (top - 26) + ' ' + (x + w / 2 + 20) + ',' + (top - 19) + ' ' + (x + w / 2) + ',' + (top - 12) + '" fill="#f5a300" stroke="#12284a" stroke-width="1.6"/>';
+        } else {
+          s += '<polygon points="' + x + ',' + top + ' ' + (x + w) + ',' + top + ' ' + (x + w / 2) + ',' + (top - 13) + '" fill="#12284a"/>';
+        }
+      }
+      s += '<text x="' + (x + w / 2) + '" y="' + (top - (g.place === 1 && fl > 0 ? 34 : 20)) + '" text-anchor="middle" font-size="15" font-weight="800" fill="#12284a">' + num(g.total) + '</text></g>';
+      s += '<text x="' + (x + w / 2) + '" y="' + (base + 20) + '" text-anchor="middle" font-size="14" font-weight="700" fill="#12284a">' + esc(g.group) + '</text>';
+      s += '<circle cx="' + (x + w / 2) + '" cy="' + (base + 44) + '" r="12" fill="' + (MEDAL[g.place] || '#fbfcfe') + '" stroke="#12284a" stroke-width="2"/>' +
+           '<text x="' + (x + w / 2) + '" y="' + (base + 49) + '" text-anchor="middle" font-size="13" font-weight="800" fill="#12284a">' + g.place + '</text>';
+      s += '<text x="' + (x + w / 2) + '" y="' + (base + 66) + '" text-anchor="middle" font-size="10.5" fill="#5b6b82">' + g.count + ' студ.</text>';
+    });
+    return s + '</svg>';
+  }
+
+  function initials(name) {
+    var p = String(name).trim().split(/\s+/);
+    return ((p[0] || '').charAt(0) + (p[1] || '').charAt(0)).toUpperCase();
+  }
+
+  // Подіум трійки найкращих у групі: 2 - 1 - 3
+  function podiumHtml(students) {
+    var top = students.slice(0, 3);
+    if (!top.length || top[0].points <= 0) return '';
+    var order = top.length === 3 ? [1, 0, 2] : top.length === 2 ? [1, 0] : [0];
+    var hs = [120, 92, 72];
+    return order.map(function (idx) {
+      var st = top[idx];
+      return '<div class="pd-col' + (st.me ? ' me' : '') + '" style="animation-delay:' + (idx * 140) + 'ms">' +
+        '<div class="pd-ava" style="background:' + (MEDAL[st.place] || '#fbfcfe') + '">' + esc(initials(st.name)) + '</div>' +
+        '<div class="pd-name">' + esc(st.name) + '</div>' +
+        '<div class="pd-pts">' + num(st.points) + '</div>' +
+        '<div class="pd-block" style="height:' + hs[idx] + 'px"><span>' + st.place + '</span></div></div>';
+    }).join('');
+  }
+
+  function heroHtml(r, myG) {
+    if (!r.me) {
+      return '<div class="rt-hero-body"><div class="rt-hero-title">Група ' + esc(r.group) + '</div>' +
+        '<div class="rt-hero-sub">' + (myG ? myG.place + ' місце · ' + num(myG.total) + ' балів' : '') + '</div></div>';
+    }
+    var higher = r.students.filter(function (s) { return s.points > r.me.points; })
+      .map(function (s) { return s.points; });
+    var next = higher.length ? Math.min.apply(null, higher) : null;
+    var hint = r.me.points <= 0 ? 'Бали з’являться після перших завдань.'
+      : next === null ? 'Ви лідер своєї групи.'
+      : 'До наступного місця в групі не вистачає ' + num(next - r.me.points) + ' балів.';
+    return '<div class="rt-bigplace" style="background:' + (MEDAL[r.me.place] || '#fbfcfe') + '"><small>місце</small><b>' + r.me.place + '</b></div>' +
+      '<div class="rt-hero-body"><div class="rt-hero-title">' + num(r.me.points) + ' балів</div>' +
+      '<div class="rt-hero-sub">' + esc(hint) + '</div>' +
+      '<div class="rt-hero-sub">Ваша група ' + esc(r.group) + ': ' + (myG ? myG.place + ' місце, ' + num(myG.total) + ' балів' : '') + '</div></div>';
+  }
+
   function showRating() {
     api('rating', { group: viewGroup }).then(function (r) {
       var gmax = Math.max.apply(null, r.groups.map(function (g) { return g.total; }).concat([0]));
       var smax = Math.max.apply(null, r.students.map(function (s) { return s.points; }).concat([0]));
       var gs = r.groups.slice().sort(function (a, b) { return a.place - b.place || a.group.localeCompare(b.group, 'uk'); });
-      $('#rt-groups').innerHTML = gs.map(function (g) {
-        return ratingRow(g.place, g.group, g.total, gmax, g.mine, g.count + ' студ.');
-      }).join('');
+      var myG = r.groups.filter(function (g) { return g.mine; })[0];
+      $('#rt-hero').innerHTML = heroHtml(r, myG);
+      $('#rt-towers').innerHTML = towersSvg(gs, gmax);
       $('#rt-title').textContent = 'Група ' + r.group;
-      $('#rt-students').innerHTML = r.students.map(function (s) {
+      var pod = podiumHtml(r.students);
+      $('#rt-podium').innerHTML = pod;
+      $('#rt-podium').hidden = !pod;
+      var rest = pod ? r.students.slice(3) : r.students;
+      $('#rt-students').innerHTML = rest.map(function (s) {
         return ratingRow(s.place, s.name, s.points, smax, s.me, '');
       }).join('');
-      var myG = r.groups.filter(function (g) { return g.mine; })[0];
-      $('#rt-me').textContent = r.me
-        ? 'Ви: ' + r.me.place + ' місце в групі, ' + r.me.points + ' балів. Ваша група: ' + (myG ? myG.place : '-') + ' місце.'
-        : (myG ? 'Група ' + r.group + ': ' + myG.place + ' місце, ' + myG.total + ' балів.' : '');
       $('#rt-empty').hidden = gmax > 0;
       show('v-rating');
     }).catch(fail);

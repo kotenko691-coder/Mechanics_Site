@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Кабінет студента | Навчальний портал з механіки</title>
     <link rel="stylesheet" href="../style.css">
-    <link rel="stylesheet" href="portal.css?v=12">
+    <link rel="stylesheet" href="portal.css?v=13">
 </head>
 <body>
 
@@ -79,11 +79,12 @@
         <section id="v-rating" hidden>
             <div class="card">
                 <h2>Рейтинг</h2>
-                <p id="rt-me" class="rt-me"></p>
-                <h3>Групи</h3>
-                <p class="muted">Місце групи залежить від суми балів усіх її студентів.</p>
-                <ol id="rt-groups" class="rt-list"></ol>
+                <div id="rt-hero" class="rt-hero"></div>
+                <h3>Змагання груп</h3>
+                <p class="muted">Висота вежі залежить від суми балів усіх студентів групи.</p>
+                <div id="rt-towers" class="rt-towers"></div>
                 <h3 id="rt-title">Ваша група</h3>
+                <div id="rt-podium" class="rt-podium"></div>
                 <ol id="rt-students" class="rt-list"></ol>
                 <p id="rt-empty" class="muted" hidden>Бали з’являться після перших завдань.</p>
             </div>
@@ -142,8 +143,8 @@
         <p>© Навчальний портал з механіки | Кабінет студента</p>
     </footer>
 
-    <script src="config.js?v=12"></script>
-    <script src="portal.js?v=12"></script>
+    <script src="config.js?v=13"></script>
+    <script src="portal.js?v=13"></script>
     <script src="https://accounts.google.com/gsi/client" async defer></script>
     <script src="../background.js"></script>
 </body>
