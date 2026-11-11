@@ -34,9 +34,31 @@
   }
 
   /* ---------- запити до сервера ---------- */
-  function api(action, data) {
+  var LOADING = {
+    me: 'Входимо в кабінет…', register: 'Реєструємо…', lectures: 'Завантажуємо лекції…',
+    lecture: 'Відкриваємо лекцію…', done: 'Зберігаємо…', admin: 'Завантажуємо список студентів…',
+    admin_status: 'Зберігаємо…', admin_code: 'Зберігаємо…'
+  };
+  var pending = 0, loaderTimer = null;
+
+  function loaderOn(action) {
+    pending++;
+    $('#loader-text').textContent = LOADING[action] || 'Завантаження…';
+    if (!loaderTimer) loaderTimer = setTimeout(function () { $('#loader').hidden = false; }, 200);
+  }
+
+  function loaderOff() {
+    pending = Math.max(0, pending - 1);
+    if (pending === 0) {
+      clearTimeout(loaderTimer); loaderTimer = null;
+      $('#loader').hidden = true;
+    }
+  }
+
+  function api(action, data, quiet) {
     var body = JSON.stringify(Object.assign({ token: token, action: action }, data || {}));
-    return fetch(CFG.API_URL, {
+    if (!quiet) loaderOn(action);
+    var p = fetch(CFG.API_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
       body: body
@@ -46,6 +68,8 @@
       if (!j.ok) throw new Error(j.error || 'NETWORK');
       return j;
     });
+    if (!quiet) p.then(loaderOff, loaderOff);
+    return p;
   }
 
   /* ---------- показ екранів і повідомлень ---------- */
@@ -198,7 +222,7 @@
   }
 
   function refreshLectures() {
-    api('lectures', { group: viewGroup }).then(function (r) {
+    api('lectures', { group: viewGroup }, true).then(function (r) {
       items = r.items;
       if (!$('#v-home').hidden) renderHome();
     }).catch(function () { /* лишаємо показане */ });

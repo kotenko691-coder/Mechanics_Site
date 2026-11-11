@@ -107,3 +107,20 @@ form .btn { margin-top: 20px; }
   font-size: 13px;
 }
 .adm-table .blocked td { color: var(--steel); }
+
+/* ---------- індикатор завантаження ---------- */
+.loader[hidden] { display: none; }
+.loader {
+  position: fixed; left: 50%; top: 18px; transform: translateX(-50%);
+  z-index: 50; display: flex; align-items: center; gap: 12px;
+  background: var(--ink); color: #fff; border-bottom: 4px solid var(--amber);
+  padding: 10px 18px; border-radius: var(--radius); font-weight: 600;
+  box-shadow: 0 6px 20px rgba(18, 40, 74, 0.35); max-width: calc(100vw - 32px);
+}
+.spinner {
+  width: 18px; height: 18px; flex: none; border-radius: 50%;
+  border: 3px solid rgba(255, 255, 255, 0.3); border-top-color: var(--amber);
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .spinner { animation-duration: 2.4s; } }
