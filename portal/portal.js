@@ -75,6 +75,47 @@
     return p;
   }
 
+  /* ---------- кеш: список лекцій у пам'яті пристрою, вміст лекцій у пам'яті сторінки ---------- */
+  var LS_KEY = 'portalCache1';
+  function cacheLoad() {
+    try { return JSON.parse(localStorage.getItem(LS_KEY) || 'null'); } catch (e) { return null; }
+  }
+  function cacheSave() {
+    try {
+      if (!me) return;
+      localStorage.setItem(LS_KEY, JSON.stringify({ me: me, items: items, group: viewGroup, t: Date.now() }));
+    } catch (e) { /* не страшно */ }
+  }
+  function cacheClear() { try { localStorage.removeItem(LS_KEY); } catch (e) { /* ігноруємо */ } }
+
+  var lecCache = {};      // ключ -> {t, p: Promise}
+  var LEC_TTL = 10 * 60 * 1000;
+  function lecKey(it) { return (viewGroup || '') + '|' + it.id; }
+  function getLecture(it, quiet) {
+    var k = lecKey(it), c = lecCache[k];
+    if (c && Date.now() - c.t < LEC_TTL) return c.p;
+    var p = api('lecture', { id: it.id, group: viewGroup }, quiet);
+    lecCache[k] = { t: Date.now(), p: p };
+    p.catch(function () { if (lecCache[k] && lecCache[k].p === p) delete lecCache[k]; });
+    return p;
+  }
+  var prefetchTimer = null;
+  function prefetchAll() {
+    clearTimeout(prefetchTimer);
+    var queue = items.filter(function (it) { return it.kind !== 'pdf' && !lecCache[lecKey(it)]; });
+    (function next() {
+      var it = queue.shift();
+      if (!it) return;
+      if (!$('#v-lecture').hidden) { prefetchTimer = setTimeout(next, 1500); return; }
+      getLecture(it, true).then(function () { prefetchTimer = setTimeout(next, 300); },
+        function () { prefetchTimer = setTimeout(next, 300); });
+    })();
+  }
+  $('#lec-list').addEventListener('mouseover', function (e) {
+    var b = e.target.closest('button[data-i]');
+    if (b && items[+b.getAttribute('data-i')]) getLecture(items[+b.getAttribute('data-i')], true);
+  });
+
   /* ---------- показ екранів і повідомлень ---------- */
   var VIEWS = ['v-login', 'v-register', 'v-home', 'v-lecture', 'v-admin'];
 
@@ -133,7 +174,7 @@
 
   function logout(message) {
     token = '';
-    me = null;
+    me = null; items = []; lecCache = {}; cacheClear();
     try { sessionStorage.removeItem('portalToken'); } catch (e) { /* ігноруємо */ }
     if (window.google && google.accounts && google.accounts.id) {
       google.accounts.id.disableAutoSelect();
@@ -144,7 +185,27 @@
   }
 
   /* ---------- старт ---------- */
+  var early = null;
   function boot() {
+    // кеш із попереднього візиту: показуємо одразу, перевіряємо у фоні
+    var c = cacheLoad();
+    if (c && c.me && c.items && (c.me.registered || c.me.isOwner) && !c.me.blocked && token) {
+      me = c.me; items = c.items; viewGroup = c.group || '';
+      showHomeShell();
+      renderHome();
+      show('v-home');
+      api('me', null, true).then(function (r) {
+        me = r;
+        if (r.blocked) { say(ERR.BLOCKED, true); cacheClear(); show('v-login'); return; }
+        if (!r.registered && !r.isOwner) { cacheClear(); showRegister(); return; }
+        showHomeShell();
+        refreshLectures();
+      }).catch(function (err) { if (err && err.message === 'AUTH') fail(err); });
+      return;
+    }
+    // перший вхід: список лекцій просимо одночасно з «me»
+    early = (c && c.me && !c.me.isOwner) ? api('lectures', { group: '' }, true) : null;
+    if (early) early.catch(function () {});
     api('me').then(function (r) {
       me = r;
       if (r.blocked) { say(ERR.BLOCKED, true); show('v-login'); return; }
@@ -201,6 +262,17 @@
   }
 
   function showHome() {
+    showHomeShell();
+    if (early) {
+      var e = early; early = null;
+      e.then(function (r) { items = r.items; cacheSave(); renderHome(); show('v-home'); prefetchAll(); })
+        .catch(function () { loadLectures(); });
+      return;
+    }
+    loadLectures();
+  }
+
+  function showHomeShell() {
     say('');
     var owner = me.isOwner;
     $('#owner-bar').hidden = !owner;
@@ -213,22 +285,25 @@
     $('#home-title').textContent = me.student
       ? 'Вітаємо, ' + me.student.name + ' · ' + me.student.group
       : 'Лекції (перегляд викладача)';
-    loadLectures();
   }
 
   function loadLectures() {
     api('lectures', { group: viewGroup }).then(function (r) {
       items = r.items;
+      cacheSave();
       renderHome();
       show('v-home');
+      prefetchAll();
     }).catch(fail);
   }
 
   function refreshLectures() {
     api('lectures', { group: viewGroup }, true).then(function (r) {
       items = r.items;
+      cacheSave();
       if (!$('#v-home').hidden) renderHome();
-    }).catch(function () { /* лишаємо показане */ });
+      prefetchAll();
+    }).catch(function (err) { if (err && err.message === 'AUTH') fail(err); });
   }
 
   var SEC_NAME = {
@@ -295,7 +370,7 @@
     exitFull();
     show('v-lecture');
     autoFrames = [];
-    api('lecture', { id: it.id, group: viewGroup }).then(function (r) {
+    getLecture(it).then(function (r) {
       var box = $('#lec-body');
       box.innerHTML = '';
       if (r.kind === 'html') {
