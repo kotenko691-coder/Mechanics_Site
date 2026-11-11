@@ -102,7 +102,7 @@
   var SCENES = {};
 
   SCENES.z1 = function (g) {
-    var lit = false, opened = false;
+    var lit = false, opened = false, foundLoad = false, hasKey = false, knowsCode = false;
     var h = '<svg viewBox="0 0 800 480" class="tk-svg" role="group" aria-label="Темна майстерня інженера">' +
       '<defs>' +
         '<radialGradient id="glow" cx="50%" cy="22%" r="62%"><stop offset="0" stop-color="#ffd98a" stop-opacity="0.55"/><stop offset="1" stop-color="#ffd98a" stop-opacity="0"/></radialGradient>' +
@@ -184,17 +184,15 @@
       halo.setAttribute('opacity', on ? '0' : '0.25');
     }
 
-    var CLOCK = null;
-    function beamSvg() {
-      return '<svg viewBox="0 0 420 200" class="tk-beam" role="img" aria-label="Балка на двох опорах із силою 12 кН на відстані 2 м від опори A">' +
+    function beamSvg(showF) {
+      return '<svg viewBox="0 0 420 200" class="tk-beam" role="img" aria-label="Балка на двох опорах, довжина 6 м">' +
         '<rect x="60" y="92" width="300" height="10" fill="#cfd9e6" stroke="' + INK + '" stroke-width="2"/>' +
         '<polygon points="60,102 46,128 74,128" fill="#fff" stroke="' + INK + '" stroke-width="2"/><line x1="40" y1="130" x2="80" y2="130" stroke="' + INK + '" stroke-width="3"/>' +
         '<polygon points="360,102 346,124 374,124" fill="#fff" stroke="' + INK + '" stroke-width="2"/><circle cx="360" cy="128" r="4" fill="#fff" stroke="' + INK + '" stroke-width="2"/><line x1="340" y1="134" x2="380" y2="134" stroke="' + INK + '" stroke-width="3"/>' +
-        '<line x1="160" y1="30" x2="160" y2="88" stroke="#b5392b" stroke-width="4"/><polygon points="160,92 153,76 167,76" fill="#b5392b"/>' +
-        '<text x="160" y="22" text-anchor="middle" font-size="15" font-weight="700" fill="#b5392b">F = 12 кН</text>' +
+        (showF ? '<line x1="160" y1="30" x2="160" y2="88" stroke="#b5392b" stroke-width="4"/><polygon points="160,92 153,76 167,76" fill="#b5392b"/><text x="160" y="22" text-anchor="middle" font-size="15" font-weight="700" fill="#b5392b">F = 12 кН</text>' +
+          '<line x1="60" y1="166" x2="160" y2="166" stroke="' + INK + '" stroke-width="1.5"/><line x1="60" y1="160" x2="60" y2="172" stroke="' + INK + '" stroke-width="1.5"/><line x1="160" y1="160" x2="160" y2="172" stroke="' + INK + '" stroke-width="1.5"/><text x="110" y="182" text-anchor="middle" font-size="13" fill="' + INK + '">2 м</text>'
+          : '<text x="160" y="60" text-anchor="middle" font-size="22" fill="#9aa5b4">? ? ?</text>') +
         '<text x="60" y="152" text-anchor="middle" font-size="16" font-weight="700" fill="' + INK + '">A</text><text x="360" y="152" text-anchor="middle" font-size="16" font-weight="700" fill="' + INK + '">B</text>' +
-        '<line x1="60" y1="166" x2="160" y2="166" stroke="' + INK + '" stroke-width="1.5"/><line x1="60" y1="160" x2="60" y2="172" stroke="' + INK + '" stroke-width="1.5"/><line x1="160" y1="160" x2="160" y2="172" stroke="' + INK + '" stroke-width="1.5"/>' +
-        '<text x="110" y="182" text-anchor="middle" font-size="13" fill="' + INK + '">2 м</text>' +
         '<line x1="60" y1="190" x2="360" y2="190" stroke="' + INK + '" stroke-width="1.5"/><line x1="60" y1="184" x2="60" y2="196" stroke="' + INK + '" stroke-width="1.5"/><line x1="360" y1="184" x2="360" y2="196" stroke="' + INK + '" stroke-width="1.5"/>' +
         '<text x="210" y="188" text-anchor="middle" font-size="13" fill="' + INK + '" style="paint-order:stroke" stroke="#fff" stroke-width="4">6 м</text></svg>';
     }
@@ -250,23 +248,34 @@
       lamp: function () {
         if (lit) { g.say('Світло вже горить. Огляньте кімнату.'); return; }
         setLight(true);
-        g.say('Світло горить. На стіні креслення, в кутку ящик з інструментами, на столі сейф із кодовим замком.');
+        g.say('Світло горить. На стіні креслення, годинник, вікно, в кутку ящик, на столі сейф із кодовим замком.');
       },
-      window: function () { g.say(lit ? 'За вікном ніч. Нічого цікавого.' : 'Темно.'); },
-      clock: function () { g.say('Годинник: з початку завдання минуло ' + mmss(g.elapsed()) + '. Чим швидше, тим більше балів.'); },
-      gears: function () { g.say('Великі й малі шестерні. Велика крутиться повільніше за малу, на цьому тримається редуктор. До сейфа відношення не має.'); },
+      window: function () {
+        knowsCode = true;
+        g.modal('<h3>Вікно</h3><p>На підвіконні щось нашкрябано цвяхом:</p><div class="tk-note"><p><b>«Код сейфа: спочатку реакція в A, потім реакція в B. У кН, цілими, без пробілів».</b></p></div>');
+      },
+      clock: function () {
+        if (foundLoad) { g.say('Годинник іде: ' + mmss(g.elapsed()) + ' з початку завдання. Чим швидше, тим більше балів.'); return; }
+        foundLoad = true;
+        g.modal('<h3>Годинник</h3><p>За маятником приклеєна записка:</p><div class="tk-note"><p><b>«Навантаження на балку: сила 12 кН, прикладена на відстані 2 м від опори A».</b></p></div>');
+      },
+      gears: function () {
+        if (hasKey) { g.say('Шестерні як шестерні. Ключик ви вже забрали.'); return; }
+        hasKey = true;
+        g.say('Між шестернями застряг маленький ключик з биркою «ящик». Ви його забрали.');
+      },
       poster: function () {
-        var b = g.modal('<h3>Креслення на стіні</h3>' + beamSvg() +
-          '<p>Балка лежить на двох опорах: A (шарнірно-нерухома) і B (шарнірно-рухома). Сила 12 кН діє на відстані 2 м від опори A, довжина балки 6 м.</p>' +
-          '<p>На кресленні нашкрябано: <b>«Код = реакція в A, потім реакція в B, у кН, без пробілів»</b>.</p>');
-        return b;
+        g.modal('<h3>Креслення на стіні</h3>' + beamSvg(foundLoad) +
+          '<p>Балка лежить на двох опорах: A (шарнірно-нерухома) і B (шарнірно-рухома). Довжина балки 6 м.</p>' +
+          (foundLoad ? '' : '<p class="muted">Значення сили й де вона прикладена затерті. Хтось, мабуть, записав їх окремо.</p>'));
       },
       toolbox: function () {
+        if (!hasKey) { g.say('Ящик з інструментами зачинений на замок. Потрібен ключ.'); return; }
         g.modal('<h3>Ящик з інструментами</h3><p>У ящику лежить записка майстра:</p>' +
           '<div class="tk-note"><p><b>Щоб знайти реакції балки:</b></p>' +
           '<p>1. Візьміть моменти всіх сил відносно точки A. Сума моментів дорівнює нулю: <b>R<sub>B</sub> · L = F · a</b>.</p>' +
           '<p>2. Сума всіх вертикальних сил дорівнює нулю: <b>R<sub>A</sub> + R<sub>B</sub> = F</b>.</p>' +
-          '<p>Тут L, F і a беріть із креслення. Докладніше про це в розділі «Практичні роботи».</p></div>');
+          '<p>Тут a: відстань від A до сили, L: довжина балки.</p></div>');
       },
       safe: function () {
         if (opened) { g.say('Сейф уже відкритий.'); return; }
@@ -290,7 +299,7 @@
 
   /* ---------- завдання 2: «Будмайданчик» ---------- */
   SCENES.z2 = function (g) {
-    var hasKey = false, opened = false;
+    var hasKey = false, opened = false, foundLoad = false, knowsCode = false;
     var h = '<svg viewBox="0 0 800 480" class="tk-svg" role="group" aria-label="Будівельний майданчик">' +
       '<defs><linearGradient id="sky2" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7fc4ee"/><stop offset="1" stop-color="#dff1fb"/></linearGradient></defs>' +
       '<rect width="800" height="480" fill="url(#sky2)"/>' +
@@ -332,14 +341,14 @@
     var svg = g.stage.querySelector('svg');
     g.say('Ви на будмайданчику. Ворота замкнені кодовим замком. Огляньте все навколо.');
 
-    function beam() {
-      return '<svg viewBox="0 0 360 230" class="tk-beam" role="img" aria-label="Кронштейн: горизонтальний стержень 4 м, висота 3 м, сила 12 кН вниз у вузлі">' +
+    function beam(showF) {
+      return '<svg viewBox="0 0 360 230" class="tk-beam" role="img" aria-label="Кронштейн: горизонтальний стержень 4 м, висота 3 м">' +
         '<rect x="30" y="20" width="14" height="190" fill="#9aa7b2"/><line x1="44" y1="40" x2="44" y2="190" stroke="#555" stroke-width="2"/>' +
         '<line x1="44" y1="50" x2="260" y2="50" stroke="' + INK + '" stroke-width="5"/>' +
         '<line x1="44" y1="170" x2="260" y2="50" stroke="' + INK + '" stroke-width="5"/>' +
         '<circle cx="260" cy="50" r="6" fill="#fff" stroke="' + INK + '" stroke-width="2"/>' +
-        '<line x1="260" y1="56" x2="260" y2="120" stroke="#b5392b" stroke-width="4"/><polygon points="260,124 253,108 267,108" fill="#b5392b"/>' +
-        '<text x="272" y="100" font-size="14" font-weight="700" fill="#b5392b">F = 12 кН</text>' +
+        (showF ? '<line x1="260" y1="56" x2="260" y2="120" stroke="#b5392b" stroke-width="4"/><polygon points="260,124 253,108 267,108" fill="#b5392b"/><text x="272" y="100" font-size="14" font-weight="700" fill="#b5392b">F = 12 кН</text>'
+          : '<line x1="260" y1="56" x2="260" y2="120" stroke="#b5392b" stroke-width="4"/><polygon points="260,124 253,108 267,108" fill="#b5392b"/><text x="272" y="100" font-size="16" font-weight="700" fill="#9aa5b4">F = ?</text>') +
         '<text x="150" y="40" text-anchor="middle" font-size="13" font-weight="700" fill="' + INK + '">1 (горизонтальний)</text>' +
         '<text x="165" y="146" text-anchor="middle" font-size="13" font-weight="700" fill="' + INK + '" transform="rotate(-29 165 146)">2 (похилий)</text>' +
         '<line x1="44" y1="205" x2="260" y2="205" stroke="' + INK + '" stroke-width="1.5"/><text x="152" y="222" text-anchor="middle" font-size="13" fill="' + INK + '">4 м</text>' +
@@ -379,8 +388,15 @@
     }
 
     var ACT = {
-      crane: function () { g.say('Кран піднімає плиту. Його силу вам рахувати не треба, цікавіше кронштейн на щиті.'); },
-      helmet: function () { g.say('Каска. Без неї на майданчику не можна, але до замка вона не має відношення.'); },
+      crane: function () {
+        if (foundLoad) { g.say('Кран тримає плиту. Її вага вже відома.'); return; }
+        foundLoad = true;
+        g.modal('<h3>Кран</h3><p>На плиті, що висить на гаку, бирка:</p><div class="tk-note"><p><b>«Вага вантажу 12 кН»</b></p></div><p>Така сама сила діє на вузол кронштейна на щиті.</p>');
+      },
+      helmet: function () {
+        knowsCode = true;
+        g.modal('<h3>Каска</h3><p>Усередині каски записка:</p><div class="tk-note"><p><b>«Код воріт: спочатку зусилля в похилому стержні 2, потім у горизонтальному 1. У кН, цілими, разом 4 цифри без пробілів».</b></p></div>');
+      },
       barrel: function () {
         if (hasKey) { g.say('У бочці більше нічого немає.'); return; }
         hasKey = true;
@@ -389,13 +405,13 @@
       trailer: function () {
         if (!hasKey) { g.say('Вагончик прораба зачинений. Шукайте ключ.'); return; }
         g.modal('<h3>Вагончик прораба</h3><p>На столі записка:</p><div class="tk-note">' +
-          '<p><b>Вузол кронштейна в рівновазі.</b> Сили, що збігаються у вузлі, дають дві умови: сума проекцій на горизонталь = 0 і на вертикаль = 0.</p>' +
-          '<p>Нехай α: кут похилого стержня 2 до горизонталі. З креслення: <b>sin α = 3/5</b>, <b>cos α = 4/5</b> (трикутник 3-4-5).</p>' +
-          '<p>Вертикаль: <b>N<sub>2</sub> · sin α = F</b>. Горизонталь: <b>N<sub>1</sub> = N<sub>2</sub> · cos α</b>.</p>' +
-          '<p>Код замка: <b>N<sub>2</sub>, потім N<sub>1</sub></b>, у кН, цілими числами, без пробілів.</p></div>');
+          '<p><b>Вузол кронштейна в рівновазі.</b> Сума проекцій усіх сил на горизонталь дорівнює 0 і на вертикаль теж 0.</p>' +
+          '<p>Нехай α: кут похилого стержня 2 до горизонталі. Його sin і cos знайдіть із креслення (довжину похилого стержня порахуйте за теоремою Піфагора).</p>' +
+          '<p>Вертикаль: <b>N<sub>2</sub> · sin α = F</b>. Горизонталь: <b>N<sub>1</sub> = N<sub>2</sub> · cos α</b>.</p></div>');
       },
       board: function () {
-        g.modal('<h3>Щит із кресленням</h3>' + beam() + '<p>Кронштейн: горизонтальний стержень 1 завдовжки 4 м, висота кріплення похилого стержня 2 дорівнює 3 м. У вузлі діє сила F = 12 кН.</p>');
+        g.modal('<h3>Щит із кресленням</h3>' + beam(foundLoad) + '<p>Кронштейн: горизонтальний стержень 1 завдовжки 4 м, висота кріплення похилого стержня 2 дорівнює 3 м.</p>' +
+          (foundLoad ? '' : '<p class="muted">Сили у вузлі на кресленні не вказано. Хтось має знати вагу вантажу.</p>'));
       },
       gate: function () {
         if (opened) { g.say('Ворота відчинені.'); return; }
