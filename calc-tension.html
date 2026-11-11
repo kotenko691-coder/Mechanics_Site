@@ -2,151 +2,208 @@
 <html lang="uk">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Калькулятор збіжної системи сил | Навчальний портал</title>
     <link rel="stylesheet" href="style.css">
     <style>
-        * { box-sizing: border-box; }
-        body {
-            font-family: 'Segoe UI', Arial, sans-serif;
-            max-width: 1050px;
-            margin: 0 auto;
-            padding: 20px;
-            background-color: #f4f7f6;
-            color: #333;
+        /* Тільки те, чого немає в style.css: розкладка калькулятора та поля вводу.
+           Кольори й шрифти беруться зі змінних сайту. */
+        .calc-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(330px, 1fr));
+            gap: 25px;
+            align-items: start;
+            margin-bottom: 25px;
         }
-        .top-nav { max-width: 1050px; margin: 0 auto 15px auto; }
-        .back-btn { display: inline-block; padding: 8px 15px; background: #4a5568; color: #fff; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 14px; transition: background 0.3s; }
-        .back-btn:hover { background: #2d3748; }
-        h1, h2, h3, h4 { color: #2c3e50; text-align: center; }
-        .container {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 20px;
-        }
-        .panel {
-            background: #fff;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-            flex: 1;
-            min-width: 330px;
-        }
-        canvas {
-            background-color: #ffffff;
-            border: 1px solid #ccc;
-            border-radius: 6px;
-            display: block;
-            margin: 0 auto;
-        }
-        .form-group { margin-bottom: 12px; }
-        label { display: inline-block; width: 170px; font-weight: 600; }
-        input[type="number"] {
-            width: 90px;
-            padding: 6px;
-            border: 1px solid #ccc;
-            border-radius: 4px;
-        }
-        .force-row {
+        .calc-grid .card { margin-bottom: 0; }
+
+        .field {
             display: flex;
             align-items: center;
             gap: 8px;
-            margin-bottom: 8px;
-            background: #f9f9f9;
-            padding: 8px;
-            border-radius: 4px;
+            margin-bottom: 12px;
         }
-        button {
-            padding: 8px 16px;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            font-weight: bold;
+        .field label { width: 170px; font-weight: 600; color: var(--ink); }
+
+        input[type="number"] {
+            width: 90px;
+            padding: 7px 8px;
+            border: 2px solid var(--line);
+            border-radius: 3px;
+            background: #ffffff;
+            color: var(--text-main);
+            font-size: 15px;
         }
-        .btn-add { background-color: #27ae60; color: white; }
-        .btn-add:hover { background-color: #219150; }
-        .btn-calc { background-color: #2980b9; color: white; width: 100%; font-size: 16px; margin-top: 12px; padding: 12px; }
-        .btn-calc:hover { background-color: #1f6391; }
-        .btn-del { background-color: #e74c3c; color: white; padding: 4px 8px; }
-        .legend {
-            font-size: 12px;
-            margin-top: 8px;
+        input[type="number"]:focus { border-color: var(--ink); }
+
+        .card h3 {
+            color: var(--ink);
+            font-size: 18px;
+            margin: 20px 0 12px;
+        }
+
+        .force-row {
             display: flex;
-            justify-content: space-around;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 8px;
+            background: var(--paper);
+            border: 1px solid var(--line);
+            border-left: 4px solid var(--amber);
+            border-radius: 3px;
+            padding: 8px 10px;
         }
-        .legend-item { display: flex; align-items: center; gap: 5px; }
+        .force-row label { font-weight: 600; color: var(--ink); }
+        .force-row label + input + label { margin-left: 5px; }
+
+        .btn-del {
+            margin-left: auto;
+            background: #ffffff;
+            color: #b42318;
+            border: 1px solid #e3b5b0;
+            border-radius: 3px;
+            padding: 4px 10px;
+            font-weight: 700;
+            cursor: pointer;
+        }
+        .btn-del:hover { background: #fdecea; }
+
+        .calc-actions { display: flex; flex-direction: column; gap: 12px; margin-top: 14px; }
+        .calc-actions .btn { width: 100%; }
+
+        #canvas {
+            display: block;
+            width: 100%;
+            max-width: 420px;
+            height: auto;
+            margin: 0 auto;
+            background: #ffffff;
+            border: 1px solid var(--line);
+            border-radius: 3px;
+        }
+
+        .legend {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-around;
+            gap: 8px 14px;
+            margin-top: 12px;
+            font-size: 13px;
+            color: var(--steel);
+        }
+        .legend-item { display: flex; align-items: center; gap: 6px; }
         .box { width: 14px; height: 14px; border-radius: 3px; display: inline-block; }
+
+        .calc-error {
+            background: #fdecea;
+            border-left: 6px solid #b42318;
+            border-radius: var(--radius);
+            color: #7a1b13;
+            font-weight: 600;
+            padding: 12px 16px;
+        }
+        .stats .is-tension { border-left-color: #27ae60; }
+        .stats .is-compression { border-left-color: #e67e22; }
     </style>
 </head>
 <body>
 
-    <div class="top-nav">
-        <a href="group-ap.html" class="back-btn">← Повернутися на сторінку групи</a>
-    </div>
+    <header>
+        <h1>Збіжна система сил</h1>
+        <p>Визначення реакцій стержнів у вузлі</p>
+    </header>
 
-    <h1>Визначення реакцій стержнів у збіжній системі сил</h1>
+    <nav>
+        <a href="index.html">Головна</a>
+        <a href="groups.html">Навчальні групи</a>
+        <a href="group-ap.html">← Сторінка групи</a>
+    </nav>
 
     <div class="container">
-        <!-- 1. Параметри -->
-        <div class="panel">
-            <h2>1. Геометрія стержнів</h2>
-            <div class="form-group">
-                <label for="alpha1">Кут стержня 1 (α₁):</label>
-                <input type="number" id="alpha1" value="30" step="any" onchange="calculate()"> °
-            </div>
-            <div class="form-group">
-                <label for="alpha2">Кут стержня 2 (α₂):</label>
-                <input type="number" id="alpha2" value="150" step="any" onchange="calculate()"> °
+        <div class="calc-grid">
+            <!-- 1. Параметри -->
+            <div class="card">
+                <h2>Вихідні дані</h2>
+
+                <h3>1. Геометрія стержнів</h3>
+                <div class="field">
+                    <label for="alpha1">Кут стержня 1 (α₁):</label>
+                    <input type="number" id="alpha1" value="30" step="any" onchange="calculate()"> °
+                </div>
+                <div class="field">
+                    <label for="alpha2">Кут стержня 2 (α₂):</label>
+                    <input type="number" id="alpha2" value="150" step="any" onchange="calculate()"> °
+                </div>
+
+                <h3>2. Зовнішні сили</h3>
+                <div id="forces-container"></div>
+
+                <div class="calc-actions">
+                    <button class="btn" onclick="addForceRow()">+ Додати силу</button>
+                    <button class="btn" onclick="calculate()">Розрахувати</button>
+                </div>
             </div>
 
-            <h2>2. Зовнішні сили</h2>
-            <div id="forces-container"></div>
-            <button class="btn-add" onclick="addForceRow()">+ Додати силу</button>
-
-            <button class="btn-calc" onclick="calculate()">Розрахувати</button>
+            <!-- 2. Схема -->
+            <div class="card">
+                <h2>Схема вузла та напрямки реакцій</h2>
+                <canvas id="canvas" width="420" height="360"></canvas>
+                <div class="legend">
+                    <div class="legend-item"><span class="box" style="background:#e74c3c;"></span> Зовнішні сили</div>
+                    <div class="legend-item"><span class="box" style="background:#27ae60;"></span> Розтяг (від вузла)</div>
+                    <div class="legend-item"><span class="box" style="background:#e67e22;"></span> Стиск (до вузла)</div>
+                </div>
+            </div>
         </div>
 
-        <!-- 2. Схема -->
-        <div class="panel">
-            <h2>3. Схема вузла та напрямки реакцій</h2>
-            <canvas id="canvas" width="420" height="360"></canvas>
-            <div class="legend">
-                <div class="legend-item"><span class="box" style="background:#e74c3c;"></span> Зовнішні сили</div>
-                <div class="legend-item"><span class="box" style="background:#27ae60;"></span> Розтяг (від вузла)</div>
-                <div class="legend-item"><span class="box" style="background:#e67e22;"></span> Стиск (до вузла)</div>
-            </div>
+        <!-- 3. Тільки кінцеві результати -->
+        <div class="card">
+            <h2>Кінцеві результати розрахунку</h2>
+            <div id="final-results-container"></div>
         </div>
     </div>
 
-    <!-- 3. Тільки кінцеві результати -->
-    <div class="panel" style="margin-top: 20px;">
-        <h2>Кінцеві результати розрахунку</h2>
-        <div id="final-results-container" style="font-size: 16px; line-height: 1.6;"></div>
-    </div>
+    <footer>
+        <p>© Навчальний портал з механіки | Будівельні спеціальності та автомобільні дороги</p>
+    </footer>
 
     <script>
-        let forceCount = 0;
+        const SUBSCRIPT_DIGITS = '₀₁₂₃₄₅₆₇₈₉';
+        function sub(n) {
+            return String(n).split('').map(d => SUBSCRIPT_DIGITS[d]).join('');
+        }
+
+        // Підписи F₁, F₂… завжди йдуть підряд (1..n) у тому ж порядку, що й на схемі.
+        function renumberForces() {
+            document.querySelectorAll('.force-row').forEach((row, i) => {
+                const n = i + 1;
+                row.querySelector('.force-name').innerHTML = `F<sub>${n}</sub>:`;
+                row.querySelector('.force-angle-name').innerHTML = `β<sub>${n}</sub>:`;
+            });
+        }
 
         function addForceRow(valF = 20, valDeg = 270) {
-            forceCount++;
             const container = document.getElementById('forces-container');
             const div = document.createElement('div');
             div.className = 'force-row';
-            div.id = `force-row-${forceCount}`;
             div.innerHTML = `
-                <label style="width: auto;">F<sub>${forceCount}</sub>:</label>
+                <label class="force-name"></label>
                 <input type="number" class="force-val" value="${valF}" step="any" onchange="calculate()"> кН
-                <label style="width: auto; margin-left: 5px;">β<sub>${forceCount}</sub>:</label>
+                <label class="force-angle-name"></label>
                 <input type="number" class="force-deg" value="${valDeg}" step="any" onchange="calculate()"> °
-                <button class="btn-del" onclick="removeForceRow(${forceCount})">✕</button>
+                <button class="btn-del" title="Видалити силу" onclick="removeForceRow(this)">✕</button>
             `;
             container.appendChild(div);
+            renumberForces();
             calculate();
         }
 
-        function removeForceRow(id) {
-            const row = document.getElementById(`force-row-${id}`);
+        function removeForceRow(button) {
+            const row = button.closest('.force-row');
             if (row) {
                 row.remove();
+                renumberForces();
                 calculate();
             }
         }
@@ -186,7 +243,7 @@
             const resContainer = document.getElementById('final-results-container');
 
             if (Math.abs(det) < 1e-6) {
-                resContainer.innerHTML = `<b style="color:red;">Помилка: Стержні розташовані на одній лінії або паралельні (det = 0). Розв'язок неможливий.</b>`;
+                resContainer.innerHTML = `<p class="calc-error">Помилка: стержні розташовані на одній лінії або паралельні (det = 0). Розв'язок неможливий.</p>`;
                 return;
             }
 
@@ -196,10 +253,13 @@
             const S1 = det1 / det;
             const S2 = det2 / det;
 
-            resContainer.innerHTML = `
-                <p><b>Реакція стержня 1 (S₁):</b> <span style="color:#2980b9; font-size:18px;">${S1.toFixed(2)} кН</span> — ${S1 >= 0 ? '<span style="color:green; font-weight:bold;">РОЗТЯГ</span>' : '<span style="color:orange; font-weight:bold;">СТИСК</span>'}</p>
-                <p><b>Реакція стержня 2 (S₂):</b> <span style="color:#2980b9; font-size:18px;">${S2.toFixed(2)} кН</span> — ${S2 >= 0 ? '<span style="color:green; font-weight:bold;">РОЗТЯГ</span>' : '<span style="color:orange; font-weight:bold;">СТИСК</span>'}</p>
-            `;
+            const card = (name, S) => `
+                <div class="${S >= 0 ? 'is-tension' : 'is-compression'}">
+                    <span>Реакція стержня ${name} — ${S >= 0 ? 'РОЗТЯГ' : 'СТИСК'}</span>
+                    <b>${S.toFixed(2)} кН</b>
+                </div>`;
+
+            resContainer.innerHTML = `<div class="stats">${card(1, S1)}${card(2, S2)}</div>`;
 
             drawSchema(alpha1, alpha2, forcesData, S1, S2);
         }
@@ -292,7 +352,7 @@
                 const ex = cx + vecLen * Math.cos(rad);
                 const ey = cy - vecLen * Math.sin(rad);
 
-                drawArrow(cx, cy, ex, ey, '#e74c3c', `F${index + 1} = ${item.F} кН`);
+                drawArrow(cx, cy, ex, ey, '#e74c3c', `F${sub(index + 1)} = ${item.F} кН`);
             });
 
             ctx.fillStyle = '#2c3e50';

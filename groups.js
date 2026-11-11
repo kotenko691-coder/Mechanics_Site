@@ -1,68 +1,68 @@
-// Pure ASCII file (Cyrillic and emoji are \uXXXX escapes): works in any encoding.
+// Файл у UTF-8 (сторінки мають <meta charset="UTF-8">).
 /* groups.js - study groups page: animated "city under construction" background + interactive cards.
    EDIT the studyGroups array below to add or change groups. */
 
 const studyGroups = [
   { 
     id: "ap", 
-    name: "\u0410\u041f", 
-    specialty: "\u0410\u0440\u0445\u0456\u0442\u0435\u043a\u0442\u0443\u0440\u043d\u0435 \u043f\u0440\u043e\u0435\u043a\u0442\u0443\u0432\u0430\u043d\u043d\u044f \u0442\u0430 \u0432\u043d\u0443\u0442\u0440\u0456\u0448\u043d\u0456\u0439 \u0456\u043d\u0442\u0435\u0440\u2019\u0454\u0440", 
+    name: "АП", 
+    specialty: "Архітектурне проектування та внутрішній інтер’єр", 
     courses: [3], 
     tower: 150,
-    subjects: [{ course: 3, text: "\u0422\u0435\u043e\u0440\u0435\u0442\u0438\u0447\u043d\u0430 \u043c\u0435\u0445\u0430\u043d\u0456\u043a\u0430" }],
-    links: [{ course: 3, label: "\u0421\u0442\u043e\u0440\u0456\u043d\u043a\u0430 \u0433\u0440\u0443\u043f\u0438 (3 \u043a\u0443\u0440\u0441)", page: "group-ap.html" }] 
+    subjects: [{ course: 3, text: "Теоретична механіка" }],
+    links: [{ course: 3, label: "Сторінка групи (3 курс)", page: "group-ap.html" }] 
   },
   { 
     id: "od", 
-    name: "\u041e\u0414", 
-    specialty: "\u041e\u043f\u043e\u0440\u044f\u0434\u0436\u0435\u043d\u043d\u044f \u0431\u0443\u0434\u0456\u0432\u0435\u043b\u044c \u0456 \u0441\u043f\u043e\u0440\u0443\u0434 \u0442\u0430 \u0431\u0443\u0434\u0456\u0432\u0435\u043b\u044c\u043d\u0438\u0439 \u0434\u0438\u0437\u0430\u0439\u043d", 
+    name: "ОД", 
+    specialty: "Опорядження будівель і споруд та будівельний дизайн", 
     courses: [3], 
     tower: 130,
-    subjects: [{ course: 3, text: "\u041e\u0441\u043d\u043e\u0432\u0438 \u0442\u0435\u043e\u0440\u0435\u0442\u0438\u0447\u043d\u043e\u0457 \u043c\u0435\u0445\u0430\u043d\u0456\u043a\u0438 \u0442\u0430 \u043e\u043f\u0456\u0440 \u043c\u0430\u0442\u0435\u0440\u0456\u0430\u043b\u0456\u0432" }],
-    links: [{ course: 3, label: "\u0421\u0442\u043e\u0440\u0456\u043d\u043a\u0430 \u0433\u0440\u0443\u043f\u0438 (3 \u043a\u0443\u0440\u0441)", page: "group-od.html" }] 
+    subjects: [{ course: 3, text: "Основи теоретичної механіки та опір матеріалів" }],
+    links: [{ course: 3, label: "Сторінка групи (3 курс)", page: "group-od.html" }] 
   },
   { 
     id: "d", 
-    name: "\u0414", 
-    specialty: "\u0411\u0443\u0434\u0456\u0432\u043d\u0438\u0446\u0442\u0432\u043e, \u0435\u043a\u0441\u043f\u043b\u0443\u0430\u0442\u0430\u0446\u0456\u044f \u0456 \u0440\u0435\u043c\u043e\u043d\u0442 \u0430\u0432\u0442\u043e\u043c\u043e\u0431\u0456\u043b\u044c\u043d\u0438\u0445 \u0434\u043e\u0440\u0456\u0436 \u0456 \u0430\u0435\u0440\u043e\u0434\u0440\u043e\u043c\u0456\u0432", 
+    name: "Д", 
+    specialty: "Будівництво, експлуатація і ремонт автомобільних доріж і аеродромів", 
     courses: [2, 3], 
     tower: 175,
     subjects: [
-      { course: 2, text: "\u0421\u0442\u0430\u0442\u0438\u043a\u0430 \u0441\u043f\u043e\u0440\u0443\u0434" }, 
-      { course: 3, text: "\u0422\u0435\u043e\u0440\u0435\u0442\u0438\u0447\u043d\u0430 \u043c\u0435\u0445\u0430\u043d\u0456\u043a\u0430" }
+      { course: 2, text: "Статика споруд" }, 
+      { course: 3, text: "Теоретична механіка" }
     ],
     links: [
-      { course: 2, label: "\u0413\u0440\u0443\u043f\u0430 \u0414-2 (2 \u043a\u0443\u0440\u0441)", page: "group-d2.html" },
-      { course: 3, label: "\u0413\u0440\u0443\u043f\u0430 \u0414-3 (3 \u043a\u0443\u0440\u0441)", page: "group-d3.html" }
+      { course: 2, label: "Група Д-2 (2 курс)", page: "group-d2.html" },
+      { course: 3, label: "Група Д-3 (3 курс)", page: "group-d3.html" }
     ] 
   },
   { 
     id: "b", 
-    name: "\u0411", 
-    specialty: "\u0411\u0443\u0434\u0456\u0432\u043d\u0438\u0446\u0442\u0432\u043e \u0442\u0430 \u0435\u043a\u0441\u043f\u043b\u0443\u0430\u0442\u0430\u0446\u0456\u044f \u0431\u0443\u0434\u0456\u0432\u0435\u043b\u044c \u0456 \u0441\u043f\u043e\u0440\u0443\u0434", 
+    name: "Б", 
+    specialty: "Будівництво та експлуатація будівель і споруд", 
     courses: [2, 3], 
     tower: 200,
     subjects: [
-      { course: 2, text: "\u0422\u0435\u0445\u043d\u0456\u0447\u043d\u0430 \u043c\u0435\u0445\u0430\u043d\u0456\u043a\u0430 \u0442\u0430 \u043e\u043f\u0456\u0440 \u043c\u0430\u0442\u0435\u0440\u0456\u0430\u043b\u0456\u0432" }, 
-      { course: 3, text: "\u0411\u0443\u0434\u0456\u0432\u0435\u043b\u044c\u043d\u0430 \u043c\u0435\u0445\u0430\u043d\u0456\u043a\u0430" }
+      { course: 2, text: "Технічна механіка та опір матеріалів" }, 
+      { course: 3, text: "Будівельна механіка" }
     ],
     links: [
-      { course: 2, label: "\u0413\u0440\u0443\u043f\u0430 \u0411-2 (2 \u043a\u0443\u0440\u0441)", page: "group-b2.html" },
-      { course: 3, label: "\u0413\u0440\u0443\u043f\u0430 \u0411-3 (3 \u043a\u0443\u0440\u0441)", page: "group-b3.html" }
+      { course: 2, label: "Група Б-2 (2 курс)", page: "group-b2.html" },
+      { course: 3, label: "Група Б-3 (3 курс)", page: "group-b3.html" }
     ] 
   }
 ];
 
-const GROUP_ICON = { ap: "\ud83c\udfdb\ufe0f", od: "\ud83c\udfa8", d: "\ud83d\udee3\ufe0f", b: "\ud83c\udfd7\ufe0f" };
+const GROUP_ICON = { ap: "🏛️", od: "🎨", d: "🛣️", b: "🏗️" };
 
 const cityFacts = [
-  "\u041f\u0430\u043d\u0442\u0435\u043e\u043d \u0443 \u0420\u0438\u043c\u0456 (\u0431\u043b. 126 \u0440.) \u0434\u043e\u0441\u0456 \u043c\u0430\u0454 \u043d\u0430\u0439\u0431\u0456\u043b\u044c\u0448\u0438\u0439 \u0443 \u0441\u0432\u0456\u0442\u0456 \u043d\u0435\u0430\u0440\u043c\u043e\u0432\u0430\u043d\u0438\u0439 \u0431\u0435\u0442\u043e\u043d\u043d\u0438\u0439 \u043a\u0443\u043f\u043e\u043b \u0434\u0456\u0430\u043c\u0435\u0442\u0440\u043e\u043c \u0431\u043b\u0438\u0437\u044c\u043a\u043e 43 \u043c.",
-  "\u0411\u0443\u0440\u0434\u0436-\u0425\u0430\u043b\u0456\u0444\u0430 \u0437\u0430\u0432\u0432\u0438\u0448\u043a\u0438 828 \u043c \u2014 \u043d\u0430\u0439\u0432\u0438\u0449\u0430 \u0441\u043f\u043e\u0440\u0443\u0434\u0430 \u0443 \u0441\u0432\u0456\u0442\u0456.",
-  "\u0410\u0440\u043a\u0430 \u043f\u0435\u0440\u0435\u0434\u0430\u0454 \u043d\u0430\u0432\u0430\u043d\u0442\u0430\u0436\u0435\u043d\u043d\u044f \u043d\u0430 \u043e\u043f\u043e\u0440\u0438, \u043f\u0440\u0430\u0446\u044e\u044e\u0447\u0438 \u043f\u0435\u0440\u0435\u0432\u0430\u0436\u043d\u043e \u043d\u0430 \u0441\u0442\u0438\u0441\u043a, \u0442\u043e\u043c\u0443 \u0457\u0457 \u0441\u0442\u043e\u043b\u0456\u0442\u0442\u044f\u043c\u0438 \u043c\u0443\u0440\u043e\u0432\u0430\u043b\u0438 \u0437 \u043a\u0430\u043c\u0435\u043d\u044e.",
-  "\u0424\u0435\u0440\u043c\u0430 \u2014 \u0446\u0435 \u0441\u0438\u0441\u0442\u0435\u043c\u0430 \u0441\u0442\u0435\u0440\u0436\u043d\u0456\u0432, \u044f\u043a\u0456 \u043f\u0440\u0430\u0446\u044e\u044e\u0442\u044c \u043d\u0430 \u0440\u043e\u0437\u0442\u044f\u0433 \u0456 \u0441\u0442\u0438\u0441\u043a. \u0421\u0430\u043c\u0435 \u0442\u0430\u043a \u0457\u0457 \u0440\u043e\u0437\u0440\u0430\u0445\u043e\u0432\u0443\u044e\u0442\u044c \u0443 \u0431\u0443\u0434\u0456\u0432\u0435\u043b\u044c\u043d\u0456\u0439 \u043c\u0435\u0445\u0430\u043d\u0456\u0446\u0456.",
-  "\u0411\u0435\u0442\u043e\u043d \u043d\u0430\u0431\u0438\u0440\u0430\u0454 \u043f\u0440\u043e\u0454\u043a\u0442\u043d\u0443 \u043c\u0456\u0446\u043d\u0456\u0441\u0442\u044c \u043f\u0440\u0438\u0431\u043b\u0438\u0437\u043d\u043e \u0437\u0430 28 \u0434\u0456\u0431 \u0442\u0432\u0435\u0440\u0434\u0456\u043d\u043d\u044f.",
-  "\u0414\u0432\u043e\u0442\u0430\u0432\u0440 \u0435\u043a\u043e\u043d\u043e\u043c\u0456\u044e\u0454 \u043c\u0435\u0442\u0430\u043b: \u043c\u0430\u0442\u0435\u0440\u0456\u0430\u043b \u0437\u043e\u0441\u0435\u0440\u0435\u0434\u0436\u0435\u043d\u0438\u0439 \u0443 \u043f\u043e\u043b\u0438\u0446\u044f\u0445, \u0434\u0435 \u043d\u0430\u043f\u0440\u0443\u0436\u0435\u043d\u043d\u044f \u0432\u0456\u0434 \u0437\u0433\u0438\u043d\u0443 \u043d\u0430\u0439\u0431\u0456\u043b\u044c\u0448\u0456.",
-  "\u041c\u0435\u0442\u0430\u043b\u0435\u0432\u0456 \u043a\u043e\u043d\u0441\u0442\u0440\u0443\u043a\u0446\u0456\u0457 \u0432\u043b\u0456\u0442\u043a\u0443 \u0442\u0440\u043e\u0445\u0438 \u0440\u043e\u0437\u0448\u0438\u0440\u044e\u044e\u0442\u044c\u0441\u044f \u0432\u0456\u0434 \u0442\u0435\u043f\u043b\u0430, \u0442\u043e\u043c\u0443 \u0432 \u043c\u043e\u0441\u0442\u0430\u0445 \u0440\u043e\u0431\u043b\u044f\u0442\u044c \u0434\u0435\u0444\u043e\u0440\u043c\u0430\u0446\u0456\u0439\u043d\u0456 \u0448\u0432\u0438."
+  "Пантеон у Римі (бл. 126 р.) досі має найбільший у світі неармований бетонний купол діаметром близько 43 м.",
+  "Бурдж-Халіфа заввишки 828 м — найвища споруда у світі.",
+  "Арка передає навантаження на опори, працюючи переважно на стиск, тому її століттями муровали з каменю.",
+  "Ферма — це система стержнів, які працюють на розтяг і стиск. Саме так її розраховують у будівельній механіці.",
+  "Бетон набирає проєктну міцність приблизно за 28 діб твердіння.",
+  "Двотавр економіює метал: матеріал зосереджений у полицях, де напруження від згину найбільші.",
+  "Металеві конструкції влітку трохи розширюються від тепла, тому в мостах роблять деформаційні шви."
 ];
 
 /* ---------------- ANIMATED CONSTRUCTION BACKGROUND ---------------- */
@@ -268,9 +268,9 @@ function renderGroups(containerId = "groups-container") {
   const box = document.getElementById(containerId);
   if (!box) { console.error("Groups container not found: " + containerId); return; }
   const reduce = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
-  const ALL = "\u0423\u0441\u0456";
+  const ALL = "Усі";
   const allCourses = [...new Set(studyGroups.flatMap(g => g.courses))].sort();
-  const chips = [ALL, ...allCourses.map(n => n + " \u043a\u0443\u0440\u0441")];
+  const chips = [ALL, ...allCourses.map(n => n + " курс")];
   const state = { q: "", chip: ALL };
 
   if (!document.getElementById("gp-style")) {
@@ -279,7 +279,7 @@ function renderGroups(containerId = "groups-container") {
     document.head.appendChild(st);
   }
 
-  const courseLabel = g => g.courses.join(" \u0456 ") + " \u043a\u0443\u0440\u0441";
+  const courseLabel = g => g.courses.join(" і ") + " курс";
 
   const towers = studyGroups.map((g, i) => `
     <button class="gp-tower" style="--h:${g.tower || 140}px;--i:${i}" data-id="${g.id}" title="${g.name}: ${g.specialty}">
@@ -289,12 +289,12 @@ function renderGroups(containerId = "groups-container") {
     const linksHtml = g.links.map(l => `<a href="${l.page}">${l.label}</a>`).join("");
     return `
       <article class="gp-card" id="gp-${g.id}" data-id="${g.id}" style="animation-delay:${i * 90}ms">
-        <div class="gp-ico">${GROUP_ICON[g.id] || "\ud83c\udfe2"}</div>
+        <div class="gp-ico">${GROUP_ICON[g.id] || "🏢"}</div>
         <h3>${g.name}</h3>
         <div class="gp-sub">${g.specialty}</div>
-        <div class="gp-meta">\ud83c\udf93 ${courseLabel(g)}</div>
+        <div class="gp-meta">🎓 ${courseLabel(g)}</div>
         <ul class="gp-subjects">
-          ${g.subjects.map(s => `<li><b>${s.course} \u043a\u0443\u0440\u0441</b>${s.text}</li>`).join("")}
+          ${g.subjects.map(s => `<li><b>${s.course} курс</b>${s.text}</li>`).join("")}
         </ul>
         <div class="gp-links">${linksHtml}</div>
       </article>`;
@@ -303,23 +303,23 @@ function renderGroups(containerId = "groups-container") {
   box.innerHTML = `
     <div class="gp-wrap">
       <div class="gp-stats">
-        <div class="gp-stat"><b data-count="${studyGroups.length}">0</b><span>\u0433\u0440\u0443\u043f</span></div>
-        <div class="gp-stat"><b data-count="${allCourses.length}">0</b><span>\u043a\u0443\u0440\u0441\u0438</span></div>
+        <div class="gp-stat"><b data-count="${studyGroups.length}">0</b><span>груп</span></div>
+        <div class="gp-stat"><b data-count="${allCourses.length}">0</b><span>курси</span></div>
       </div>
-      <div class="gp-fact"><span>\ud83d\udca1</span><span id="gp-fact-text"></span></div>
+      <div class="gp-fact"><span>💡</span><span id="gp-fact-text"></span></div>
       <div class="gp-panel">
-        <h2>\ud83c\udfd9\ufe0f \u041c\u0456\u0441\u0442\u043e \u0433\u0440\u0443\u043f</h2>
+        <h2>🏙️ Місто груп</h2>
         <div class="gp-city" id="gp-city">${towers}</div>
-        <div class="gp-note">\u041d\u0430\u0442\u0438\u0441\u043d\u0456\u0442\u044c \u043d\u0430 \u0432\u0435\u0436\u0443, \u0449\u043e\u0431 \u043f\u0435\u0440\u0435\u0439\u0442\u0438 \u0434\u043e \u0433\u0440\u0443\u043f\u0438.</div>
+        <div class="gp-note">Натисніть на вежу, щоб перейти до групи.</div>
       </div>
       <div class="gp-toolbar">
-        <input type="search" id="gp-search" placeholder="\ud83d\udd0d \u041f\u043e\u0448\u0443\u043a \u0433\u0440\u0443\u043f\u0438, \u043d\u0430\u043f\u0440\u044f\u043c\u0443 \u0430\u0431\u043e \u043f\u0440\u0435\u0434\u043c\u0435\u0442\u0430...">
+        <input type="search" id="gp-search" placeholder="🔍 Пошук групи, напряму або предмета...">
         <div class="gp-chips" id="gp-chips">
           ${chips.map(s => `<button class="gp-chip${s === ALL ? " active" : ""}" data-chip="${s}">${s}</button>`).join("")}
         </div>
       </div>
       <div class="gp-grid" id="gp-grid">${cards}</div>
-      <div class="gp-empty" id="gp-empty" hidden>\ud83c\udfda\ufe0f \u041d\u0456\u0447\u043e\u0433\u043e \u043d\u0435 \u0437\u043d\u0430\u0439\u0434\u0435\u043d\u043e. \u0421\u043f\u0440\u043e\u0431\u0443\u0439\u0442\u0435 \u0456\u043d\u0448\u0438\u0439 \u0437\u0430\u043f\u0438\u0442.</div>
+      <div class="gp-empty" id="gp-empty" hidden>🏚️ Нічого не знайдено. Спробуйте інший запит.</div>
     </div>`;
 
   // towers rise
@@ -353,7 +353,7 @@ function renderGroups(containerId = "groups-container") {
     cardEls.forEach(el => {
       const g = byId[el.dataset.id];
       const hay = [g.name, g.specialty, ...g.subjects.map(s => s.text)].join(" ").toLowerCase();
-      const okChip = state.chip === ALL || g.courses.some(n => n + " \u043a\u0443\u0440\u0441" === state.chip);
+      const okChip = state.chip === ALL || g.courses.some(n => n + " курс" === state.chip);
       const ok = okChip && (!q || hay.includes(q));
       el.hidden = !ok;
       if (ok) shown++;
