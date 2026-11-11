@@ -124,3 +124,13 @@ form .btn { margin-top: 20px; }
 }
 @keyframes spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .spinner { animation-duration: 2.4s; } }
+
+/* ---------- вкладки: лекції / практичні ---------- */
+.tabs { display: flex; gap: 8px; margin: 4px 0 16px; flex-wrap: wrap; }
+.tabs button {
+  font: inherit; font-weight: 600; cursor: pointer; padding: 9px 18px;
+  background: var(--sheet); color: var(--ink); border: 2px solid var(--ink);
+  border-radius: var(--radius);
+}
+.tabs button.on { background: var(--ink); color: #fff; border-bottom: 4px solid var(--amber); }
+.tabs button:hover:not(.on) { background: var(--amber-soft); }

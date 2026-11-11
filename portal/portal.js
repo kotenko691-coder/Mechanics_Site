@@ -231,23 +231,47 @@
     }).catch(function () { /* лишаємо показане */ });
   }
 
+  var SEC_NAME = {
+    lec: { all: 'Лекцій', empty: 'Лекцій для цієї групи поки немає. Загляньте пізніше.' },
+    prac: { all: 'Практичних', empty: 'Практичних робіт для цієї групи поки немає. Загляньте пізніше.' }
+  };
+  var section = 'lec';
+
   function renderHome() {
-    var done = items.filter(function (i) { return i.done; }).length;
-    $('#tower').innerHTML = tower(done, items.length);
-    $('#progress-text').textContent = items.length
-      ? 'Опрацьовано тем: ' + done + ' з ' + items.length
+    var doneAll = items.filter(function (i) { return i.done; }).length;
+    $('#tower').innerHTML = tower(doneAll, items.length);
+    var tabs = $('#tabs').querySelectorAll('button');
+    Array.prototype.forEach.call(tabs, function (b) {
+      var s = b.getAttribute('data-sec');
+      var n = items.filter(function (i) { return (i.section || 'lec') === s; }).length;
+      b.classList.toggle('on', s === section);
+      b.setAttribute('aria-selected', s === section ? 'true' : 'false');
+      b.textContent = (s === 'lec' ? 'Лекції' : 'Практичні роботи') + ' (' + n + ')';
+    });
+    var cur = items.filter(function (i) { return (i.section || 'lec') === section; });
+    var done = cur.filter(function (i) { return i.done; }).length;
+    $('#progress-text').textContent = cur.length
+      ? 'Опрацьовано: ' + done + ' з ' + cur.length
       : '';
     var list = $('#lec-list');
-    if (!items.length) {
-      list.innerHTML = '<li class="lec-empty">Лекцій для цієї групи поки немає. Загляньте пізніше.</li>';
+    if (!cur.length) {
+      list.innerHTML = '<li class="lec-empty">' + SEC_NAME[section].empty + '</li>';
       return;
     }
     list.innerHTML = items.map(function (it, i) {
+      if ((it.section || 'lec') !== section) return '';
       return '<li class="' + (it.done ? 'done' : '') + '"><button type="button" data-i="' + i + '">' +
         '<span>' + esc(it.title) + '</span>' +
         '<span class="mark">' + (it.done ? 'опрацьовано' : 'не опрацьовано') + '</span></button></li>';
     }).join('');
   }
+
+  $('#tabs').addEventListener('click', function (e) {
+    var b = e.target.closest('button[data-sec]');
+    if (!b) return;
+    section = b.getAttribute('data-sec');
+    renderHome();
+  });
 
   $('#lec-list').addEventListener('click', function (e) {
     var b = e.target.closest('button[data-i]');

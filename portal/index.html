@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Кабінет студента | Навчальний портал з механіки</title>
     <link rel="stylesheet" href="../style.css">
-    <link rel="stylesheet" href="portal.css?v=3">
+    <link rel="stylesheet" href="portal.css?v=4">
 </head>
 <body>
 
@@ -59,6 +59,10 @@
                     <label for="owner-group">Переглядаєте як група:</label>
                     <select id="owner-group"></select>
                 </div>
+                <div class="tabs" id="tabs" role="tablist">
+                    <button type="button" role="tab" data-sec="lec" class="on">Лекції</button>
+                    <button type="button" role="tab" data-sec="prac">Практичні роботи</button>
+                </div>
                 <div class="home-grid">
                     <div id="tower" class="tower" aria-label="Прогрес"></div>
                     <div>
@@ -109,8 +113,8 @@
         <p>© Навчальний портал з механіки | Кабінет студента</p>
     </footer>
 
-    <script src="config.js?v=3"></script>
-    <script src="portal.js?v=3"></script>
+    <script src="config.js?v=4"></script>
+    <script src="portal.js?v=4"></script>
     <script src="https://accounts.google.com/gsi/client" async defer></script>
     <script src="../background.js"></script>
 </body>
