@@ -226,3 +226,44 @@ body.pseudo-full .lec-top { display: none; }
 @keyframes ld-up { from { transform: translateY(0); } to { transform: translateY(-9px); } }
 @keyframes ld-down { from { transform: translateY(-9px); } to { transform: translateY(0); } }
 @media (prefers-reduced-motion: reduce) { .loader-ico * { animation-duration: 6s !important; } }
+
+/* ---------- завдання ---------- */
+.tk-list{list-style:none;margin:12px 0 0;padding:0;display:grid;gap:10px}
+.tk-card{width:100%;text-align:left;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;padding:14px 16px;border:2px solid #12284a;background:#fff;border-radius:10px;font-size:1.05rem;cursor:pointer}
+.tk-card:hover{background:#eef4ff}
+.tk-badge{font-size:.85rem;padding:3px 9px;border-radius:99px;background:#e8eef7;color:#12284a}
+.tk-badge.ok{background:#d8f3de;color:#14532d}
+.tk-box{position:relative}
+.tk-bar{display:flex;gap:10px;margin-bottom:8px}
+.tk-bar>div{flex:1;background:#12284a;color:#fff;border-radius:8px;padding:6px 10px;text-align:center}
+.tk-bar small{display:block;opacity:.75;font-size:.72rem}
+.tk-bar b{font-size:1.3rem;font-variant-numeric:tabular-nums}
+.tk-late .tk-time{color:#ffb4a8}
+.tk-stage{border:3px solid #12284a;border-radius:10px;overflow:hidden;background:#222}
+.tk-svg{display:block;width:100%;height:auto}
+.tk-hot,.tk-lamp-g{cursor:pointer}
+.tk-hot:hover,.tk-lamp-g:hover{filter:brightness(1.25)}
+.tk-off .tk-hot{cursor:default}
+.tk-dark,.tk-glow{transition:opacity .5s}
+.tk-say{min-height:2.6em;margin:8px 2px;font-weight:600}
+.tk-pend{transform-origin:330px 158px;animation:tkpend 2s ease-in-out infinite alternate}
+@keyframes tkpend{from{transform:rotate(-8deg)}to{transform:rotate(8deg)}}
+.tk-safe-door{transform-box:fill-box;transform-origin:left center;transition:transform 1s}
+.tk-safe-door.tk-swing{transform:scaleX(.12)}
+.tk-door-open{transition:fill 1s}
+.tk-door-open.tk-lit{fill:#ffe9a8}
+.tk-modal{position:absolute;inset:0;background:rgba(10,20,40,.7);display:flex;align-items:center;justify-content:center;padding:10px;z-index:5}
+.tk-modal[hidden]{display:none}
+.tk-modal-box{position:relative;background:#fff;border-radius:12px;padding:16px 18px;max-width:460px;width:100%;max-height:100%;overflow:auto}
+.tk-modal-box h3{margin-top:0}
+.tk-x{position:absolute;right:8px;top:4px;border:0;background:none;font-size:1.8rem;cursor:pointer}
+.tk-beam{width:100%;height:auto;background:#fff;border:1px solid #cdd7e6;border-radius:8px}
+.tk-note{background:#fff8d6;border:1px dashed #b79a2a;border-radius:8px;padding:6px 12px}
+.tk-res{font-size:1.2rem;margin:4px 0}
+.kp-disp{font:700 2rem monospace;letter-spacing:.3em;text-align:center;background:#0e1a14;color:#5dff9a;border-radius:8px;padding:8px}
+.kp-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:10px 0}
+.kp-grid button{padding:12px 0;font-size:1.3rem;border:2px solid #12284a;background:#eef2f8;border-radius:8px;cursor:pointer}
+.kp-grid .kp-ok{background:#12284a;color:#fff}
+.tk-bar b{color:#fff}
+.tk-bar small{color:#cfe0ff}
+.tk-late .tk-bar .tk-time{color:#ffb4a8}

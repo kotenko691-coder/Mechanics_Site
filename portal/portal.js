@@ -169,13 +169,14 @@
   });
 
   /* ---------- показ екранів і повідомлень ---------- */
-  var VIEWS = ['v-login', 'v-register', 'v-home', 'v-lecture', 'v-admin', 'v-rating'];
+  var VIEWS = ['v-login', 'v-register', 'v-home', 'v-lecture', 'v-admin', 'v-rating', 'v-tasks', 'v-task'];
 
   function show(id) {
     VIEWS.forEach(function (v) { $('#' + v).hidden = (v !== id); });
     var loggedIn = id !== 'v-login';
     $('#nav-home').hidden = !loggedIn || id === 'v-register';
     $('#nav-rating').hidden = !loggedIn || id === 'v-register';
+    $('#nav-tasks').hidden = !loggedIn || id === 'v-register';
     $('#nav-logout').hidden = !loggedIn;
     $('#nav-admin').hidden = !(me && me.isOwner);
     window.scrollTo(0, 0);
@@ -763,6 +764,57 @@
 
   $('#nav-rating').addEventListener('click', function (e) { e.preventDefault(); say(''); showRating(); });
 
+  /* ---------- завдання ---------- */
+  function mm(sec) { return window.PortalTasks.mmss(sec); }
+
+  function renderTaskList(r) {
+    var list = r.items || [];
+    $('#tk-empty').hidden = list.length > 0;
+    $('#tk-list').innerHTML = list.map(function (t) {
+      var st = t.done
+        ? '<span class="tk-badge ok">Пройдено · ' + mm(t.seconds) + ' · ' + t.points + ' балів</span>'
+        : '<span class="tk-badge">до ' + t.max + ' балів · ліміт ' + mm(t.limit) + '</span>';
+      return '<li><button type="button" class="tk-card" data-task="' + esc(t.id) + '"><b>' + esc(t.name) + '</b>' + st + '</button></li>';
+    }).join('');
+    show('v-tasks');
+  }
+  function showTasks() { api('tasks').then(renderTaskList).catch(fail); }
+
+  var taskRun = null;
+  function openTask(info, submit) {
+    var box = $('#tk-box');
+    $('#tk-title').textContent = info.name;
+    show('v-task');
+    taskRun = window.PortalTasks.run(box, info, { submit: submit, back: showTasks });
+  }
+  function startTask(id) {
+    api('task_start', { task: id }).then(function (r) {
+      r.id = id;
+      openTask(r, function (answer) { return api('task_done', { task: id, answer: answer }, true); });
+    }).catch(fail);
+  }
+  $('#tk-list').addEventListener('click', function (e) {
+    var b = e.target.closest('button[data-task]');
+    if (b) startTask(b.getAttribute('data-task'));
+  });
+  $('#tk-back').addEventListener('click', function () { showTasks(); });
+  $('#nav-tasks').addEventListener('click', function (e) { e.preventDefault(); say(''); showTasks(); });
+
+  // Показ без входу: portal/?demo=task (перевірка коду локально, на сервер нічого не йде)
+  function demoTask() {
+    var t0 = Date.now();
+    openTask({ id: 'z1', name: 'Майстерня', limit: 600, max: 100, min: 10, elapsed: 0 }, function (answer) {
+      return new Promise(function (res) {
+        setTimeout(function () {
+          if (String(answer) !== '84') { res({ ok: true, correct: false }); return; }
+          var sec = Math.round((Date.now() - t0) / 1000);
+          res({ ok: true, correct: true, seconds: sec, points: window.PortalTasks.pointsNow({ limit: 600, max: 100, min: 10 }, sec) });
+        }, 300);
+      });
+    });
+    say('Демонстрація: код 84, бали нікуди не записуються.');
+  }
+
   /* ---------- кабінет викладача ---------- */
   function showAdmin() {
     api('admin').then(function (r) {
@@ -827,6 +879,8 @@
       $('#loader').hidden = false; setTimeout(tick, 2500);
     })();
     show('v-login');
+  } else if (/[?&]demo=task/.test(location.search)) {
+    demoTask();
   } else if (/[?&]demo=rating/.test(location.search)) {
     demoRating();
   } else if (token) {

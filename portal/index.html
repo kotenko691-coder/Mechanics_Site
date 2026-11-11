@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Кабінет студента | Навчальний портал з механіки</title>
     <link rel="stylesheet" href="../style.css">
-    <link rel="stylesheet" href="portal.css?v=16">
+    <link rel="stylesheet" href="portal.css?v=17">
 </head>
 <body>
 
@@ -17,6 +17,7 @@
     <nav>
         <a href="../index.html">← На сайт</a>
         <a href="#" id="nav-home" hidden>Мої лекції</a>
+        <a href="#" id="nav-tasks" hidden>Завдання</a>
         <a href="#" id="nav-rating" hidden>Рейтинг</a>
         <a href="#" id="nav-admin" hidden>Кабінет викладача</a>
         <a href="#" id="nav-logout" hidden>Вийти</a>
@@ -90,6 +91,24 @@
             </div>
         </section>
 
+        <!-- Завдання -->
+        <section id="v-tasks" hidden>
+            <div class="card">
+                <h2>Завдання</h2>
+                <p class="muted">Розв’яжіть задачу з механіки й вийдіть із кімнати. Чим швидше, тим більше балів. Спроба одна.</p>
+                <ul id="tk-list" class="tk-list"></ul>
+                <p id="tk-empty" class="muted" hidden>Завдань поки немає.</p>
+            </div>
+        </section>
+
+        <section id="v-task" hidden>
+            <div class="card">
+                <div class="lec-actions lec-top"><button class="btn btn-ghost" id="tk-back" type="button">← До завдань</button></div>
+                <h2 id="tk-title"></h2>
+                <div id="tk-box" class="tk-box"></div>
+            </div>
+        </section>
+
         <!-- Лекція -->
         <section id="v-lecture" hidden>
             <div class="card">
@@ -144,8 +163,9 @@
         <p>© Навчальний портал з механіки | Кабінет студента</p>
     </footer>
 
-    <script src="config.js?v=16"></script>
-    <script src="portal.js?v=16"></script>
+    <script src="config.js?v=17"></script>
+    <script src="tasks.js?v=17"></script>
+    <script src="portal.js?v=17"></script>
     <script src="https://accounts.google.com/gsi/client" async defer></script>
     <script src="../background.js"></script>
 </body>
