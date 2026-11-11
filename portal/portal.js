@@ -818,24 +818,58 @@
   }
 
   /* ---------- кабінет викладача ---------- */
+  var admStudents = [], admTasks = [];
+
+  function fillAdminSelects() {
+    var act = admStudents.filter(function (s) { return s.status === 'активний'; })
+      .sort(function (a, b) { return (a.group + a.name).localeCompare(b.group + b.name, 'uk'); });
+    var opts = act.map(function (s) {
+      return '<option value="' + esc(s.email) + '">' + esc(s.group + ' · ' + s.name + ' · ' + s.points + ' б.') + '</option>';
+    }).join('');
+    var keep1 = $('#pts-student').value, keep2 = $('#rs-student').value;
+    $('#pts-student').innerHTML = opts;
+    $('#rs-student').innerHTML = opts;
+    if (keep1) $('#pts-student').value = keep1;
+    if (keep2) $('#rs-student').value = keep2;
+    var keepT = $('#rs-task').value;
+    $('#rs-task').innerHTML = admTasks.map(function (t) { return '<option value="' + esc(t.id) + '">' + esc(t.name) + '</option>'; }).join('');
+    if (keepT) $('#rs-task').value = keepT;
+    showResetInfo();
+  }
+
+  function showResetInfo() {
+    var em = $('#rs-student').value, id = $('#rs-task').value;
+    var s = admStudents.filter(function (x) { return x.email === em; })[0];
+    var d = s && s.tasks && s.tasks[id];
+    $('#rs-btn').disabled = !d;
+    $('#rs-info').textContent = !s || !id ? '' : d
+      ? 'Пройдено: ' + window.PortalTasks.mmss(d.seconds) + ', ' + d.points + ' балів.'
+      : 'Це завдання студент ще не здавав.';
+  }
+  $('#rs-student').addEventListener('change', showResetInfo);
+  $('#rs-task').addEventListener('change', showResetInfo);
+
+  function renderAdmin(r, tasks) {
+    $('#adm-sheet').href = r.sheetUrl;
+    $('#adm-folder').href = r.folderUrl;
+    $('#adm-code').value = r.code;
+    $('#adm-empty').hidden = r.students.length > 0;
+    admStudents = r.students;
+    admTasks = tasks || admTasks;
+    fillAdminSelects();
+    $('#adm-body').innerHTML = r.students.map(function (s) {
+      var active = s.status === 'активний';
+      return '<tr class="' + (active ? '' : 'blocked') + '"><td>' + esc(s.name) + '</td><td>' + esc(s.group) +
+        '</td><td>' + esc(s.email) + '</td><td>' + s.done + '</td><td>' + s.points + '</td><td><button type="button" data-email="' +
+        esc(s.email) + '" data-to="' + (active ? 'заблокований' : 'активний') + '">' +
+        (active ? 'Закрити доступ' : 'Відновити') + '</button></td></tr>';
+    }).join('');
+    show('v-admin');
+  }
+
   function showAdmin() {
-    api('admin').then(function (r) {
-      $('#adm-sheet').href = r.sheetUrl;
-      $('#adm-folder').href = r.folderUrl;
-      $('#adm-code').value = r.code;
-      $('#adm-empty').hidden = r.students.length > 0;
-      $('#pts-student').innerHTML = r.students.filter(function (s) { return s.status === 'активний'; })
-        .sort(function (a, b) { return (a.group + a.name).localeCompare(b.group + b.name, 'uk'); })
-        .map(function (s) { return '<option value="' + esc(s.email) + '">' + esc(s.group + ' · ' + s.name) + '</option>'; }).join('');
-      $('#adm-body').innerHTML = r.students.map(function (s) {
-        var active = s.status === 'активний';
-        return '<tr class="' + (active ? '' : 'blocked') + '"><td>' + esc(s.name) + '</td><td>' + esc(s.group) +
-          '</td><td>' + esc(s.email) + '</td><td>' + s.done + '</td><td><button type="button" data-email="' +
-          esc(s.email) + '" data-to="' + (active ? 'заблокований' : 'активний') + '">' +
-          (active ? 'Закрити доступ' : 'Відновити') + '</button></td></tr>';
-      }).join('');
-      show('v-admin');
-    }).catch(fail);
+    Promise.all([api('admin'), api('tasks', null, true).catch(function () { return { items: [] }; })])
+      .then(function (a) { renderAdmin(a[0], a[1].items); }).catch(fail);
   }
 
   $('#adm-body').addEventListener('click', function (e) {
@@ -843,6 +877,21 @@
     if (!b) return;
     api('admin_status', { email: b.getAttribute('data-email'), status: b.getAttribute('data-to') })
       .then(showAdmin).catch(fail);
+  });
+
+  function refreshAdmin() {
+    api('admin', null, true).then(function (r) { renderAdmin(r); }).catch(function () {});
+  }
+
+  $('#rs-form').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var em = $('#rs-student').value, id = $('#rs-task').value;
+    if (!em || !id) return;
+    var who = $('#rs-student').options[$('#rs-student').selectedIndex].textContent.split(' · ')[1];
+    api('admin_task_reset', { email: em, task: id }).then(function (r) {
+      say('Результат скинуто: ' + who + '. Студент може пройти завдання знову.');
+      refreshAdmin();
+    }).catch(fail);
   });
 
   var ptsSign = 1;
@@ -858,6 +907,7 @@
     api('admin_points', { email: email, task: task, points: sign * val }).then(function () {
       say((sign > 0 ? 'Додано ' : 'Знято ') + val + ' балів: ' + who + '.');
       $('#pts-val').value = '';
+      refreshAdmin();
     }).catch(fail);
   });
 

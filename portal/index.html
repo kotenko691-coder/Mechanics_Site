@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Кабінет студента | Навчальний портал з механіки</title>
     <link rel="stylesheet" href="../style.css">
-    <link rel="stylesheet" href="portal.css?v=21">
+    <link rel="stylesheet" href="portal.css?v=22">
 </head>
 <body>
 
@@ -140,7 +140,8 @@
                     <input id="adm-code" type="text" maxlength="40">
                     <button class="btn" type="submit">Змінити код</button>
                 </form>
-                <h3>Внести бали</h3>
+                <h3>Бали студента</h3>
+                <p class="muted">Поточні бали видно біля імені. «Додати» й «Зняти» змінюють суму та записують причину.</p>
                 <form id="pts-form" class="code-form">
                     <select id="pts-student" aria-label="Студент"></select>
                     <input id="pts-task" type="text" maxlength="80" placeholder="Завдання або причина" aria-label="Завдання або причина">
@@ -148,9 +149,17 @@
                     <button class="btn" type="submit" id="pts-add">Додати</button>
                     <button class="btn btn-ghost" type="submit" id="pts-sub">Зняти</button>
                 </form>
+                <h3>Проходження завдань</h3>
+                <p class="muted">Студент пройшов завдання, але потрібна ще одна спроба? Скиньте його результат. Бали за це завдання віднімуться, і студент зможе пройти знову.</p>
+                <form id="rs-form" class="code-form">
+                    <select id="rs-student" aria-label="Студент"></select>
+                    <select id="rs-task" aria-label="Завдання"></select>
+                    <button class="btn" type="submit" id="rs-btn">Дозволити пройти знову</button>
+                </form>
+                <p id="rs-info" class="muted"></p>
                 <div class="table-wrap">
                     <table class="adm-table">
-                        <thead><tr><th>Студент</th><th>Група</th><th>Пошта</th><th>Тем</th><th>Доступ</th></tr></thead>
+                        <thead><tr><th>Студент</th><th>Група</th><th>Пошта</th><th>Тем</th><th>Бали</th><th>Доступ</th></tr></thead>
                         <tbody id="adm-body"></tbody>
                     </table>
                 </div>
@@ -163,9 +172,9 @@
         <p>© Навчальний портал з механіки | Кабінет студента</p>
     </footer>
 
-    <script src="config.js?v=21"></script>
-    <script src="tasks.js?v=21"></script>
-    <script src="portal.js?v=21"></script>
+    <script src="config.js?v=22"></script>
+    <script src="tasks.js?v=22"></script>
+    <script src="portal.js?v=22"></script>
     <script src="https://accounts.google.com/gsi/client" async defer></script>
     <script src="../background.js"></script>
 </body>
