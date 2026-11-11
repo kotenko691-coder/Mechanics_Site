@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Кабінет студента | Навчальний портал з механіки</title>
     <link rel="stylesheet" href="../style.css">
-    <link rel="stylesheet" href="portal.css?v=8">
+    <link rel="stylesheet" href="portal.css?v=9">
 </head>
 <body>
 
@@ -58,6 +58,7 @@
                 <div id="owner-bar" class="owner-bar" hidden>
                     <label for="owner-group">Переглядаєте як група:</label>
                     <select id="owner-group"></select>
+                    <button type="button" class="btn btn-ghost" id="owner-refresh" title="Підтягнути зміни з Диска">Оновити з Диска</button>
                 </div>
                 <div class="tabs" id="tabs" role="tablist">
                     <button type="button" role="tab" data-sec="lec" class="on">Лекції</button>
@@ -114,8 +115,8 @@
         <p>© Навчальний портал з механіки | Кабінет студента</p>
     </footer>
 
-    <script src="config.js?v=8"></script>
-    <script src="portal.js?v=8"></script>
+    <script src="config.js?v=9"></script>
+    <script src="portal.js?v=9"></script>
     <script src="https://accounts.google.com/gsi/client" async defer></script>
     <script src="../background.js"></script>
 </body>

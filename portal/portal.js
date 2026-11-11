@@ -287,8 +287,9 @@
       : 'Лекції (перегляд викладача)';
   }
 
-  function loadLectures() {
-    api('lectures', { group: viewGroup }).then(function (r) {
+  function loadLectures(fresh) {
+    if (fresh) lecCache = {};
+    api('lectures', { group: viewGroup, fresh: fresh ? true : undefined }).then(function (r) {
       items = r.items;
       cacheSave();
       renderHome();
@@ -352,6 +353,8 @@
     var b = e.target.closest('button[data-i]');
     if (b) openLecture(items[+b.getAttribute('data-i')]);
   });
+
+  $('#owner-refresh').addEventListener('click', function () { loadLectures(true); });
 
   $('#owner-group').addEventListener('change', function (e) {
     viewGroup = e.target.value;
