@@ -290,6 +290,9 @@
     $('#lec-title').textContent = it.title;
     $('#lec-body').innerHTML = '<p class="muted">Завантаження лекції…</p>';
     $('#lec-done').hidden = !!it.done;
+    $('#lec-full').hidden = true;
+    lecFrame = null;
+    exitFull();
     show('v-lecture');
     api('lecture', { id: it.id, group: viewGroup }).then(function (r) {
       var box = $('#lec-body');
@@ -300,7 +303,8 @@
       if (r.kind === 'html') {
         // sandbox без allow-same-origin: скрипти лекції не бачать ні токен, ні сторінку кабінету
         frame.setAttribute('sandbox', 'allow-scripts allow-popups');
-        frame.srcdoc = r.html;
+        // дозвіл на повний екран і для вкладених рамок (вкладки «Конспект» / «Презентація»)
+        frame.srcdoc = r.html.replace(/<iframe /g, '<iframe allow="fullscreen" allowfullscreen ');
       } else {
         if (blobUrl) URL.revokeObjectURL(blobUrl);
         var bin = atob(r.base64), bytes = new Uint8Array(bin.length);
@@ -312,9 +316,46 @@
         a.innerHTML = 'Якщо файл не відкрився на телефоні, <a target="_blank" rel="noopener" href="' + blobUrl + '">відкрийте його в новій вкладці</a>.';
         box.appendChild(a);
       }
+      frame.setAttribute('allow', 'fullscreen');
+      frame.setAttribute('allowfullscreen', '');
       box.appendChild(frame);
+      lecFrame = frame;
+      $('#lec-full').hidden = false;
     }).catch(fail);
   }
+
+  /* ---------- на весь екран ---------- */
+  var lecFrame = null;
+
+  function exitFull() {
+    document.body.classList.remove('pseudo-full');
+    if (lecFrame) lecFrame.classList.remove('is-full');
+    $('#lec-full').textContent = '⛶ На весь екран';
+  }
+
+  $('#lec-full').addEventListener('click', function () {
+    if (!lecFrame) return;
+    if (document.fullscreenElement || lecFrame.classList.contains('is-full')) {
+      if (document.fullscreenElement) document.exitFullscreen();
+      exitFull();
+      return;
+    }
+    if (lecFrame.requestFullscreen) {
+      lecFrame.requestFullscreen().catch(function () { pseudoFull(); });
+    } else {
+      pseudoFull(); // iPhone та інші браузери без повного екрана для елементів
+    }
+  });
+
+  function pseudoFull() {
+    document.body.classList.add('pseudo-full');
+    lecFrame.classList.add('is-full');
+    $('#lec-full').textContent = '✕ Закрити повний екран';
+  }
+
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && lecFrame && lecFrame.classList.contains('is-full')) exitFull();
+  });
 
   /* Повернення до списку: показуємо вже завантажене одразу, а свіжі дані підтягуємо у фоні */
   $('#lec-back').addEventListener('click', function () {

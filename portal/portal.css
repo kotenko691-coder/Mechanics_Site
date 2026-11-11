@@ -87,6 +87,16 @@ form .btn { margin-top: 20px; }
   border-radius: var(--radius);
   background: #fff;
 }
+/* запасний повний екран (телефони без підтримки) */
+body.pseudo-full { overflow: hidden; }
+.lec-frame.is-full {
+  position: fixed; inset: 0; z-index: 1000;
+  width: 100vw; height: 100dvh; max-height: none; min-height: 0;
+  border: 0; border-radius: 0;
+}
+body.pseudo-full #lec-full {
+  position: fixed; right: 10px; bottom: 10px; z-index: 1001; margin: 0;
+}
 .lec-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 18px; }
 
 .code-form { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; margin: 12px 0 20px; }
