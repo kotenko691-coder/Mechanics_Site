@@ -31,7 +31,7 @@
         '<div><small>Ліміт</small><b>' + mmss(info.limit) + '</b></div>' +
         '<div><small>Бали зараз</small><b class="tk-pts">' + info.max + '</b></div>' +
       '</div>' +
-      '<p class="tk-rule muted">Перша хвилина: ' + info.max + ' балів, далі менше, на ліміті ' + info.min + ', після ліміту 0.</p>' +
+      '<p class="tk-rule muted">' + (info.owner ? 'Режим викладача: без обмеження часу, бали не записуються. ' : '') + 'Перша хвилина: ' + info.max + ' балів, далі менше, на ліміті ' + info.min + ', після ліміту 0.</p>' +
       '<div class="tk-stage"></div>' +
       '<p class="tk-say" role="status" aria-live="polite"></p>' +
       '<div class="tk-modal" hidden><div class="tk-modal-box"><button type="button" class="tk-x" aria-label="Закрити">×</button><div class="tk-modal-body"></div></div></div>';
@@ -46,7 +46,7 @@
     function tick() {
       if (stopped) return;
       var e = elapsed();
-      if (e > info.limit && !expiring) { expire(); return; }
+      if (e > info.limit && !expiring && !info.owner) { expire(); return; }
       timeEl.textContent = mmss(e);
       ptsEl.textContent = pointsNow(info, e);
       box.classList.toggle('tk-late', e > 60);
