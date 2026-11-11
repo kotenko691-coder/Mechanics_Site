@@ -171,7 +171,10 @@
   /* ---------- показ екранів і повідомлень ---------- */
   var VIEWS = ['v-login', 'v-register', 'v-home', 'v-lecture', 'v-admin', 'v-rating', 'v-tasks', 'v-task'];
 
+  var BG_THEME = { 'v-rating': 'city', 'v-tasks': 'gears', 'v-task': 'gears', 'v-admin': 'grid' };
+
   function show(id) {
+    if (window.PortalBG) window.PortalBG.set(BG_THEME[id] || 'formulas');
     VIEWS.forEach(function (v) { $('#' + v).hidden = (v !== id); });
     var loggedIn = id !== 'v-login';
     $('#nav-home').hidden = !loggedIn || id === 'v-register';
