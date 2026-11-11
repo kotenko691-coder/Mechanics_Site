@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Кабінет студента | Навчальний портал з механіки</title>
     <link rel="stylesheet" href="../style.css">
-    <link rel="stylesheet" href="portal.css?v=11">
+    <link rel="stylesheet" href="portal.css?v=12">
 </head>
 <body>
 
@@ -17,6 +17,7 @@
     <nav>
         <a href="../index.html">← На сайт</a>
         <a href="#" id="nav-home" hidden>Мої лекції</a>
+        <a href="#" id="nav-rating" hidden>Рейтинг</a>
         <a href="#" id="nav-admin" hidden>Кабінет викладача</a>
         <a href="#" id="nav-logout" hidden>Вийти</a>
     </nav>
@@ -74,6 +75,20 @@
             </div>
         </section>
 
+        <!-- Рейтинг -->
+        <section id="v-rating" hidden>
+            <div class="card">
+                <h2>Рейтинг</h2>
+                <p id="rt-me" class="rt-me"></p>
+                <h3>Групи</h3>
+                <p class="muted">Місце групи залежить від суми балів усіх її студентів.</p>
+                <ol id="rt-groups" class="rt-list"></ol>
+                <h3 id="rt-title">Ваша група</h3>
+                <ol id="rt-students" class="rt-list"></ol>
+                <p id="rt-empty" class="muted" hidden>Бали з’являться після перших завдань.</p>
+            </div>
+        </section>
+
         <!-- Лекція -->
         <section id="v-lecture" hidden>
             <div class="card">
@@ -105,6 +120,13 @@
                     <input id="adm-code" type="text" maxlength="40">
                     <button class="btn" type="submit">Змінити код</button>
                 </form>
+                <h3>Внести бали</h3>
+                <form id="pts-form" class="code-form">
+                    <select id="pts-student" aria-label="Студент"></select>
+                    <input id="pts-task" type="text" maxlength="80" placeholder="Завдання, наприклад: Завдання 1" aria-label="Завдання">
+                    <input id="pts-val" type="number" step="any" min="-1000" max="1000" placeholder="Бали" aria-label="Бали" style="max-width:110px">
+                    <button class="btn" type="submit">Додати</button>
+                </form>
                 <div class="table-wrap">
                     <table class="adm-table">
                         <thead><tr><th>Студент</th><th>Група</th><th>Пошта</th><th>Тем</th><th>Доступ</th></tr></thead>
@@ -120,8 +142,8 @@
         <p>© Навчальний портал з механіки | Кабінет студента</p>
     </footer>
 
-    <script src="config.js?v=11"></script>
-    <script src="portal.js?v=11"></script>
+    <script src="config.js?v=12"></script>
+    <script src="portal.js?v=12"></script>
     <script src="https://accounts.google.com/gsi/client" async defer></script>
     <script src="../background.js"></script>
 </body>

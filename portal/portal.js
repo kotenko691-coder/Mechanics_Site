@@ -17,6 +17,7 @@
 
   var ERR = {
     AUTH: 'Сеанс завершився. Увійдіть знову.',
+    BAD_POINTS: 'Перевірте бали: потрібне число від -1000 до 1000 і назва завдання.',
     BAD_NAME: 'Напишіть прізвище та ім’я (не менше 3 символів).',
     BAD_GROUP: 'Оберіть групу зі списку.',
     BAD_CODE: 'Невірний код семестру. Запитайте його у викладача.',
@@ -37,7 +38,7 @@
   var LOADING = {
     me: 'Входимо в кабінет…', register: 'Реєструємо…', lectures: 'Завантажуємо лекції…',
     lecture: 'Відкриваємо лекцію…', done: 'Зберігаємо…', admin: 'Завантажуємо список студентів…',
-    admin_status: 'Зберігаємо…', admin_code: 'Зберігаємо…'
+    admin_status: 'Зберігаємо…', admin_code: 'Зберігаємо…', admin_points: 'Зберігаємо…', rating: 'Рахуємо рейтинг…'
   };
   var pending = 0, loaderTimer = null;
 
@@ -117,12 +118,13 @@
   });
 
   /* ---------- показ екранів і повідомлень ---------- */
-  var VIEWS = ['v-login', 'v-register', 'v-home', 'v-lecture', 'v-admin'];
+  var VIEWS = ['v-login', 'v-register', 'v-home', 'v-lecture', 'v-admin', 'v-rating'];
 
   function show(id) {
     VIEWS.forEach(function (v) { $('#' + v).hidden = (v !== id); });
     var loggedIn = id !== 'v-login';
     $('#nav-home').hidden = !loggedIn || id === 'v-register';
+    $('#nav-rating').hidden = !loggedIn || id === 'v-register';
     $('#nav-logout').hidden = !loggedIn;
     $('#nav-admin').hidden = !(me && me.isOwner);
     window.scrollTo(0, 0);
@@ -543,6 +545,39 @@
   $('#lec-done').addEventListener('click', onDoneClick);
   $('#lec-done-top').addEventListener('click', onDoneClick);
 
+  /* ---------- рейтинг ---------- */
+  function ratingRow(place, label, value, max, me, extra) {
+    var medal = place === 1 ? 'gold' : place === 2 ? 'silver' : place === 3 ? 'bronze' : '';
+    var w = max > 0 ? Math.max(3, Math.round(Math.max(value, 0) / max * 100)) : 3;
+    return '<li class="rt-row' + (me ? ' me' : '') + '"><span class="rt-place ' + medal + '">' + place + '</span>' +
+      '<span class="rt-body"><span class="rt-name">' + esc(label) + (extra ? ' <small>' + esc(extra) + '</small>' : '') + '</span>' +
+      '<span class="rt-bar"><i style="width:' + (value > 0 ? w : 0) + '%"></i></span></span>' +
+      '<span class="rt-pts">' + esc(String(Math.round(value * 100) / 100)) + '</span></li>';
+  }
+
+  function showRating() {
+    api('rating', { group: viewGroup }).then(function (r) {
+      var gmax = Math.max.apply(null, r.groups.map(function (g) { return g.total; }).concat([0]));
+      var smax = Math.max.apply(null, r.students.map(function (s) { return s.points; }).concat([0]));
+      var gs = r.groups.slice().sort(function (a, b) { return a.place - b.place || a.group.localeCompare(b.group, 'uk'); });
+      $('#rt-groups').innerHTML = gs.map(function (g) {
+        return ratingRow(g.place, g.group, g.total, gmax, g.mine, g.count + ' студ.');
+      }).join('');
+      $('#rt-title').textContent = 'Група ' + r.group;
+      $('#rt-students').innerHTML = r.students.map(function (s) {
+        return ratingRow(s.place, s.name, s.points, smax, s.me, '');
+      }).join('');
+      var myG = r.groups.filter(function (g) { return g.mine; })[0];
+      $('#rt-me').textContent = r.me
+        ? 'Ви: ' + r.me.place + ' місце в групі, ' + r.me.points + ' балів. Ваша група: ' + (myG ? myG.place : '-') + ' місце.'
+        : (myG ? 'Група ' + r.group + ': ' + myG.place + ' місце, ' + myG.total + ' балів.' : '');
+      $('#rt-empty').hidden = gmax > 0;
+      show('v-rating');
+    }).catch(fail);
+  }
+
+  $('#nav-rating').addEventListener('click', function (e) { e.preventDefault(); say(''); showRating(); });
+
   /* ---------- кабінет викладача ---------- */
   function showAdmin() {
     api('admin').then(function (r) {
@@ -550,6 +585,9 @@
       $('#adm-folder').href = r.folderUrl;
       $('#adm-code').value = r.code;
       $('#adm-empty').hidden = r.students.length > 0;
+      $('#pts-student').innerHTML = r.students.filter(function (s) { return s.status === 'активний'; })
+        .sort(function (a, b) { return (a.group + a.name).localeCompare(b.group + b.name, 'uk'); })
+        .map(function (s) { return '<option value="' + esc(s.email) + '">' + esc(s.group + ' · ' + s.name) + '</option>'; }).join('');
       $('#adm-body').innerHTML = r.students.map(function (s) {
         var active = s.status === 'активний';
         return '<tr class="' + (active ? '' : 'blocked') + '"><td>' + esc(s.name) + '</td><td>' + esc(s.group) +
@@ -566,6 +604,16 @@
     if (!b) return;
     api('admin_status', { email: b.getAttribute('data-email'), status: b.getAttribute('data-to') })
       .then(showAdmin).catch(fail);
+  });
+
+  $('#pts-form').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var email = $('#pts-student').value, task = $('#pts-task').value, val = $('#pts-val').value;
+    if (!email || !task.trim() || val === '') { say('Оберіть студента, напишіть завдання і бали.', true); return; }
+    api('admin_points', { email: email, task: task, points: Number(val) }).then(function () {
+      say('Бали додано.');
+      $('#pts-val').value = '';
+    }).catch(fail);
   });
 
   $('#code-form').addEventListener('submit', function (e) {
