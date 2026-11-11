@@ -72,7 +72,7 @@
         '<h3>Готово!</h3>' +
         '<p class="tk-res">Ваш час: <b>' + mmss(r.seconds) + '</b></p>' +
         '<p class="tk-res">Бали: <b>' + r.points + '</b></p>' +
-        '<p class="muted">Бали вже в рейтингу. Повторно за цей квест бали не нараховуються.</p>' +
+        (r.preview ? '<p class="muted">Це тестовий прохід викладача: бали не записано.</p>' : '<p class="muted">Бали вже в рейтингу. Повторно за цей квест бали не нараховуються.</p>') +
         '<button type="button" class="btn" data-act="list">До списку завдань</button>');
       card.querySelector('[data-act="list"]').addEventListener('click', function () { ctx.back(); });
       box.querySelector('.tk-x').hidden = true;
