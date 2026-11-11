@@ -268,3 +268,10 @@ body.pseudo-full .lec-top { display: none; }
 .tk-bar small{color:#cfe0ff}
 .tk-late .tk-bar .tk-time{color:#ffb4a8}
 .tk-rule{margin:0 0 8px;font-size:.88rem}
+
+.tk-gate{transition:transform 1.2s}
+.tk-gate.tk-slide{transform:translateX(70px)}
+.tk-cable{transform-origin:440px 110px;animation:tkcable 3s ease-in-out infinite alternate}
+.tk-load{animation:tkload 3s ease-in-out infinite alternate}
+@keyframes tkcable{from{transform:rotate(-1.5deg)}to{transform:rotate(1.5deg)}}
+@keyframes tkload{from{transform:translateX(-2px)}to{transform:translateX(2px)}}

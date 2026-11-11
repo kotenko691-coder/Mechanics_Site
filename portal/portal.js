@@ -803,17 +803,18 @@
   // Показ без входу: portal/?demo=task (перевірка коду локально, на сервер нічого не йде)
   function demoTask() {
     var t0 = Date.now();
-    openTask({ id: 'z1', name: 'Майстерня', limit: 600, max: 100, min: 10, elapsed: 0 }, function (answer) {
+    var z2 = /[?&]demo=task2/.test(location.search), code = z2 ? '2016' : '84';
+    openTask({ id: z2 ? 'z2' : 'z1', name: z2 ? 'Будмайданчик' : 'Майстерня', limit: 600, max: 100, min: 10, elapsed: 0 }, function (answer) {
       return new Promise(function (res) {
         setTimeout(function () {
           var sec = Math.round((Date.now() - t0) / 1000);
           if (sec > 600) { res({ ok: true, correct: false, expired: true, points: 0, seconds: sec }); return; }
-          if (String(answer) !== '84') { res({ ok: true, correct: false }); return; }
+          if (String(answer) !== code) { res({ ok: true, correct: false }); return; }
           res({ ok: true, correct: true, seconds: sec, points: window.PortalTasks.pointsNow({ limit: 600, max: 100, min: 10 }, sec) });
         }, 300);
       });
     });
-    say('Демонстрація: код 84, бали нікуди не записуються.');
+    say('Демонстрація: код ' + code + ', бали нікуди не записуються.');
   }
 
   /* ---------- кабінет викладача ---------- */

@@ -287,5 +287,128 @@
     });
   };
 
+
+  /* ---------- завдання 2: «Будмайданчик» ---------- */
+  SCENES.z2 = function (g) {
+    var hasKey = false, opened = false;
+    var h = '<svg viewBox="0 0 800 480" class="tk-svg" role="group" aria-label="Будівельний майданчик">' +
+      '<defs><linearGradient id="sky2" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7fc4ee"/><stop offset="1" stop-color="#dff1fb"/></linearGradient></defs>' +
+      '<rect width="800" height="480" fill="url(#sky2)"/>' +
+      '<circle cx="90" cy="70" r="30" fill="#ffe27a"/>' +
+      '<rect y="360" width="800" height="120" fill="#b49a6b"/><rect y="352" width="800" height="12" fill="#8c7a52"/>' +
+      // будинок у будівництві
+      '<g><rect x="300" y="190" width="150" height="170" fill="#c9c2b2" stroke="#6b6558" stroke-width="3"/>' +
+        '<g fill="#8fb4cc" stroke="#6b6558" stroke-width="2"><rect x="318" y="210" width="30" height="34"/><rect x="368" y="210" width="30" height="34"/><rect x="318" y="270" width="30" height="34"/><rect x="368" y="270" width="30" height="34"/></g>' +
+        '<g stroke="#8a5a2a" stroke-width="3"><line x1="290" y1="190" x2="460" y2="190"/></g></g>' +
+      // кран
+      '<g class="tk-hot" data-id="crane"><rect x="552" y="110" width="12" height="250" fill="#f0a500" stroke="#7a5200" stroke-width="2"/>' +
+        '<g stroke="#7a5200" stroke-width="1.5"><line x1="552" y1="150" x2="564" y2="180"/><line x1="564" y1="150" x2="552" y2="180"/><line x1="552" y1="210" x2="564" y2="240"/><line x1="564" y1="210" x2="552" y2="240"/><line x1="552" y1="270" x2="564" y2="300"/><line x1="564" y1="270" x2="552" y2="300"/></g>' +
+        '<rect x="410" y="100" width="230" height="10" fill="#f0a500" stroke="#7a5200" stroke-width="2"/>' +
+        '<rect x="620" y="94" width="40" height="22" fill="#7a5200"/>' +
+        '<line class="tk-cable" x1="440" y1="110" x2="440" y2="190" stroke="#222" stroke-width="2"/><rect class="tk-load" x="425" y="190" width="30" height="22" fill="#6d7b82" stroke="#222" stroke-width="2"/></g>' +
+      // щит із кресленням
+      '<g class="tk-hot" data-id="board"><rect x="110" y="232" width="170" height="110" fill="#fff" stroke="#6b4a1f" stroke-width="5"/>' +
+        '<rect x="140" y="342" width="8" height="18" fill="#6b4a1f"/><rect x="242" y="342" width="8" height="18" fill="#6b4a1f"/>' +
+        '<g stroke="#12284a" stroke-width="3" fill="none"><line x1="140" y1="252" x2="140" y2="326"/><line x1="140" y1="326" x2="238" y2="326"/><line x1="140" y1="252" x2="238" y2="326"/></g>' +
+        '<g fill="#b5392b"><polygon points="238,326 228,320 228,332"/></g>' +
+        '<text x="196" y="246" font-size="10" fill="#12284a" text-anchor="middle">кронштейн</text></g>' +
+      // вагончик
+      '<g class="tk-hot" data-id="trailer"><rect x="10" y="250" width="86" height="110" fill="#e0a52a" stroke="#6b4a10" stroke-width="3"/>' +
+        '<rect x="22" y="268" width="26" height="26" fill="#cde6f2" stroke="#6b4a10" stroke-width="2"/><rect x="58" y="298" width="28" height="62" fill="#8b5d1a" stroke="#6b4a10" stroke-width="2"/>' +
+        '<text x="53" y="262" font-size="9" fill="#4a3208" text-anchor="middle">ПРОРАБ</text></g>' +
+      // бочка з ключем
+      '<g class="tk-hot" data-id="barrel"><ellipse cx="330" cy="400" rx="30" ry="9" fill="#3a5a8a"/><rect x="300" y="400" width="60" height="50" fill="#3f64a0" stroke="#1b2f55" stroke-width="3"/>' +
+        '<ellipse cx="330" cy="450" rx="30" ry="9" fill="#3f64a0" stroke="#1b2f55" stroke-width="3"/><ellipse cx="330" cy="400" rx="30" ry="9" fill="#5b82bd" stroke="#1b2f55" stroke-width="3"/>' +
+        '<line x1="300" y1="418" x2="360" y2="418" stroke="#1b2f55" stroke-width="2"/><line x1="300" y1="436" x2="360" y2="436" stroke="#1b2f55" stroke-width="2"/></g>' +
+      // каска
+      '<g class="tk-hot" data-id="helmet"><path d="M150 430 q30 -40 60 0 z" fill="#f5c400" stroke="#7a5f00" stroke-width="3"/><rect x="144" y="428" width="72" height="8" rx="3" fill="#f5c400" stroke="#7a5f00" stroke-width="3"/></g>' +
+      // ворота
+      '<g class="tk-hot" data-id="gate"><rect x="676" y="220" width="12" height="140" fill="#555"/><rect x="760" y="220" width="12" height="140" fill="#555"/>' +
+        '<g class="tk-gate"><rect x="688" y="236" width="72" height="110" fill="#d8dde0" stroke="#555" stroke-width="3"/>' +
+        '<g stroke="#e3a21a" stroke-width="8"><line x1="692" y1="340" x2="756" y2="242"/><line x1="692" y1="290" x2="756" y2="242"/></g>' +
+        '<rect x="708" y="280" width="32" height="26" rx="3" fill="#2a2f33" stroke="#111" stroke-width="2"/><text class="tk-led" x="724" y="298" text-anchor="middle" font-size="12" font-family="monospace" fill="#5dff9a">----</text></g></g>' +
+      '</svg>';
+    g.stage.innerHTML = h;
+    var svg = g.stage.querySelector('svg');
+    g.say('Ви на будмайданчику. Ворота замкнені кодовим замком. Огляньте все навколо.');
+
+    function beam() {
+      return '<svg viewBox="0 0 360 230" class="tk-beam" role="img" aria-label="Кронштейн: горизонтальний стержень 4 м, висота 3 м, сила 12 кН вниз у вузлі">' +
+        '<rect x="30" y="20" width="14" height="190" fill="#9aa7b2"/><line x1="44" y1="40" x2="44" y2="190" stroke="#555" stroke-width="2"/>' +
+        '<line x1="44" y1="50" x2="260" y2="50" stroke="' + INK + '" stroke-width="5"/>' +
+        '<line x1="44" y1="170" x2="260" y2="50" stroke="' + INK + '" stroke-width="5"/>' +
+        '<circle cx="260" cy="50" r="6" fill="#fff" stroke="' + INK + '" stroke-width="2"/>' +
+        '<line x1="260" y1="56" x2="260" y2="120" stroke="#b5392b" stroke-width="4"/><polygon points="260,124 253,108 267,108" fill="#b5392b"/>' +
+        '<text x="272" y="100" font-size="14" font-weight="700" fill="#b5392b">F = 12 кН</text>' +
+        '<text x="150" y="40" text-anchor="middle" font-size="13" font-weight="700" fill="' + INK + '">1 (горизонтальний)</text>' +
+        '<text x="165" y="146" text-anchor="middle" font-size="13" font-weight="700" fill="' + INK + '" transform="rotate(-29 165 146)">2 (похилий)</text>' +
+        '<line x1="44" y1="205" x2="260" y2="205" stroke="' + INK + '" stroke-width="1.5"/><text x="152" y="222" text-anchor="middle" font-size="13" fill="' + INK + '">4 м</text>' +
+        '<line x1="14" y1="50" x2="14" y2="170" stroke="' + INK + '" stroke-width="1.5"/><text x="8" y="115" font-size="13" fill="' + INK + '" transform="rotate(-90 8 115)">3 м</text></svg>';
+    }
+
+    function openKeypad() {
+      var code = '', busy = false;
+      var body = g.modal('<h3>Кодовий замок воріт</h3><div class="kp-disp">----</div>' +
+        '<div class="kp-grid">' + [1, 2, 3, 4, 5, 6, 7, 8, 9].map(function (n) { return '<button type="button" data-k="' + n + '">' + n + '</button>'; }).join('') +
+        '<button type="button" data-k="C">C</button><button type="button" data-k="0">0</button><button type="button" data-k="ok" class="kp-ok">OK</button></div><p class="kp-msg muted"></p>');
+      var disp = body.querySelector('.kp-disp'), msg = body.querySelector('.kp-msg');
+      function showCode() { disp.textContent = (code + '----').slice(0, 4); }
+      body.querySelector('.kp-grid').addEventListener('click', function (e) {
+        var b = e.target.closest('button[data-k]'); if (!b || busy) return;
+        var k = b.getAttribute('data-k');
+        if (k === 'C') { code = ''; msg.textContent = ''; showCode(); return; }
+        if (k === 'ok') {
+          if (code.length < 4) { msg.textContent = 'Код має 4 цифри.'; return; }
+          busy = true; msg.textContent = 'Перевіряємо…';
+          g.submit(code).then(function (r) {
+            busy = false;
+            if (r.expired) { return; }
+            if (!r.correct) { msg.textContent = 'Замок не відкрився. Перевірте розрахунок.'; code = ''; showCode(); return; }
+            opened = true; g.close();
+            svg.querySelector('.tk-led').textContent = 'OPEN';
+            svg.querySelector('.tk-gate').classList.add('tk-slide');
+            g.say('Ворота відчинено. Ви вийшли з майданчика!');
+            setTimeout(function () { g.finish(r); }, 1800);
+          }).catch(function (err) {
+            busy = false; msg.textContent = err && err.message === 'NETWORK' ? 'Немає зв’язку. Спробуйте ще раз.' : 'Не вдалося перевірити (' + (err && err.message) + ').';
+          });
+          return;
+        }
+        if (code.length < 4) { code += k; showCode(); }
+      });
+    }
+
+    var ACT = {
+      crane: function () { g.say('Кран піднімає плиту. Його силу вам рахувати не треба, цікавіше кронштейн на щиті.'); },
+      helmet: function () { g.say('Каска. Без неї на майданчику не можна, але до замка вона не має відношення.'); },
+      barrel: function () {
+        if (hasKey) { g.say('У бочці більше нічого немає.'); return; }
+        hasKey = true;
+        g.say('У бочці лежить ключ з написом «ПРОРАБ». Він має підходити до вагончика.');
+      },
+      trailer: function () {
+        if (!hasKey) { g.say('Вагончик прораба зачинений. Шукайте ключ.'); return; }
+        g.modal('<h3>Вагончик прораба</h3><p>На столі записка:</p><div class="tk-note">' +
+          '<p><b>Вузол кронштейна в рівновазі.</b> Сили, що збігаються у вузлі, дають дві умови: сума проекцій на горизонталь = 0 і на вертикаль = 0.</p>' +
+          '<p>Нехай α: кут похилого стержня 2 до горизонталі. З креслення: <b>sin α = 3/5</b>, <b>cos α = 4/5</b> (трикутник 3-4-5).</p>' +
+          '<p>Вертикаль: <b>N<sub>2</sub> · sin α = F</b>. Горизонталь: <b>N<sub>1</sub> = N<sub>2</sub> · cos α</b>.</p>' +
+          '<p>Код замка: <b>N<sub>2</sub>, потім N<sub>1</sub></b>, у кН, цілими числами, без пробілів.</p></div>');
+      },
+      board: function () {
+        g.modal('<h3>Щит із кресленням</h3>' + beam() + '<p>Кронштейн: горизонтальний стержень 1 завдовжки 4 м, висота кріплення похилого стержня 2 дорівнює 3 м. У вузлі діє сила F = 12 кН.</p>');
+      },
+      gate: function () {
+        if (opened) { g.say('Ворота відчинені.'); return; }
+        openKeypad();
+      }
+    };
+
+    svg.addEventListener('click', function (e) {
+      var t = e.target.closest('[data-id]'); if (!t) return;
+      var id = t.getAttribute('data-id');
+      if (ACT[id]) ACT[id]();
+    });
+  };
+
   window.PortalTasks = { run: run, scenes: SCENES, mmss: mmss, pointsNow: pointsNow };
 })();
