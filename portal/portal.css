@@ -121,7 +121,7 @@ body.pseudo-full #lec-full {
 /* ---------- індикатор завантаження ---------- */
 .loader[hidden] { display: none; }
 .loader {
-  position: fixed; left: 50%; top: 18px; transform: translateX(-50%);
+  position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%);
   z-index: 50; display: flex; align-items: center; gap: 12px;
   background: var(--ink); color: #fff; border-bottom: 4px solid var(--amber);
   padding: 10px 18px; border-radius: var(--radius); font-weight: 600;
