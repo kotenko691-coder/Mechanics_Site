@@ -43,15 +43,18 @@
 
   function loaderOn(action) {
     pending++;
-    $('#loader-text').textContent = LOADING[action] || 'Завантаження…';
-    if (!loaderTimer) loaderTimer = setTimeout(function () { $('#loader').hidden = false; }, 200);
+    var lt = $('#loader-text'), lb = $('#loader');
+    if (!lt || !lb) return;
+    lt.textContent = LOADING[action] || 'Завантаження…';
+    if (!loaderTimer) loaderTimer = setTimeout(function () { lb.hidden = false; }, 200);
   }
 
   function loaderOff() {
     pending = Math.max(0, pending - 1);
     if (pending === 0) {
       clearTimeout(loaderTimer); loaderTimer = null;
-      $('#loader').hidden = true;
+      var lb = $('#loader');
+      if (lb) lb.hidden = true;
     }
   }
 
