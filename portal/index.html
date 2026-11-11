@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Кабінет студента | Навчальний портал з механіки</title>
+    <link rel="stylesheet" href="../style.css">
+    <link rel="stylesheet" href="portal.css">
+</head>
+<body>
+
+    <header>
+        <h1>Кабінет студента</h1>
+        <p>Лекції з механіки для самостійного вивчення</p>
+    </header>
+
+    <nav>
+        <a href="../index.html">← На сайт</a>
+        <a href="#" id="nav-home" hidden>Мої лекції</a>
+        <a href="#" id="nav-admin" hidden>Кабінет викладача</a>
+        <a href="#" id="nav-logout" hidden>Вийти</a>
+    </nav>
+
+    <div class="container">
+        <div id="msg" class="msg" role="status" hidden></div>
+
+        <!-- Вхід -->
+        <section id="v-login" class="card" hidden>
+            <h2>Вхід</h2>
+            <p>Увійдіть зі своєю поштою Google. Це та сама пошта, з якою ви заходите в Google Клас.</p>
+            <div id="gbtn" class="gbtn"></div>
+            <p id="login-wait" class="muted">Завантаження входу Google…</p>
+        </section>
+
+        <!-- Реєстрація -->
+        <section id="v-register" class="card" hidden>
+            <h2>Реєстрація</h2>
+            <p>Потрібно один раз. Пошта: <b id="reg-email"></b></p>
+            <form id="reg-form" autocomplete="off">
+                <label for="reg-name">Прізвище та ім’я</label>
+                <input id="reg-name" type="text" maxlength="80" required placeholder="Наприклад: Шевченко Тарас">
+
+                <label for="reg-group">Група</label>
+                <select id="reg-group" required></select>
+
+                <label for="reg-code">Код семестру (скаже викладач)</label>
+                <input id="reg-code" type="text" maxlength="40" required>
+
+                <button class="btn" type="submit">Зареєструватися</button>
+            </form>
+        </section>
+
+        <!-- Головна -->
+        <section id="v-home" hidden>
+            <div class="card">
+                <h2 id="home-title">Мої лекції</h2>
+                <div id="owner-bar" class="owner-bar" hidden>
+                    <label for="owner-group">Переглядаєте як група:</label>
+                    <select id="owner-group"></select>
+                </div>
+                <div class="home-grid">
+                    <div id="tower" class="tower" aria-label="Прогрес"></div>
+                    <div>
+                        <p id="progress-text" class="progress-text"></p>
+                        <ul id="lec-list" class="lec-list"></ul>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Лекція -->
+        <section id="v-lecture" hidden>
+            <div class="card">
+                <h2 id="lec-title"></h2>
+                <div id="lec-body"></div>
+                <div class="lec-actions">
+                    <button class="btn" id="lec-done" type="button">Я опрацював(ла) цю тему</button>
+                    <button class="btn btn-ghost" id="lec-back" type="button">До списку лекцій</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Кабінет викладача -->
+        <section id="v-admin" hidden>
+            <div class="card">
+                <h2>Кабінет викладача</h2>
+                <p>
+                    <a id="adm-sheet" href="#" target="_blank" rel="noopener">Таблиця студентів</a> ·
+                    <a id="adm-folder" href="#" target="_blank" rel="noopener">Папка з лекціями на Диску</a>
+                </p>
+                <form id="code-form" class="code-form">
+                    <label for="adm-code">Код семестру</label>
+                    <input id="adm-code" type="text" maxlength="40">
+                    <button class="btn" type="submit">Змінити код</button>
+                </form>
+                <div class="table-wrap">
+                    <table class="adm-table">
+                        <thead><tr><th>Студент</th><th>Група</th><th>Пошта</th><th>Тем</th><th>Доступ</th></tr></thead>
+                        <tbody id="adm-body"></tbody>
+                    </table>
+                </div>
+                <p id="adm-empty" class="muted" hidden>Поки ніхто не зареєструвався.</p>
+            </div>
+        </section>
+    </div>
+
+    <footer>
+        <p>© Навчальний портал з механіки | Кабінет студента</p>
+    </footer>
+
+    <script src="config.js"></script>
+    <script src="portal.js"></script>
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <script src="../background.js"></script>
+</body>
+</html>
