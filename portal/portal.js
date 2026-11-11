@@ -791,12 +791,18 @@
       .then(showAdmin).catch(fail);
   });
 
+  var ptsSign = 1;
+  $('#pts-add').addEventListener('click', function () { ptsSign = 1; });
+  $('#pts-sub').addEventListener('click', function () { ptsSign = -1; });
   $('#pts-form').addEventListener('submit', function (e) {
     e.preventDefault();
-    var email = $('#pts-student').value, task = $('#pts-task').value, val = $('#pts-val').value;
-    if (!email || !task.trim() || val === '') { say('Оберіть студента, напишіть завдання і бали.', true); return; }
-    api('admin_points', { email: email, task: task, points: Number(val) }).then(function () {
-      say('Бали додано.');
+    var sign = ptsSign; ptsSign = 1;
+    var sel = $('#pts-student'), email = sel.value, task = $('#pts-task').value;
+    var val = Math.abs(Number($('#pts-val').value));
+    if (!email || !task.trim() || !(val > 0)) { say('Оберіть студента, напишіть завдання (або причину) і бали більше нуля.', true); return; }
+    var who = sel.options[sel.selectedIndex].textContent.split(' · ').pop();
+    api('admin_points', { email: email, task: task, points: sign * val }).then(function () {
+      say((sign > 0 ? 'Додано ' : 'Знято ') + val + ' балів: ' + who + '.');
       $('#pts-val').value = '';
     }).catch(fail);
   });
