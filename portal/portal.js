@@ -197,6 +197,13 @@
     }).catch(fail);
   }
 
+  function refreshLectures() {
+    api('lectures', { group: viewGroup }).then(function (r) {
+      items = r.items;
+      if (!$('#v-home').hidden) renderHome();
+    }).catch(function () { /* лишаємо показане */ });
+  }
+
   function renderHome() {
     var done = items.filter(function (i) { return i.done; }).length;
     $('#tower').innerHTML = tower(done, items.length);
@@ -258,14 +265,20 @@
     }).catch(fail);
   }
 
-  $('#lec-back').addEventListener('click', function () { loadLectures(); });
+  /* Повернення до списку: показуємо вже завантажене одразу, а свіжі дані підтягуємо у фоні */
+  $('#lec-back').addEventListener('click', function () {
+    if (items.length) { renderHome(); show('v-home'); refreshLectures(); }
+    else { loadLectures(); }
+  });
 
   $('#lec-done').addEventListener('click', function () {
     if (!current) return;
     api('done', { id: current.id, title: current.title }).then(function () {
       current.done = true;
       say('Тему відмічено. Вежа виросла на поверх.');
-      loadLectures();
+      renderHome();
+      show('v-home');
+      refreshLectures();
     }).catch(fail);
   });
 
