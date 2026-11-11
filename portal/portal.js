@@ -366,6 +366,9 @@
     say('');
     current = it;
     $('#lec-title').textContent = it.title;
+    var backText = '← До списку ' + ((it.section || 'lec') === 'prac' ? 'практичних робіт' : 'лекцій');
+    $('#lec-back-top').textContent = backText;
+    $('#lec-back').textContent = backText.replace('← ', '');
     $('#lec-body').innerHTML = '<p class="muted">Завантаження лекції…</p>';
     $('#lec-done').hidden = !!it.done;
     $('#lec-full').hidden = true;
@@ -513,10 +516,12 @@
   });
 
   /* Повернення до списку: показуємо вже завантажене одразу, а свіжі дані підтягуємо у фоні */
-  $('#lec-back').addEventListener('click', function () {
+  function backToList() {
     if (items.length) { renderHome(); show('v-home'); refreshLectures(); }
     else { loadLectures(); }
-  });
+  }
+  $('#lec-back').addEventListener('click', backToList);
+  $('#lec-back-top').addEventListener('click', backToList);
 
   $('#lec-done').addEventListener('click', function () {
     if (!current) return;
