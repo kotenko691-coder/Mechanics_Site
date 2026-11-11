@@ -87,11 +87,14 @@ form .btn { margin-top: 20px; }
   border-radius: var(--radius);
   background: #fff;
 }
+/* текстова лекція росте на всю довжину, прокручується лише сторінка */
+.lec-frame.auto { min-height: 120px; height: 420px; border: 0; border-radius: 0; }
+.lec-frame[hidden] { display: none; }
 /* запасний повний екран (телефони без підтримки) */
 body.pseudo-full { overflow: hidden; }
 .lec-frame.is-full {
   position: fixed; inset: 0; z-index: 1000;
-  width: 100vw; height: 100dvh; max-height: none; min-height: 0;
+  width: 100vw; height: 100dvh !important; max-height: none; min-height: 0;
   border: 0; border-radius: 0;
 }
 body.pseudo-full #lec-full {

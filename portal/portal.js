@@ -294,34 +294,111 @@
     lecFrame = null;
     exitFull();
     show('v-lecture');
+    autoFrames = [];
     api('lecture', { id: it.id, group: viewGroup }).then(function (r) {
       var box = $('#lec-body');
       box.innerHTML = '';
-      var frame = document.createElement('iframe');
-      frame.className = 'lec-frame';
-      frame.title = r.title;
       if (r.kind === 'html') {
-        // sandbox без allow-same-origin: скрипти лекції не бачать ні токен, ні сторінку кабінету
-        frame.setAttribute('sandbox', 'allow-scripts allow-popups');
-        // дозвіл на повний екран і для вкладених рамок (вкладки «Конспект» / «Презентація»)
-        frame.srcdoc = r.html.replace(/<iframe /g, '<iframe allow="fullscreen" allowfullscreen ');
+        var parts = comboParts(r.html);
+        if (parts) { buildCombo(box, r.title, parts); }
+        else {
+          var auto = /name=["']portal-height["']/.test(r.html);
+          var f = makeFrame(r.title, auto ? withReporter(r.html) : r.html, auto);
+          box.appendChild(f);
+          lecFrame = f;
+        }
       } else {
         if (blobUrl) URL.revokeObjectURL(blobUrl);
         var bin = atob(r.base64), bytes = new Uint8Array(bin.length);
         for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
         blobUrl = URL.createObjectURL(new Blob([bytes], { type: 'application/pdf' }));
-        frame.src = blobUrl;
         var a = document.createElement('p');
         a.className = 'muted';
         a.innerHTML = 'Якщо файл не відкрився на телефоні, <a target="_blank" rel="noopener" href="' + blobUrl + '">відкрийте його в новій вкладці</a>.';
         box.appendChild(a);
+        var pf = document.createElement('iframe');
+        pf.className = 'lec-frame';
+        pf.title = r.title;
+        pf.src = blobUrl;
+        pf.setAttribute('allow', 'fullscreen');
+        pf.setAttribute('allowfullscreen', '');
+        box.appendChild(pf);
+        lecFrame = pf;
       }
-      frame.setAttribute('allow', 'fullscreen');
-      frame.setAttribute('allowfullscreen', '');
-      box.appendChild(frame);
-      lecFrame = frame;
       $('#lec-full').hidden = false;
     }).catch(fail);
+  }
+
+  /* ---------- рамка лекції: одна прокрутка на всій сторінці ---------- */
+  var autoFrames = [];
+
+  // Текст у рамці повідомляє свою висоту, і рамка стає такою ж високою: прокручується лише сторінка кабінету.
+  var REPORTER = '<script>(function(){function h(){var b=document.body,c=getComputedStyle(b);' +
+    'return Math.ceil(b.getBoundingClientRect().height+(parseFloat(c.marginTop)||0)+(parseFloat(c.marginBottom)||0));}' +
+    'function s(){parent.postMessage({portalHeight:h()},"*");}' +
+    'addEventListener("load",s);addEventListener("resize",s);' +
+    'if(window.ResizeObserver)new ResizeObserver(s).observe(document.body);setTimeout(s,300);})();<\/script>';
+
+  function withReporter(html) {
+    var i = html.lastIndexOf('</body>');
+    return i < 0 ? html + REPORTER : html.slice(0, i) + REPORTER + html.slice(i);
+  }
+
+  function makeFrame(title, html, auto) {
+    var f = document.createElement('iframe');
+    f.className = 'lec-frame' + (auto ? ' auto' : '');
+    f.title = title;
+    // sandbox без allow-same-origin: скрипти лекції не бачать ні токен, ні сторінку кабінету
+    f.setAttribute('sandbox', 'allow-scripts allow-popups');
+    f.setAttribute('allow', 'fullscreen');
+    f.setAttribute('allowfullscreen', '');
+    f.srcdoc = html;
+    if (auto) autoFrames.push(f);
+    return f;
+  }
+
+  window.addEventListener('message', function (e) {
+    var d = e.data;
+    if (!d || typeof d.portalHeight !== 'number') return;
+    for (var i = 0; i < autoFrames.length; i++) {
+      if (autoFrames[i].contentWindow === e.source) {
+        if (autoFrames[i].classList.contains('is-full')) return;
+        autoFrames[i].style.height = Math.min(Math.max(d.portalHeight, 120), 30000) + 'px';
+      }
+    }
+  });
+
+  // Сервер склеює конспект із презентацією в одну сторінку; тут розбираємо її на дві рамки з вкладками кабінету
+  function comboParts(html) {
+    if (html.indexOf('id="tn"') < 0 || html.indexOf('id="pd"') < 0) return null;
+    try {
+      var doc = new DOMParser().parseFromString(html, 'text/html');
+      var n = doc.querySelector('#pn iframe'), d = doc.querySelector('#pd iframe');
+      if (!n || !d) return null;
+      return { notes: n.getAttribute('srcdoc') || '', deck: d.getAttribute('srcdoc') || '' };
+    } catch (err) { return null; }
+  }
+
+  function buildCombo(box, title, parts) {
+    var tabs = document.createElement('div');
+    tabs.className = 'tabs';
+    var bn = document.createElement('button'); bn.type = 'button'; bn.textContent = 'Конспект'; bn.className = 'on';
+    var bd = document.createElement('button'); bd.type = 'button'; bd.textContent = 'Презентація';
+    tabs.appendChild(bn); tabs.appendChild(bd);
+    var fn = makeFrame(title + ' (конспект)', withReporter(parts.notes), true);
+    var fd = makeFrame(title + ' (презентація)', parts.deck, false);
+    fd.hidden = true;
+    function pick(deck) {
+      exitFull();
+      fn.hidden = deck; fd.hidden = !deck;
+      bn.className = deck ? '' : 'on'; bd.className = deck ? 'on' : '';
+      lecFrame = deck ? fd : fn;
+      if (deck) { try { box.scrollIntoView({ block: 'start' }); } catch (err) {} }
+    }
+    bn.addEventListener('click', function () { pick(false); });
+    bd.addEventListener('click', function () { pick(true); });
+    box.appendChild(tabs); box.appendChild(fn); box.appendChild(fd);
+    lecFrame = fn;
   }
 
   /* ---------- на весь екран ---------- */
