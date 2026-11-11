@@ -413,7 +413,7 @@
 
   /* ---------- завдання 3: «Лабораторія» (центр ваги плоскої фігури) ---------- */
   SCENES.z3 = function (g) {
-    var moved = false, opened = false;
+    var moved = false, opened = false, hasRuler = false, noteFound = false;
     var h = '<svg viewBox="0 0 800 480" class="tk-svg" role="group" aria-label="Лабораторія будівельної механіки">' +
       '<rect width="800" height="480" fill="#d9e2d3"/>' +
       '<rect y="368" width="800" height="112" fill="#8a8f93"/><rect y="360" width="800" height="10" fill="#6a6f73"/>' +
@@ -422,18 +422,20 @@
       '<g class="tk-hot" data-id="poster"><rect x="60" y="70" width="190" height="150" fill="#fff9e3" stroke="#6b4a1f" stroke-width="5"/>' +
         '<g fill="#12284a" font-size="13" font-family="sans-serif"><text x="155" y="98" text-anchor="middle" font-weight="700">ЦЕНТР ВАГИ</text>' +
         '<text x="155" y="130" text-anchor="middle">x<tspan font-size="9" dy="3">c</tspan><tspan dy="-3"> = ΣA·x / ΣA</tspan></text>' +
-        '<text x="155" y="160" text-anchor="middle">y<tspan font-size="9" dy="3">c</tspan><tspan dy="-3"> = ΣA·y / ΣA</tspan></text></g></g>' +
+        '<text x="155" y="160" text-anchor="middle" fill="#8a8f93">y\u2009\u2009 ░░░░░░░░░░</text></g></g>' +
       '<g class="tk-boxes"><g class="tk-hot" data-id="boxes"><rect x="62" y="150" width="90" height="70" fill="#c28b4c" stroke="#5a3a14" stroke-width="3"/><rect x="152" y="130" width="96" height="90" fill="#d49a58" stroke="#5a3a14" stroke-width="3"/>' +
         '<g stroke="#5a3a14" stroke-width="2"><line x1="62" y1="185" x2="152" y2="185"/><line x1="152" y1="175" x2="248" y2="175"/></g></g></g>' +
-      // стіл із терезами
-      '<g class="tk-hot" data-id="scale"><rect x="300" y="300" width="190" height="14" fill="#6b4a1f"/><rect x="310" y="314" width="10" height="46" fill="#6b4a1f"/><rect x="470" y="314" width="10" height="46" fill="#6b4a1f"/>' +
-        '<polygon points="395,300 375,300 395,260 415,300" fill="#9aa4aa" stroke="#444" stroke-width="2"/>' +
-        '<g class="tk-plate"><polygon points="330,296 410,296 410,278 350,278 350,244 330,244" fill="#7d8b95" stroke="#2c3a43" stroke-width="3"/></g></g>' +
+      // стіл із моделлю пластини
+      '<g class="tk-hot" data-id="model"><rect x="300" y="300" width="190" height="14" fill="#6b4a1f"/><rect x="310" y="314" width="10" height="46" fill="#6b4a1f"/><rect x="470" y="314" width="10" height="46" fill="#6b4a1f"/>' +
+        '<polygon points="330,300 450,300 450,278 360,278 360,236 330,236" fill="#7d8b95" stroke="#2c3a43" stroke-width="3"/></g>' +
+      // лінійка на гачку
+      '<g class="tk-hot" data-id="ruler"><circle cx="556" cy="104" r="4" fill="#555"/><rect x="544" y="110" width="24" height="200" fill="#f2c94c" stroke="#7a5f00" stroke-width="2"/>' +
+        '<g stroke="#7a5f00" stroke-width="1.5"><line x1="544" y1="130" x2="556" y2="130"/><line x1="544" y1="150" x2="556" y2="150"/><line x1="544" y1="170" x2="556" y2="170"/><line x1="544" y1="190" x2="556" y2="190"/><line x1="544" y1="210" x2="556" y2="210"/><line x1="544" y1="230" x2="556" y2="230"/><line x1="544" y1="250" x2="556" y2="250"/><line x1="544" y1="270" x2="556" y2="270"/><line x1="544" y1="290" x2="556" y2="290"/></g></g>' +
       // креслення пластини
       '<g class="tk-hot" data-id="draw"><rect x="320" y="70" width="190" height="150" fill="#1d4e7a" stroke="#d9e6ef" stroke-width="4"/>' +
         '<polygon points="350,190 470,190 470,160 380,160 380,100 350,100" fill="none" stroke="#d9e6ef" stroke-width="3"/>' +
         '<g stroke="#d9e6ef" stroke-width="1" stroke-dasharray="3 3"><line x1="350" y1="190" x2="350" y2="205"/><line x1="470" y1="190" x2="470" y2="205"/></g>' +
-        '<text x="415" y="82" text-anchor="middle" font-size="11" fill="#d9e6ef">пластина</text></g>' +
+        '<text x="415" y="82" text-anchor="middle" font-size="11" fill="#d9e6ef">пластина (без розмірів)</text></g>' +
       // шафа
       '<g class="tk-hot" data-id="locker"><rect x="600" y="140" width="130" height="220" fill="#4d5b66" stroke="#1c262e" stroke-width="4"/>' +
         '<g class="tk-locker-door"><rect x="608" y="148" width="114" height="204" fill="#5d6d79" stroke="#1c262e" stroke-width="3"/>' +
@@ -448,21 +450,15 @@
     g.say('Лабораторія. Шафа з кодовим замком не відкривається. Огляньте все.');
 
     function plateSvg() {
-      return '<svg viewBox="0 0 300 210" class="tk-beam" role="img" aria-label="Г-подібна пластина: нижній прямокутник 8 на 2 дм, лівий вертикальний 2 на 4 дм">' +
-        '<g transform="translate(50 15)">' +
-        '<polygon points="0,150 200,150 200,100 50,100 50,0 0,0" fill="#cfd9e6" stroke="' + INK + '" stroke-width="3"/>' +
-        '<line x1="50" y1="100" x2="0" y2="100" stroke="' + INK + '" stroke-width="1" stroke-dasharray="3 3"/>' +
-        '<line x1="0" y1="168" x2="200" y2="168" stroke="' + INK + '" stroke-width="1.5"/><line x1="0" y1="162" x2="0" y2="174" stroke="' + INK + '" stroke-width="1.5"/><line x1="200" y1="162" x2="200" y2="174" stroke="' + INK + '" stroke-width="1.5"/>' +
-        '<text x="100" y="188" text-anchor="middle" font-size="13" fill="' + INK + '">8 дм</text>' +
-        '<line x1="-14" y1="100" x2="-14" y2="150" stroke="' + INK + '" stroke-width="1.5"/><text x="-20" y="125" text-anchor="middle" font-size="13" fill="' + INK + '" transform="rotate(-90 -20 125)">2 дм</text>' +
-        '<line x1="-14" y1="0" x2="-14" y2="100" stroke="' + INK + '" stroke-width="1.5"/><text x="-20" y="50" text-anchor="middle" font-size="13" fill="' + INK + '" transform="rotate(-90 -20 50)">4 дм</text>' +
-        '<text x="25" y="-4" text-anchor="middle" font-size="13" fill="' + INK + '">2 дм</text>' +
-        '<circle cx="0" cy="150" r="3.5" fill="#b5392b"/><text x="-8" y="164" font-size="12" font-weight="700" fill="#b5392b" text-anchor="end">0</text></g></svg>';
+      return '<svg viewBox="0 0 300 190" class="tk-beam" role="img" aria-label="Г-подібна пластина без розмірів">' +
+        '<g transform="translate(50 15)"><polygon points="0,150 200,150 200,100 50,100 50,0 0,0" fill="#cfd9e6" stroke="' + INK + '" stroke-width="3"/>' +
+        '<circle cx="0" cy="150" r="3.5" fill="#b5392b"/><text x="-8" y="164" font-size="12" font-weight="700" fill="#b5392b" text-anchor="end">0</text>' +
+        '<text x="100" y="128" text-anchor="middle" font-size="12" fill="' + INK + '">1</text><text x="25" y="55" text-anchor="middle" font-size="12" fill="' + INK + '">2</text></g></svg>';
     }
 
     function openKeypad() {
       var code = '', busy = false;
-      var body = g.modal('<h3>Кодовий замок шафи</h3><div class="kp-disp">----</div>' +
+      var body = g.modal('<h3>Кодовий замок шафи</h3><p class="muted">На наклейці: «x<sub>c</sub> і y<sub>c</sub> у дециметрах, по дві цифри кожне, від лівого нижнього кута, без пробілів». Наприклад, 7 і 5 дають код 0705.</p><div class="kp-disp">----</div>' +
         '<div class="kp-grid">' + [1, 2, 3, 4, 5, 6, 7, 8, 9].map(function (n) { return '<button type="button" data-k="' + n + '">' + n + '</button>'; }).join('') +
         '<button type="button" data-k="C">C</button><button type="button" data-k="0">0</button><button type="button" data-k="ok" class="kp-ok">OK</button></div><p class="kp-msg muted"></p>');
       var disp = body.querySelector('.kp-disp'), msg = body.querySelector('.kp-msg');
@@ -498,22 +494,37 @@
         if (moved) { g.say('Коробки вже відсунуті.'); return; }
         moved = true;
         svg.querySelector('.tk-boxes').setAttribute('transform', 'translate(-140 40)');
-        g.say('Коробки відсунули, і стало видно плакат із формулами.');
+        g.say('Коробки відсунули. За ними висить плакат.');
       },
       poster: function () {
-        if (!moved) { g.say('Плакат закритий коробками. Їх можна відсунути.'); return; }
-        g.modal('<h3>Плакат: центр ваги складеної фігури</h3><p>Складну фігуру розбивають на прості (прямокутники). Для кожної знаходять площу A і координати її центра (x, y), які відлічують від лівого нижнього кута.</p>' +
+        if (!moved) { g.say('Щось висить за коробками. Їх можна відсунути.'); return; }
+        g.modal('<h3>Плакат: центр ваги складеної фігури</h3><p>Складну фігуру розбивають на прості (прямокутники). Для кожної знаходять площу A і координати її центра, які відлічують від лівого нижнього кута. Центр прямокутника лежить на половині його ширини й половині висоти.</p>' +
           '<div class="tk-note"><p><b>x<sub>c</sub> = (A<sub>1</sub>·x<sub>1</sub> + A<sub>2</sub>·x<sub>2</sub>) / (A<sub>1</sub> + A<sub>2</sub>)</b></p>' +
-          '<p><b>y<sub>c</sub> = (A<sub>1</sub>·y<sub>1</sub> + A<sub>2</sub>·y<sub>2</sub>) / (A<sub>1</sub> + A<sub>2</sub>)</b></p>' +
-          '<p>Центр прямокутника лежить на половині його ширини й половині висоти.</p></div>');
+          (noteFound ? '<p><b>y<sub>c</sub> = (A<sub>1</sub>·y<sub>1</sub> + A<sub>2</sub>·y<sub>2</sub>) / (A<sub>1</sub> + A<sub>2</sub>)</b></p>' : '<p class="muted">Другий рядок із формулою для y<sub>c</sub> стертий. Подивіться, чи не лишив хтось записку.</p>') + '</div>');
       },
       draw: function () {
         g.modal('<h3>Креслення пластини</h3>' + plateSvg() +
-          '<p>Г-подібна пластина складається з двох прямокутників: нижній 8 × 2 дм і лівий вертикальний 2 × 4 дм, що стоїть на нижньому біля лівого краю. Початок координат у лівому нижньому куті.</p>' +
-          '<p>На кресленні написано: <b>«Код: x<sub>c</sub> і y<sub>c</sub> у дециметрах, по дві цифри кожне, без пробілів»</b>. Наприклад, значенням 7 і 5 відповідає код 0705.</p>');
+          '<p>Г-подібна пластина складається з двох прямокутників: 1 (нижній, довгий) і 2 (вертикальний, на лівому краю). Початок координат у лівому нижньому куті.</p>' +
+          '<p>Розмірів на кресленні немає. Їх треба виміряти на моделі, яка лежить на столі.</p>');
       },
-      scale: function () { g.say('Терези з моделлю пластини. Вона тримається на вістрі в одній точці, це і є центр ваги, його треба знайти розрахунком.'); },
-      tools: function () { g.say('Ящик з інструментом. Для розрахунку він не потрібен.'); },
+      ruler: function () {
+        if (hasRuler) { g.say('Лінійка вже у вас.'); return; }
+        hasRuler = true;
+        svg.querySelector('[data-id="ruler"]').setAttribute('opacity', '0.25');
+        g.say('Ви взяли лінійку (1 поділка = 1 дм). Нею можна міряти.');
+      },
+      model: function () {
+        if (!hasRuler) { g.say('Це модель пластини. Розміри на око не визначити, потрібна лінійка.'); return; }
+        g.modal('<h3>Вимірювання моделі</h3><p>Ви приклали лінійку до моделі й записали:</p><div class="tk-note">' +
+          '<p>Частина 1 (нижня): довжина <b>8 дм</b>, висота <b>2 дм</b>.</p>' +
+          '<p>Частина 2 (вертикальна): ширина <b>2 дм</b>, висота <b>4 дм</b>. Вона стоїть на частині 1 біля лівого краю.</p></div>');
+      },
+      tools: function () {
+        if (noteFound) { g.say('Під ящиком більше нічого немає.'); return; }
+        noteFound = true;
+        g.modal('<h3>Під ящиком з інструментом</h3><p>Там лежить зім’ята записка:</p><div class="tk-note"><p>Для висоти все так само, тільки замість x беріть y:</p>' +
+          '<p><b>y<sub>c</sub> = (A<sub>1</sub>·y<sub>1</sub> + A<sub>2</sub>·y<sub>2</sub>) / (A<sub>1</sub> + A<sub>2</sub>)</b></p></div>');
+      },
       locker: function () {
         if (opened) { g.say('Шафа відчинена.'); return; }
         openKeypad();
