@@ -371,7 +371,9 @@
     $('#lec-back').textContent = backText.replace('← ', '');
     $('#lec-body').innerHTML = '<p class="muted">Завантаження лекції…</p>';
     $('#lec-done').hidden = !!it.done;
+    $('#lec-done-top').hidden = !!it.done;
     $('#lec-full').hidden = true;
+    $('#lec-full-top').hidden = true;
     lecFrame = null;
     exitFull();
     show('v-lecture');
@@ -407,6 +409,7 @@
         lecFrame = pf;
       }
       $('#lec-full').hidden = false;
+      $('#lec-full-top').hidden = false;
     }).catch(fail);
   }
 
@@ -489,9 +492,10 @@
     document.body.classList.remove('pseudo-full');
     if (lecFrame) lecFrame.classList.remove('is-full');
     $('#lec-full').textContent = '⛶ На весь екран';
+    $('#lec-full-top').textContent = '⛶ На весь екран';
   }
 
-  $('#lec-full').addEventListener('click', function () {
+  function onFullClick() {
     if (!lecFrame) return;
     if (document.fullscreenElement || lecFrame.classList.contains('is-full')) {
       if (document.fullscreenElement) document.exitFullscreen();
@@ -503,12 +507,15 @@
     } else {
       pseudoFull(); // iPhone та інші браузери без повного екрана для елементів
     }
-  });
+  }
+  $('#lec-full').addEventListener('click', onFullClick);
+  $('#lec-full-top').addEventListener('click', onFullClick);
 
   function pseudoFull() {
     document.body.classList.add('pseudo-full');
     lecFrame.classList.add('is-full');
     $('#lec-full').textContent = '✕ Закрити повний екран';
+    $('#lec-full-top').textContent = '✕ Закрити повний екран';
   }
 
   document.addEventListener('keydown', function (e) {
@@ -523,7 +530,7 @@
   $('#lec-back').addEventListener('click', backToList);
   $('#lec-back-top').addEventListener('click', backToList);
 
-  $('#lec-done').addEventListener('click', function () {
+  function onDoneClick() {
     if (!current) return;
     api('done', { id: current.id, title: current.title }).then(function () {
       current.done = true;
@@ -532,7 +539,9 @@
       show('v-home');
       refreshLectures();
     }).catch(fail);
-  });
+  }
+  $('#lec-done').addEventListener('click', onDoneClick);
+  $('#lec-done-top').addEventListener('click', onDoneClick);
 
   /* ---------- кабінет викладача ---------- */
   function showAdmin() {
