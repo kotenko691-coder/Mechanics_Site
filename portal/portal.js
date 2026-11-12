@@ -544,14 +544,14 @@
 
   // Сервер склеює конспект, презентацію і PDF в одну сторінку; тут розбираємо її на рамки з вкладками кабінету
   function comboParts(html) {
-    if (html.indexOf('id="pd"') < 0 || html.indexOf('id="td"') < 0) return null;
+    if (html.indexOf('id="pn"') < 0 && (html.indexOf('id="pd"') < 0 || html.indexOf('id="td"') < 0)) return null;
     try {
       var doc = new DOMParser().parseFromString(html, 'text/html');
       var n = doc.querySelector('#pn iframe'), d = doc.querySelector('#pd iframe'), p = doc.querySelector('#pp');
-      if (!d) return null;
+      if (!d && !n) return null;
       return {
         notes: n ? (n.getAttribute('srcdoc') || '') : '',
-        deck: d.getAttribute('srcdoc') || '',
+        deck: d ? (d.getAttribute('srcdoc') || '') : '',
         pdf: p ? (p.getAttribute('data-pdf') || '') : ''
       };
     } catch (err) { return null; }
@@ -562,7 +562,7 @@
     tabs.className = 'tabs';
     var list = [];
     if (parts.notes) list.push({ label: 'Конспект', frame: makeFrame(title + ' (конспект)', withReporter(parts.notes), true) });
-    list.push({ label: 'Презентація', frame: makeFrame(title + ' (презентація)', parts.deck, false) });
+    if (parts.deck) list.push({ label: 'Презентація', frame: makeFrame(title + ' (презентація)', parts.deck, false) });
     if (parts.pdf) list.push({ label: 'PDF', pdf: parts.pdf });
     list.forEach(function (t, i) {
       t.btn = document.createElement('button');
