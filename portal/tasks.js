@@ -60,10 +60,37 @@
     var timer = setInterval(function () { if (!box.isConnected) { clearInterval(timer); return; } tick(); }, 500);
     tick();
 
+    /* підказка біля предмета, на який натиснули */
+    var stageEl = box.querySelector('.tk-stage'), bubble = document.createElement('div'), bubbleTimer = null, lastHit = null;
+    bubble.className = 'tk-bubble'; bubble.hidden = true; stageEl.appendChild(bubble);
+    stageEl.addEventListener('click', function (e) {
+      var t = e.target.closest ? (e.target.closest('[data-id]') || e.target) : e.target;
+      var r = t.getBoundingClientRect ? t.getBoundingClientRect() : null, sr = stageEl.getBoundingClientRect();
+      if (r && r.width && e.target !== stageEl) lastHit = { x: r.left - sr.left, y: r.top - sr.top, w: r.width, h: r.height, sw: sr.width, sh: sr.height };
+      bubble.hidden = true;
+    }, true);
+    function showBubble(t) {
+      clearTimeout(bubbleTimer);
+      if (!t || !lastHit) { bubble.hidden = true; return; }
+      if (bubble.parentNode !== stageEl) stageEl.appendChild(bubble);
+      bubble.textContent = t; bubble.hidden = false;
+      var bw = Math.min(260, lastHit.sw - 16);
+      bubble.style.width = bw + 'px';
+      var bh = bubble.offsetHeight, cx = lastHit.x + lastHit.w / 2;
+      var left = Math.max(8, Math.min(lastHit.sw - bw - 8, cx - bw / 2));
+      var top = lastHit.y - bh - 12, below = false;
+      if (top < 6) { top = lastHit.y + lastHit.h + 12; below = true; }
+      if (top + bh > lastHit.sh - 4) top = Math.max(6, lastHit.sh - bh - 4);
+      bubble.style.left = left + 'px'; bubble.style.top = top + 'px';
+      bubble.className = 'tk-bubble' + (below ? ' tk-below' : '');
+      bubble.style.setProperty('--ax', Math.max(14, Math.min(bw - 14, cx - left)) + 'px');
+      bubbleTimer = setTimeout(function () { bubble.hidden = true; }, 7000);
+    }
+
     var api = {
       info: info,
       elapsed: elapsed,
-      say: function (t) { say.textContent = t || ''; },
+      say: function (t) { say.textContent = t || ''; showBubble(t); },
       modal: function (html) { mbody.innerHTML = html; modal.hidden = false; return mbody; },
       close: function () { modal.hidden = true; mbody.innerHTML = ''; },
       stop: function () { stopped = true; clearInterval(timer); },

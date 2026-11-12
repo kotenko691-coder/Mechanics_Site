@@ -335,3 +335,9 @@ body.pseudo-full .lec-top { display: none; }
 .tk-box:has(.st-tile) .tk-modal{position:fixed;z-index:1000}
 .tk-box:has(.st-tile) .tk-modal-box{max-height:92vh}
 .st-pic.st-wide{max-width:340px;margin:8px auto}
+
+.tk-stage{position:relative}
+.tk-bubble{position:absolute;z-index:4;background:#fffbe8;color:#12284a;border:2px solid #12284a;border-radius:10px;padding:8px 10px;font-size:.88rem;font-weight:600;line-height:1.35;box-shadow:0 4px 14px rgba(0,0,0,.35);pointer-events:none}
+.tk-bubble[hidden]{display:none}
+.tk-bubble::after{content:'';position:absolute;left:var(--ax,50%);bottom:-9px;margin-left:-8px;border:8px solid transparent;border-top-color:#12284a;border-bottom:0}
+.tk-bubble.tk-below::after{bottom:auto;top:-9px;border-top:0;border-bottom:8px solid #12284a}
