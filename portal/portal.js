@@ -542,37 +542,66 @@
     }
   });
 
-  // Сервер склеює конспект із презентацією в одну сторінку; тут розбираємо її на дві рамки з вкладками кабінету
+  // Сервер склеює конспект, презентацію і PDF в одну сторінку; тут розбираємо її на рамки з вкладками кабінету
   function comboParts(html) {
-    if (html.indexOf('id="tn"') < 0 || html.indexOf('id="pd"') < 0) return null;
+    if (html.indexOf('id="pd"') < 0 || html.indexOf('id="td"') < 0) return null;
     try {
       var doc = new DOMParser().parseFromString(html, 'text/html');
-      var n = doc.querySelector('#pn iframe'), d = doc.querySelector('#pd iframe');
-      if (!n || !d) return null;
-      return { notes: n.getAttribute('srcdoc') || '', deck: d.getAttribute('srcdoc') || '' };
+      var n = doc.querySelector('#pn iframe'), d = doc.querySelector('#pd iframe'), p = doc.querySelector('#pp');
+      if (!d) return null;
+      return {
+        notes: n ? (n.getAttribute('srcdoc') || '') : '',
+        deck: d.getAttribute('srcdoc') || '',
+        pdf: p ? (p.getAttribute('data-pdf') || '') : ''
+      };
     } catch (err) { return null; }
   }
 
   function buildCombo(box, title, parts) {
     var tabs = document.createElement('div');
     tabs.className = 'tabs';
-    var bn = document.createElement('button'); bn.type = 'button'; bn.textContent = 'Конспект'; bn.className = 'on';
-    var bd = document.createElement('button'); bd.type = 'button'; bd.textContent = 'Презентація';
-    tabs.appendChild(bn); tabs.appendChild(bd);
-    var fn = makeFrame(title + ' (конспект)', withReporter(parts.notes), true);
-    var fd = makeFrame(title + ' (презентація)', parts.deck, false);
-    fd.hidden = true;
-    function pick(deck) {
-      exitFull();
-      fn.hidden = deck; fd.hidden = !deck;
-      bn.className = deck ? '' : 'on'; bd.className = deck ? 'on' : '';
-      lecFrame = deck ? fd : fn;
-      if (deck) { try { box.scrollIntoView({ block: 'start' }); } catch (err) {} }
+    var list = [];
+    if (parts.notes) list.push({ label: 'Конспект', frame: makeFrame(title + ' (конспект)', withReporter(parts.notes), true) });
+    list.push({ label: 'Презентація', frame: makeFrame(title + ' (презентація)', parts.deck, false) });
+    if (parts.pdf) list.push({ label: 'PDF', pdf: parts.pdf });
+    list.forEach(function (t, i) {
+      t.btn = document.createElement('button');
+      t.btn.type = 'button';
+      t.btn.textContent = t.label;
+      tabs.appendChild(t.btn);
+      if (t.frame) { t.frame.hidden = i !== 0; }
+    });
+    function pdfFrame(t) {
+      if (t.frame) return t.frame;
+      if (blobUrl) URL.revokeObjectURL(blobUrl);
+      var bin = atob(t.pdf), bytes = new Uint8Array(bin.length);
+      for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+      blobUrl = URL.createObjectURL(new Blob([bytes], { type: 'application/pdf' }));
+      var pf = document.createElement('iframe');
+      pf.className = 'lec-frame';
+      pf.title = title + ' (PDF)';
+      pf.src = blobUrl;
+      pf.setAttribute('allow', 'fullscreen');
+      pf.setAttribute('allowfullscreen', '');
+      box.appendChild(pf);
+      t.frame = pf;
+      return pf;
     }
-    bn.addEventListener('click', function () { pick(false); });
-    bd.addEventListener('click', function () { pick(true); });
-    box.appendChild(tabs); box.appendChild(fn); box.appendChild(fd);
-    lecFrame = fn;
+    function pick(k) {
+      exitFull();
+      list.forEach(function (t, i) {
+        if (i === k && t.pdf) pdfFrame(t);
+        if (t.frame) t.frame.hidden = i !== k;
+        t.btn.className = i === k ? 'on' : '';
+      });
+      lecFrame = list[k].frame;
+      if (k > 0) { try { box.scrollIntoView({ block: 'start' }); } catch (err) {} }
+    }
+    list.forEach(function (t, i) { t.btn.addEventListener('click', function () { pick(i); }); });
+    box.appendChild(tabs);
+    list.forEach(function (t) { if (t.frame) box.appendChild(t.frame); });
+    list[0].btn.className = 'on';
+    lecFrame = list[0].frame;
   }
 
   /* ---------- на весь екран ---------- */
