@@ -853,7 +853,9 @@
   $('#rs-student').addEventListener('change', showResetInfo);
   $('#rs-task').addEventListener('change', showResetInfo);
 
+  var lastAdmin = null;
   function renderAdmin(r, tasks) {
+    lastAdmin = { r: r, t: tasks };
     $('#adm-sheet').href = r.sheetUrl;
     $('#adm-folder').href = r.folderUrl;
     $('#adm-code').value = r.code;
@@ -862,7 +864,13 @@
     admTasks = tasks || admTasks;
     fillAdminSelects();
     $('#add-group').innerHTML = me.groups.map(function (g) { return '<option>' + esc(g) + '</option>'; }).join('');
-    $('#adm-body').innerHTML = r.students.map(function (s) {
+    var gsel = $('#adm-filter'), gkeep = gsel.value;
+    gsel.innerHTML = '<option value="">Усі групи</option>' + me.groups.map(function (g) { return '<option>' + esc(g) + '</option>'; }).join('');
+    gsel.value = me.groups.indexOf(gkeep) >= 0 ? gkeep : '';
+    function gi(g) { var i = me.groups.indexOf(g); return i < 0 ? 999 : i; }
+    var rows = r.students.filter(function (s) { return !gsel.value || s.group === gsel.value; })
+      .sort(function (a, b) { return gi(a.group) - gi(b.group) || a.name.localeCompare(b.name, 'uk'); });
+    $('#adm-body').innerHTML = rows.map(function (s) {
       var active = s.status === 'активний';
       return '<tr class="' + (active ? '' : 'blocked') + '"><td>' + esc(s.name) + '</td><td>' + esc(s.group) +
         '</td><td>' + esc(s.email) + '</td><td>' + s.done + '</td><td>' + s.points + '</td><td><button type="button" data-email="' +
@@ -916,6 +924,7 @@
     }).catch(fail);
   });
 
+  $('#adm-filter').addEventListener('change', function () { if (lastAdmin) renderAdmin(lastAdmin.r, lastAdmin.t); });
   $('#add-form').addEventListener('submit', function (e) {
     e.preventDefault();
     var name = $('#add-name').value, email = $('#add-email').value, group = $('#add-group').value;
