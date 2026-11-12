@@ -201,7 +201,24 @@
   }
 
   /* ---------- вхід Google ---------- */
+  // Google не пускає вхід усередині вбудованих браузерів месенджерів (Telegram, Viber, Instagram тощо)
+  function loginHint() {
+    var ua = navigator.userAgent || '';
+    var ios = /iPhone|iPad|iPod/.test(ua) || (/Macintosh/.test(ua) && 'ontouchend' in document);
+    var inApp = /FBAN|FBAV|Instagram|Telegram|Viber|Line\/|MicroMessenger|TikTok|; wv\)|GSA\//.test(ua) ||
+      (ios && !/Safari\//.test(ua));
+    var el = $('#login-hint');
+    if (inApp) {
+      el.textContent = 'Схоже, сайт відкрито всередині іншого застосунку (месенджера). Google не дозволяє вхід у такому вікні. Скопіюйте адресу й відкрийте її в Safari або Chrome.';
+      el.hidden = false;
+    } else if (ios) {
+      el.textContent = 'На iPhone/iPad: якщо вхід не спрацьовує, у Налаштування → Safari вимкніть «Запобігати міжсайтовому відстеженню» та дозвольте спливаючі вікна, або відкрийте сайт у Chrome.';
+      el.hidden = false;
+    }
+  }
+
   function initGoogle() {
+    loginHint();
     var tries = 0;
     var timer = setInterval(function () {
       tries++;
@@ -210,7 +227,8 @@
         google.accounts.id.initialize({
           client_id: CFG.CLIENT_ID,
           callback: onCredential,
-          auto_select: true
+          auto_select: true,
+          itp_support: true
         });
         google.accounts.id.renderButton($('#gbtn'), {
           theme: 'filled_blue', size: 'large', text: 'signin_with', locale: 'uk'
