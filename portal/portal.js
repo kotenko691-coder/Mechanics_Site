@@ -205,16 +205,30 @@
   function loginHint() {
     var ua = navigator.userAgent || '';
     var ios = /iPhone|iPad|iPod/.test(ua) || (/Macintosh/.test(ua) && 'ontouchend' in document);
-    var inApp = /FBAN|FBAV|Instagram|Telegram|Viber|Line\/|MicroMessenger|TikTok|; wv\)|GSA\//.test(ua) ||
+    // Telegram на iPhone відкриває сайт у власному вікні з «безпечним» User-Agent, тому шукаємо його сліди окремо
+    var inApp = !!(window.TelegramWebviewProxy || window.TelegramWebviewProxyProto || window.TelegramGameProxy) ||
+      /FBAN|FBAV|Instagram|Telegram|Viber|Line\/|MicroMessenger|TikTok|; wv\)|GSA\//.test(ua) ||
       (ios && !/Safari\//.test(ua));
     var el = $('#login-hint');
-    if (inApp) {
-      el.textContent = 'Схоже, сайт відкрито всередині іншого застосунку (месенджера). Google не дозволяє вхід у такому вікні. Скопіюйте адресу й відкрийте її в Safari або Chrome.';
-      el.hidden = false;
-    } else if (ios) {
-      el.textContent = 'На iPhone/iPad: якщо вхід не спрацьовує, у Налаштування → Safari вимкніть «Запобігати міжсайтовому відстеженню» та дозвольте спливаючі вікна, або відкрийте сайт у Chrome.';
-      el.hidden = false;
-    }
+    if (!inApp && !ios) return;
+    el.innerHTML = '';
+    var t = document.createElement('span');
+    t.textContent = inApp
+      ? 'Сайт відкрито всередині месенджера (наприклад, Telegram). Google не дозволяє вхід у такому вікні: відкриється порожня сторінка. Скопіюйте адресу й відкрийте її в Safari або Chrome. '
+      : 'На iPhone/iPad, якщо вхід не спрацьовує: у Налаштування → Safari вимкніть «Запобігати міжсайтовому відстеженню» та дозвольте спливаючі вікна, або відкрийте сайт у Chrome. ';
+    el.appendChild(t);
+    var btn = document.createElement('button');
+    btn.type = 'button'; btn.className = 'btn btn-ghost'; btn.textContent = 'Скопіювати адресу';
+    btn.addEventListener('click', function () {
+      var url = location.href.split('#')[0];
+      var done = function () { btn.textContent = 'Адресу скопійовано. Вставте її в Safari'; };
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(url).then(done, function () { window.prompt('Скопіюйте адресу:', url); });
+      } else { window.prompt('Скопіюйте адресу:', url); }
+    });
+    el.appendChild(btn);
+    if (inApp) el.classList.add('is-warn');
+    el.hidden = false;
   }
 
   function initGoogle() {

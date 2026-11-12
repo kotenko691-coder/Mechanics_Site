@@ -282,3 +282,7 @@ body.pseudo-full .lec-top { display: none; }
 
 .tk-lift{transition:transform 2s ease-in-out}
 .tk-lift.tk-up{transform:translateY(-120px)}
+
+#login-hint { margin-top: 1rem; }
+#login-hint.is-warn { color: var(--ink); background: #fff3cd; border-left: 4px solid var(--amber); padding: .8rem 1rem; }
+#login-hint .btn { display: block; margin-top: .6rem; }
