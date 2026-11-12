@@ -894,14 +894,14 @@
   // Показ без входу: portal/?demo=task (перевірка коду локально, на сервер нічого не йде)
   function demoTask() {
     var t0 = Date.now();
-    var z4 = /[?&]demo=task4/.test(location.search), z3 = /[?&]demo=task3/.test(location.search), z2 = /[?&]demo=task2/.test(location.search), code = z4 ? '1001' : z3 ? '0302' : z2 ? '2016' : '84';
-    openTask({ id: z4 ? 'z4' : z3 ? 'z3' : z2 ? 'z2' : 'z1', name: z4 ? 'Склад' : z3 ? 'Лабораторія' : z2 ? 'Будмайданчик' : 'Майстерня', limit: 600, max: 100, min: 10, elapsed: 0 }, function (answer) {
+    var z5 = /[?&]demo=task5/.test(location.search), z4 = /[?&]demo=task4/.test(location.search), z3 = /[?&]demo=task3/.test(location.search), z2 = /[?&]demo=task2/.test(location.search), code = z5 ? '213-bc-ce-c-abc-ssr/rs-321-ca-fttftf' : z4 ? '1001' : z3 ? '0302' : z2 ? '2016' : '84';
+    openTask({ id: z5 ? 'z5' : z4 ? 'z4' : z3 ? 'z3' : z2 ? 'z2' : 'z1', name: z5 ? 'Інспекція об’єкта (теорія)' : z4 ? 'Склад' : z3 ? 'Лабораторія' : z2 ? 'Будмайданчик' : 'Майстерня', limit: z5 ? 1080 : 600, max: 100, min: 10, elapsed: 0 }, function (answer) {
       return new Promise(function (res) {
         setTimeout(function () {
           var sec = Math.round((Date.now() - t0) / 1000);
-          if (sec > 600) { res({ ok: true, correct: false, expired: true, points: 0, seconds: sec }); return; }
+          if (sec > (z5 ? 1080 : 600)) { res({ ok: true, correct: false, expired: true, points: 0, seconds: sec }); return; }
           if (String(answer) !== code) { res({ ok: true, correct: false }); return; }
-          res({ ok: true, correct: true, seconds: sec, points: window.PortalTasks.pointsNow({ limit: 600, max: 100, min: 10 }, sec) });
+          res({ ok: true, correct: true, seconds: sec, points: window.PortalTasks.pointsNow({ limit: z5 ? 1080 : 600, max: 100, min: 10 }, sec) });
         }, 300);
       });
     });

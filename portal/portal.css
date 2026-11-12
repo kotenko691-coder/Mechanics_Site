@@ -295,3 +295,43 @@ body.pseudo-full .lec-top { display: none; }
 }
 @keyframes rtFloorIn { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: none; } }
 @keyframes rtSwing { 0%, 100% { transform: rotate(-1.6deg); } 50% { transform: rotate(1.6deg); } }
+
+/* Квест z5 «Інспекція об’єкта» */
+.tk-modal-box:has(.st-pic),.tk-modal-box:has(.st-row){max-width:560px}
+.st-item{display:flex;gap:12px;align-items:center;margin:10px 0;flex-wrap:wrap}
+.st-item .st-pic{width:110px;flex:none}
+.st-item>div{flex:1;min-width:150px}
+.st-pic{width:100%;max-width:160px;height:auto;display:block}
+.st-pic.st-wide{max-width:100%;margin:8px 0}
+.st-row{display:flex;gap:8px;flex-wrap:wrap;margin:6px 0}
+.st-opt{border:2px solid #b8c4d8;background:#fff;border-radius:10px;padding:8px 14px;font:inherit;font-weight:600;cursor:pointer;color:#12284a}
+.st-opt:hover{border-color:#12284a}
+.st-opt.on{background:#12284a;color:#fff;border-color:#12284a}
+.st-small{padding:3px 10px;font-size:.85em;margin-left:8px}
+.st-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:6px 0 12px}
+.st-card{display:flex;flex-direction:column;align-items:center;padding:6px;gap:2px}
+.st-card.on{background:#e8f0ff;color:#12284a;border-color:#12284a;box-shadow:0 0 0 2px #12284a}
+.st-pt{cursor:pointer}
+.st-pt circle{fill:rgba(255,255,255,.7);stroke:#b5392b;stroke-width:2.5;stroke-dasharray:4 3}
+.st-pt.on circle{fill:#b5392b;stroke-dasharray:none}
+.st-pt:hover circle{fill:rgba(181,57,43,.3)}
+.st-rod{cursor:pointer}
+.st-rod .st-hit{stroke:transparent;stroke-width:22}
+.st-rod .st-line{stroke:#8a96a8;stroke-width:6;stroke-linecap:round;stroke-dasharray:2 8}
+.st-rod.r .st-line{stroke:#2b6cb0;stroke-dasharray:none}
+.st-rod.s .st-line{stroke:#c53030;stroke-dasharray:none}
+.st-rl{font-size:12px;font-weight:700;fill:#12284a;paint-order:stroke;stroke:#fff;stroke-width:3px}
+.st-lanes{display:flex;gap:6px}
+.st-lane{flex:1;min-width:0}
+.st-slide{display:block;margin:6px 0}
+.st-range{width:100%}
+.st-grs{display:flex;gap:6px;margin-bottom:8px}
+.st-gr{flex:1;text-align:center}
+.st-q{margin:8px 0;padding-top:6px;border-top:1px solid #e3e8f0}
+.st-q p{margin:0 0 4px}
+.st-line-r{margin:2px 0}
+.muted{color:#5b6779;font-size:.92em}
+@media(max-width:520px){.st-grid{grid-template-columns:repeat(2,1fr)}}
+.tk-box:has(.st-tile) .tk-modal{position:fixed;z-index:1000}
+.tk-box:has(.st-tile) .tk-modal-box{max-height:92vh}
+.st-pic.st-wide{max-width:340px;margin:8px auto}
