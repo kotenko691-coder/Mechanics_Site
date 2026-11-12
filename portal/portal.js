@@ -763,6 +763,11 @@
     var smax = Math.max.apply(null, r.students.map(function (s) { return s.points; }).concat([0]));
     var gs = r.groups.slice().sort(function (a, b) { return a.place - b.place || a.group.localeCompare(b.group, 'uk'); });
     var myG = r.groups.filter(function (g) { return g.mine; })[0];
+    var top = r.top || [], tmax = Math.max.apply(null, top.map(function (s) { return s.points; }).concat([0]));
+    $('#rt-top').innerHTML = top.map(function (s) {
+      return ratingRow(s.place, s.name, s.points, tmax, s.me, s.group);
+    }).join('');
+    $('#rt-top-empty').hidden = top.length > 0;
     $('#rt-hero').innerHTML = heroHtml(r, myG);
     $('#rt-towers').innerHTML = towersSvg(gs, gmax);
     $('#rt-title').textContent = 'Бригада ' + r.group;
@@ -793,7 +798,10 @@
         { group: 'Д-6', count: 4, total: 74, place: 5, mine: false }, { group: 'Д-7', count: 3, total: 0, place: 6, mine: false }
       ],
       students: names.map(function (n, i) { return { name: n, points: pts[i], place: i + 1, me: i === 1 }; }),
-      me: { name: names[1], points: pts[1], place: 2, me: true }
+      me: { name: names[1], points: pts[1], place: 2, me: true },
+      top: [{ name: 'Петренко Остап', group: 'Б-21', points: 112, place: 1 }, { name: names[0], group: 'АП-28', points: 86, place: 2, me: false },
+        { name: 'Гнатюк Софія', group: 'АП-29', points: 80, place: 3 }, { name: names[1], group: 'АП-28', points: 74, place: 4, me: true },
+        { name: 'Руденко Артем', group: 'Д-7', points: 70, place: 5 }]
     });
     say('Це демонстрація на вигаданих даних.');
   }
