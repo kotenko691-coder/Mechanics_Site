@@ -894,8 +894,8 @@
   // Показ без входу: portal/?demo=task (перевірка коду локально, на сервер нічого не йде)
   function demoTask() {
     var t0 = Date.now();
-    var z6 = /[?&]demo=task6/.test(location.search), z5 = /[?&]demo=task5/.test(location.search), z4 = /[?&]demo=task4/.test(location.search), z3 = /[?&]demo=task3/.test(location.search), z2 = /[?&]demo=task2/.test(location.search), code = z6 ? 'eadbc-abc-ac-ba-bbc-ca-cb-321-ttftft' : z5 ? '213-bc-ce-c-abc-ssr/rs-321-ca-fttftf' : z4 ? '1001' : z3 ? '0302' : z2 ? '2016' : '84';
-    openTask({ id: z6 ? 'z6' : z5 ? 'z5' : z4 ? 'z4' : z3 ? 'z3' : z2 ? 'z2' : 'z1', name: z6 ? 'Випробувальний полігон (теорія)' : z5 ? 'Інспекція об’єкта (теорія)' : z4 ? 'Склад' : z3 ? 'Лабораторія' : z2 ? 'Будмайданчик' : 'Майстерня', limit: (z5 || z6) ? 1080 : 600, max: 100, min: 10, elapsed: 0 }, function (answer) {
+    var z6 = false, z5 = /[?&]demo=task5/.test(location.search), z4 = /[?&]demo=task4/.test(location.search), z3 = /[?&]demo=task3/.test(location.search), z2 = /[?&]demo=task2/.test(location.search), code = z5 ? '3472' : z4 ? '1001' : z3 ? '0302' : z2 ? '2016' : '84';
+    openTask({ id: z6 ? 'z6' : z5 ? 'z5' : z4 ? 'z4' : z3 ? 'z3' : z2 ? 'z2' : 'z1', name: z5 ? 'Інженерна лабораторія' : z4 ? 'Склад' : z3 ? 'Лабораторія' : z2 ? 'Будмайданчик' : 'Майстерня', limit: (z5 || z6) ? 1080 : 600, max: 100, min: 10, elapsed: 0 }, function (answer) {
       return new Promise(function (res) {
         setTimeout(function () {
           var sec = Math.round((Date.now() - t0) / 1000);

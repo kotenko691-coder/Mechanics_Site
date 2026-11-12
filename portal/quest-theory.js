@@ -1,395 +1,287 @@
-/* Квест z5 «Інспекція об’єкта»: теорія механіки без розрахунків.
-   Дев’ять станцій. Правильні відповіді тут не зберігаються: з усіх станцій складається «паспорт» (рядок),
-   який перевіряє сервер. Студент може будь-коли повернутися на станцію й змінити відповідь. */
+/* Квест z5 «Інженерна лабораторія»: вихід із кімнати за допомогою теорії механіки, без розрахунків.
+   Чотири досліди дають чотири цифри коду. Код перевіряє сервер, у сторінці його немає:
+   цифри відкриваються лише тоді, коли дослід виконано правильно. */
 (function () {
   'use strict';
   if (!window.PortalTasks) return;
-  var INK = '#12284a';
+  var INK = '#12284a', RED = '#b5392b', BLUE = '#2b6cb0';
 
-  function tag(name, attrs, inner) { return '<' + name + (attrs ? ' ' + attrs : '') + '>' + (inner || '') + '</' + name + '>'; }
-
-  /* ---------- малюнки-деталі ---------- */
-  var ARW = '<defs><marker id="qa" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><path d="M0,0 L7,3.5 L0,7 z" fill="#b5392b"/></marker></defs>';
-  function hatch(x, y, n, dx, dy, step) {
-    var s = '';
-    for (var i = 0; i < n; i++) s += '<line x1="' + (x + i * step) + '" y1="' + y + '" x2="' + (x + i * step + dx) + '" y2="' + (y + dy) + '" stroke="' + INK + '" stroke-width="1.5"/>';
-    return s;
-  }
-  function pinSvg() {
-    return '<svg viewBox="0 0 120 90" class="st-pic"><line x1="10" y1="20" x2="110" y2="20" stroke="' + INK + '" stroke-width="7"/>' +
-      '<polygon points="60,24 44,56 76,56" fill="#fff" stroke="' + INK + '" stroke-width="2.5"/>' +
-      '<line x1="34" y1="58" x2="86" y2="58" stroke="' + INK + '" stroke-width="3"/>' + hatch(38, 58, 6, -7, 9, 9) + '</svg>';
-  }
-  function rollerSvg() {
-    return '<svg viewBox="0 0 120 90" class="st-pic"><line x1="10" y1="20" x2="110" y2="20" stroke="' + INK + '" stroke-width="7"/>' +
-      '<polygon points="60,24 44,54 76,54" fill="#fff" stroke="' + INK + '" stroke-width="2.5"/>' +
-      '<circle cx="50" cy="60" r="5" fill="#fff" stroke="' + INK + '" stroke-width="2"/><circle cx="70" cy="60" r="5" fill="#fff" stroke="' + INK + '" stroke-width="2"/>' +
-      '<line x1="34" y1="66" x2="86" y2="66" stroke="' + INK + '" stroke-width="3"/></svg>';
-  }
-  function wallSvg() {
-    return '<svg viewBox="0 0 120 90" class="st-pic"><rect x="20" y="8" width="12" height="74" fill="#cfd9e6" stroke="' + INK + '" stroke-width="2"/>' +
-      hatch(20, 18, 6, -8, 8, 12) + '<line x1="32" y1="45" x2="112" y2="45" stroke="' + INK + '" stroke-width="7"/></svg>';
-  }
-
-  // епюра моментів (форма) під лінією балки
-  function epureMini(kind) {
-    var s = '<svg viewBox="0 0 160 90" class="st-pic"><line x1="10" y1="20" x2="150" y2="20" stroke="' + INK + '" stroke-width="2"/>';
-    var shape = {
-      rect: '<polygon points="10,20 10,66 150,66 150,20" ',
-      tri: '<polygon points="10,20 80,68 150,20" ',
-      par: '<path d="M10 20 Q80 116 150 20 Z" ',
-      trap: '<polygon points="10,20 45,66 115,66 150,20" '
-    }[kind];
-    return s + shape + 'fill="rgba(237,137,54,.28)" stroke="#c05621" stroke-width="2.5"/></svg>';
-  }
-
-  /* ---------- станції ---------- */
-  var TITLES = ['Опори', 'Епюри', 'Шарнір', 'Центр ваги', 'Тертя', 'Ферма', 'Рух', 'Момент сили', 'Правда чи ні'];
+  var ARW = '<defs><marker id="qz" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><path d="M0,0 L7,3.5 L0,7 z" fill="' + RED + '"/></marker></defs>';
+  function arrow(x1, y1, x2, y2) { return '<line x1="' + x1 + '" y1="' + y1 + '" x2="' + x2 + '" y2="' + y2 + '" stroke="' + RED + '" stroke-width="3.5" marker-end="url(#qz)"/>'; }
 
   window.PortalTasks.scenes.z5 = function (g) {
-    var S = {
-      s1: [null, null, null], s2: [null, null], s3: {}, s4: null, s5: [], s6: { a: null, b: null, c: null, d: null, e: null },
-      s7: [null, null, null], s8: [null, null], s9: [null, null, null, null, null, null]
-    };
+    var has = { supports: false, weight: false, plumb: false };
+    var digit = { bridge: null, seesaw: null, plate: null, ramp: null };
+    var opened = false;
+    var ORDER = ['bridge', 'seesaw', 'plate', 'ramp'];
 
-    function tokens() {
-      var t = [];
-      t[0] = S.s1.indexOf(null) < 0 ? S.s1.join('') : '';
-      t[1] = S.s2.indexOf(null) < 0 ? S.s2.join('') : '';
-      var k3 = Object.keys(S.s3).filter(function (k) { return S.s3[k]; }).sort().join('');
-      t[2] = k3;
-      t[3] = S.s4 || '';
-      t[4] = S.s5.length === 3 ? S.s5.join('') : '';
-      var six = S.s6;
-      t[5] = ['a', 'b', 'c', 'd', 'e'].every(function (k) { return six[k]; }) ? six.a + six.b + six.c + '/' + six.d + six.e : '';
-      t[6] = S.s7.indexOf(null) < 0 ? S.s7.join('') : '';
-      t[7] = S.s8.indexOf(null) < 0 ? S.s8.join('') : '';
-      t[8] = S.s9.indexOf(null) < 0 ? S.s9.join('') : '';
-      return t;
-    }
-    function done(i) { return tokens()[i] !== ''; }
+    function code() { return ORDER.map(function (k) { return digit[k] === null ? '' : digit[k]; }).join(''); }
 
-    /* --- сцена: карта об’єкта --- */
-    var tiles = [
-      ['Опори', function () { return '<g transform="translate(45 20) scale(.55)"><polygon points="60,10 36,56 84,56" fill="#fff" stroke="' + INK + '" stroke-width="4"/><line x1="26" y1="60" x2="94" y2="60" stroke="' + INK + '" stroke-width="5"/></g>'; }],
-      ['Епюри', function () { return '<g transform="translate(25 28)"><line x1="0" y1="0" x2="90" y2="0" stroke="' + INK + '" stroke-width="4"/><polygon points="0,0 45,36 90,0" fill="rgba(237,137,54,.4)" stroke="#c05621" stroke-width="3"/></g>'; }],
-      ['Шарнір', function () { return '<g transform="translate(18 40)"><line x1="0" y1="0" x2="95" y2="0" stroke="' + INK + '" stroke-width="7"/><circle cx="48" cy="0" r="9" fill="#fff" stroke="' + INK + '" stroke-width="4"/></g>'; }],
-      ['Центр ваги', function () { return '<g transform="translate(40 14)"><polygon points="0,0 16,0 16,34 46,34 46,50 0,50" fill="#cfd9e6" stroke="' + INK + '" stroke-width="3"/><circle cx="21" cy="40" r="4" fill="#b5392b"/></g>'; }],
-      ['Тертя', function () { return '<g transform="translate(20 20)"><polygon points="0,56 100,56 100,6" fill="#e6dcc4" stroke="' + INK + '" stroke-width="3"/><rect x="50" y="18" width="18" height="14" fill="#6aa7d9" stroke="' + INK + '" stroke-width="2" transform="rotate(-27 59 25)"/></g>'; }],
-      ['Ферма', function () { return '<g transform="translate(20 28)" fill="none" stroke="' + INK + '" stroke-width="4"><polygon points="0,52 100,52 50,6"/><line x1="50" y1="6" x2="50" y2="52"/></g>'; }],
-      ['Рух', function () { return '<g transform="translate(22 20)" fill="none"><polyline points="0,60 20,50 40,32 60,18 90,10" stroke="' + INK + '" stroke-width="4"/><line x1="0" y1="62" x2="100" y2="62" stroke="#778" stroke-width="2"/></g>'; }],
-      ['Момент сили', function () { return '<g transform="translate(26 22)"><line x1="0" y1="30" x2="86" y2="30" stroke="' + INK + '" stroke-width="7"/><circle cx="12" cy="30" r="9" fill="#fff" stroke="' + INK + '" stroke-width="3"/><path d="M60 8 A22 22 0 0 1 82 30" fill="none" stroke="#805ad5" stroke-width="4"/></g>'; }],
-      ['Правда чи ні', function () { return '<g transform="translate(30 16)"><rect width="76" height="62" rx="6" fill="#fffbe8" stroke="' + INK + '" stroke-width="3"/><g stroke="#8a7a4a" stroke-width="3"><line x1="12" y1="18" x2="64" y2="18"/><line x1="12" y1="32" x2="64" y2="32"/><line x1="12" y1="46" x2="44" y2="46"/></g></g>'; }]
-    ];
-    var h = '<svg viewBox="0 0 800 560" class="tk-svg" role="group" aria-label="Карта будівельного об’єкта з дев’ятьма станціями">' +
-      '<rect width="800" height="560" fill="#dfe8d4"/>' +
-      '<rect y="440" width="800" height="120" fill="#c9d4b8"/>' +
-      '<path d="M0 100 Q200 70 400 100 T800 90" fill="none" stroke="#b7c4a3" stroke-width="2"/>';
-    for (var i = 0; i < 9; i++) {
-      var cx = 30 + (i % 3) * 255, cy = 18 + Math.floor(i / 3) * 140;
-      h += '<g class="tk-hot st-tile" data-id="s' + (i + 1) + '">' +
-        '<rect x="' + cx + '" y="' + cy + '" width="235" height="122" rx="12" fill="#fff" stroke="' + INK + '" stroke-width="3"/>' +
-        '<g transform="translate(' + (cx + 40) + ' ' + (cy + 8) + ')">' + tiles[i][1]() + '</g>' +
-        '<circle cx="' + (cx + 24) + '" cy="' + (cy + 24) + '" r="15" fill="' + INK + '"/><text x="' + (cx + 24) + '" y="' + (cy + 30) + '" text-anchor="middle" font-size="17" font-weight="700" fill="#fff">' + (i + 1) + '</text>' +
-        '<text x="' + (cx + 117) + '" y="' + (cy + 112) + '" text-anchor="middle" font-size="18" font-weight="700" fill="' + INK + '">' + tiles[i][0] + '</text>' +
-        '<g class="st-badge" data-n="' + i + '" opacity="0"><circle cx="' + (cx + 208) + '" cy="' + (cy + 24) + '" r="14" fill="#2f855a"/><path d="M' + (cx + 201) + ' ' + (cy + 24) + ' l5 6 l9 -12" fill="none" stroke="#fff" stroke-width="3.5"/></g>' +
-        '</g>';
-    }
-    h += '<g class="tk-hot" data-id="gate"><rect x="180" y="450" width="440" height="88" rx="14" fill="' + INK + '" stroke="#0a1730" stroke-width="3"/>' +
-      '<text x="400" y="488" text-anchor="middle" font-size="22" font-weight="700" fill="#fff">Здати паспорт об’єкта</text>' +
-      '<text x="400" y="516" text-anchor="middle" font-size="14" fill="#cfe0ff" class="st-count">Пройдено станцій: 0 з 9</text></g></svg>';
+    /* ---------- сцена ---------- */
+    var h = '<svg viewBox="0 0 800 560" class="tk-svg" role="group" aria-label="Інженерна лабораторія">' + ARW +
+      '<rect width="800" height="560" fill="#e9e4d6"/><rect y="400" width="800" height="160" fill="#cfc6ad"/><line x1="0" y1="400" x2="800" y2="400" stroke="#a89f86" stroke-width="2"/>' +
+      /* полиця з коробкою */
+      '<g class="tk-hot" data-id="box"><rect x="30" y="132" width="190" height="10" fill="#8b6a3f" stroke="' + INK + '" stroke-width="2"/>' +
+      '<g class="st-box"><rect x="60" y="82" width="86" height="50" fill="#c9a36a" stroke="' + INK + '" stroke-width="3"/><rect x="60" y="82" width="86" height="12" fill="#b78d52" stroke="' + INK + '" stroke-width="2"/><text x="103" y="119" text-anchor="middle" font-size="13" font-weight="700" fill="' + INK + '">ГИРЬКИ</text></g>' +
+      '<g class="st-box-open" opacity="0"><rect x="60" y="102" width="86" height="30" fill="#c9a36a" stroke="' + INK + '" stroke-width="3"/><rect x="72" y="86" width="26" height="16" fill="#778" stroke="' + INK + '" stroke-width="2"/></g></g>' +
+      /* модель пластини на стіні */
+      '<g class="tk-hot" data-id="plate"><rect x="270" y="40" width="190" height="170" rx="6" fill="#fff" stroke="' + INK + '" stroke-width="3"/>' +
+      '<polygon points="300,60 340,60 340,150 430,150 430,190 300,190" fill="#cfd9e6" stroke="' + INK + '" stroke-width="3"/><circle cx="320" cy="76" r="4" fill="' + INK + '"/>' +
+      '<text x="365" y="86" font-size="13" font-weight="700" fill="' + INK + '">Модель</text><text x="365" y="102" font-size="13" font-weight="700" fill="' + INK + '">пластини</text></g>' +
+      /* шафа з опорами */
+      '<g class="tk-hot" data-id="cabinet"><rect x="490" y="50" width="100" height="160" fill="#a98b5f" stroke="' + INK + '" stroke-width="3"/><line x1="540" y1="50" x2="540" y2="210" stroke="' + INK + '" stroke-width="2"/>' +
+      '<circle cx="530" cy="130" r="4" fill="' + INK + '"/><circle cx="550" cy="130" r="4" fill="' + INK + '"/><text x="540" y="40" text-anchor="middle" font-size="12" font-weight="700" fill="' + INK + '">Шафа</text>' +
+      '<g class="st-cab-open" opacity="0"><rect x="500" y="62" width="80" height="136" fill="#4a3a22"/><polygon points="520,170 510,190 530,190" fill="#fff" stroke="#eee"/><polygon points="560,170 550,190 570,190" fill="#fff" stroke="#eee"/></g></g>' +
+      /* двері з кодовим замком і табличка */
+      '<rect x="670" y="50" width="110" height="260" fill="#8a9bb0" stroke="' + INK + '" stroke-width="4"/><rect x="680" y="62" width="90" height="238" fill="#7b8da4" stroke="' + INK + '" stroke-width="2"/><circle cx="690" cy="190" r="6" fill="#eee" stroke="' + INK + '" stroke-width="2"/>' +
+      '<g class="st-door-open" opacity="0"><rect x="680" y="62" width="90" height="238" fill="#ffe9a8"/></g>' +
+      '<g class="tk-hot" data-id="keypad"><rect x="625" y="150" width="34" height="50" rx="4" fill="#1b1b1b" stroke="#000" stroke-width="2"/><text x="642" y="170" text-anchor="middle" font-size="11" fill="#7ee08b" class="st-led">····</text><rect x="631" y="178" width="22" height="16" fill="#444"/></g>' +
+      '<g class="tk-hot" data-id="plaque"><rect x="660" y="12" width="130" height="28" fill="#f0e6c8" stroke="' + INK + '" stroke-width="2"/><text x="725" y="31" text-anchor="middle" font-size="12" font-weight="700" fill="' + INK + '">Табличка</text></g>' +
+      /* стіл з моделлю моста */
+      '<g class="tk-hot" data-id="bridge"><rect x="30" y="236" width="300" height="12" fill="#8b6a3f" stroke="' + INK + '" stroke-width="2"/><rect x="40" y="248" width="10" height="100" fill="#8b6a3f"/><rect x="310" y="248" width="10" height="100" fill="#8b6a3f"/>' +
+      '<rect x="60" y="214" width="42" height="22" fill="#7aa0c0" stroke="' + INK + '" stroke-width="2"/><rect x="256" y="214" width="42" height="22" fill="#7aa0c0" stroke="' + INK + '" stroke-width="2"/>' +
+      '<rect x="80" y="202" width="200" height="12" fill="#c28b4c" stroke="' + INK + '" stroke-width="2"/><text x="180" y="268" text-anchor="middle" font-size="13" font-weight="700" fill="' + INK + '">Макет моста</text></g>' +
+      /* шухляда */
+      '<g class="tk-hot" data-id="drawer"><rect x="60" y="300" width="230" height="36" fill="#a98b5f" stroke="' + INK + '" stroke-width="3"/><rect x="155" y="312" width="40" height="10" rx="3" fill="#ddd" stroke="' + INK + '" stroke-width="2"/><text x="175" y="352" text-anchor="middle" font-size="11" fill="' + INK + '">шухляда</text></g>' +
+      /* гойдалка */
+      '<g class="tk-hot" data-id="seesaw"><polygon points="430,500 410,520 450,520" fill="#fff" stroke="' + INK + '" stroke-width="3"/><rect x="310" y="470" width="240" height="10" fill="#c28b4c" stroke="' + INK + '" stroke-width="2"/><text x="430" y="545" text-anchor="middle" font-size="13" font-weight="700" fill="' + INK + '">Лабораторна гойдалка</text></g>' +
+      /* похила дошка */
+      '<g class="tk-hot" data-id="ramp"><polygon points="580,500 780,500 780,430" fill="#d9ccae" stroke="' + INK + '" stroke-width="3"/><rect x="660" y="454" width="30" height="20" fill="#6aa7d9" stroke="' + INK + '" stroke-width="2" transform="rotate(-20 675 464)"/><text x="660" y="528" text-anchor="middle" font-size="13" font-weight="700" fill="' + INK + '">Похила дошка</text></g>' +
+      /* знайдені цифри */
+      '<g class="st-notes"></g></svg>';
     g.stage.innerHTML = h;
     var svg = g.stage.querySelector('svg');
-    g.say('Карта об’єкта. Відкрийте кожну з дев’яти станцій, дайте відповіді, а потім натисніть «Здати паспорт». Рахувати нічого не треба, потрібно розуміти.');
+    g.say('Інженерна лабораторія. Двері зачинені кодовим замком. Огляньте все навколо, робіть досліди, і кожен дослід дасть цифру коду.');
 
-    function refresh() {
-      var t = tokens(), n = 0;
-      t.forEach(function (x, i) {
-        var b = svg.querySelector('.st-badge[data-n="' + i + '"]');
-        b.setAttribute('opacity', x ? '1' : '0');
-        if (x) n++;
+    function notes() {
+      var n = svg.querySelector('.st-notes'), s = '', y = 340, names = { bridge: 'Міст', seesaw: 'Гойдалка', plate: 'Пластина', ramp: 'Схил' }, i = 0;
+      ORDER.forEach(function (k) {
+        if (digit[k] === null) return;
+        s += '<g transform="translate(' + (340 + i * 0) + ' ' + (330 + i * 0) + ')"></g>';
       });
-      svg.querySelector('.st-count').textContent = 'Пройдено станцій: ' + n + ' з 9';
-    }
-
-    function head(n, text) { return '<h3>Станція ' + n + '. ' + TITLES[n - 1] + '</h3><p>' + text + '</p>'; }
-    function btnRow(items, cur, attr) {
-      return '<div class="st-row">' + items.map(function (it) {
-        return '<button type="button" class="st-opt' + (cur === it[0] ? ' on' : '') + '" ' + attr + '="' + it[0] + '">' + it[1] + '</button>';
-      }).join('') + '</div>';
-    }
-    function mark(body, sel, val, attr) {
-      [].forEach.call(body.querySelectorAll(sel), function (b) { b.classList.toggle('on', b.getAttribute(attr) === String(val)); });
-    }
-
-    /* 1. Опори */
-    function st1() {
-      var items = [['Шарнірно-нерухома опора', pinSvg()], ['Шарнірно-рухома опора (на котках)', rollerSvg()], ['Жорстке защемлення (заробка)', wallSvg()]];
-      var html = head(1, 'Скільки опорних реакцій дає кожна опора? Вважайте і сили в різних напрямках, і реактивний момент, якщо він є.');
-      items.forEach(function (it, i) {
-        html += '<div class="st-item">' + it[1] + '<div><b>' + it[0] + '</b>' + btnRow([[1, '1'], [2, '2'], [3, '3']], S.s1[i], 'data-i="' + i + '" data-v') + '</div></div>';
+      var x = 340;
+      s = '';
+      ORDER.forEach(function (k) {
+        if (digit[k] === null) return;
+        s += '<g transform="translate(' + x + ' 300)"><rect width="56" height="62" fill="#fff59d" stroke="#c5b64a" stroke-width="2" transform="rotate(-3)"/><text x="28" y="22" text-anchor="middle" font-size="11" font-weight="700" fill="' + INK + '">' + names[k] + '</text><text x="28" y="52" text-anchor="middle" font-size="30" font-weight="700" fill="' + RED + '">' + digit[k] + '</text></g>';
+        x += 62;
       });
-      var body = g.modal(html);
-      body.onclick = function (e) {
-        var b = e.target.closest('button[data-v]'); if (!b) return;
-        var i = +b.getAttribute('data-i'); S.s1[i] = +b.getAttribute('data-v');
-        [].forEach.call(body.querySelectorAll('button[data-i="' + i + '"]'), function (x) { x.classList.toggle('on', x === b); });
-        refresh();
-      };
+      n.innerHTML = s;
+    }
+    function got(k, d, msg) {
+      if (digit[k] === null) { digit[k] = d; notes(); g.say(msg); }
     }
 
-    /* 2. Епюри */
-    function st2() {
-      var beamF = '<svg viewBox="0 0 220 90" class="st-pic">' + ARW + '<line x1="20" y1="40" x2="200" y2="40" stroke="' + INK + '" stroke-width="7"/><polygon points="20,44 8,68 32,68" fill="#fff" stroke="' + INK + '" stroke-width="2"/><polygon points="200,44 188,64 212,64" fill="#fff" stroke="' + INK + '" stroke-width="2"/><circle cx="200" cy="68" r="3.5" fill="#fff" stroke="' + INK + '" stroke-width="2"/><line x1="110" y1="4" x2="110" y2="34" stroke="#b5392b" stroke-width="3" marker-end="url(#qa)"/><text x="122" y="16" font-size="13" fill="#b5392b" font-weight="700">F</text></svg>';
-      var beamQ = '<svg viewBox="0 0 220 90" class="st-pic">' + ARW + '<line x1="20" y1="40" x2="200" y2="40" stroke="' + INK + '" stroke-width="7"/><polygon points="20,44 8,68 32,68" fill="#fff" stroke="' + INK + '" stroke-width="2"/><polygon points="200,44 188,64 212,64" fill="#fff" stroke="' + INK + '" stroke-width="2"/><circle cx="200" cy="68" r="3.5" fill="#fff" stroke="' + INK + '" stroke-width="2"/><rect x="20" y="14" width="180" height="20" fill="rgba(66,153,225,.15)" stroke="#3182ce"/>' +
-        [0, 1, 2, 3, 4, 5, 6, 7, 8].map(function (k) { return '<line x1="' + (28 + k * 20) + '" y1="14" x2="' + (28 + k * 20) + '" y2="36" stroke="#3182ce" stroke-width="2" marker-end="url(#qa)"/>'; }).join('') + '</svg>';
-      var optsA = [['a', 'rect'], ['b', 'tri'], ['c', 'par'], ['d', 'trap']];
-      var optsB = [['a', 'tri'], ['b', 'rect'], ['c', 'par'], ['d', 'trap']];
-      function grid(opts, cur, q) {
-        return '<div class="st-grid">' + opts.map(function (o) {
-          return '<button type="button" class="st-opt st-card' + (cur === o[0] ? ' on' : '') + '" data-q="' + q + '" data-v="' + o[0] + '">' + epureMini(o[1]) + '<span>' + o[0].toUpperCase() + '</span></button>';
-        }).join('') + '</div>';
+    /* ---------- предмети ---------- */
+    function takeBox() {
+      if (has.weight) { g.say('Коробка порожня: гирьку ви вже забрали.'); return; }
+      has.weight = true;
+      svg.querySelector('.st-box').setAttribute('opacity', '0');
+      svg.querySelector('.st-box-open').setAttribute('opacity', '1');
+      g.say('У коробці лежала лабораторна гирька. Ви її забрали.');
+    }
+    function drawer() {
+      if (has.plumb) { g.say('Шухляда порожня: виска вже у вас.'); return; }
+      has.plumb = true;
+      g.say('У шухляді лежала виска: шнурок із важком. Ви її забрали. Вона завжди показує вертикаль.');
+    }
+    function cabinet() {
+      if (has.supports) { g.say('Шафа порожня: опори вже у вас.'); return; }
+      has.supports = true;
+      svg.querySelector('.st-cab-open').setAttribute('opacity', '1');
+      g.say('У шафі лежав набір опор: шарнірно-нерухомі, шарнірно-рухомі й защемлення. Ви їх забрали.');
+    }
+
+    /* ---------- дослід 1: макет моста ---------- */
+    var SUP = ['нема', 'нерухома', 'рухома', 'защемлення'];
+    var supEnds = [0, 0];
+    var reactCount = [0, 2, 1, 3];
+    function bridgeModal() {
+      if (!has.supports) { g.say('Макет моста лежить на столі без опор. Потрібні опори: пошукайте в шафі.'); return; }
+      function supSvg(x, t) {
+        var s = '';
+        if (t === 1) s = '<polygon points="' + x + ',102 ' + (x - 18) + ',140 ' + (x + 18) + ',140" fill="#fff" stroke="' + INK + '" stroke-width="2.5"/><line x1="' + (x - 26) + '" y1="142" x2="' + (x + 26) + '" y2="142" stroke="' + INK + '" stroke-width="3"/>';
+        else if (t === 2) s = '<polygon points="' + x + ',102 ' + (x - 18) + ',134 ' + (x + 18) + ',134" fill="#fff" stroke="' + INK + '" stroke-width="2.5"/><circle cx="' + (x - 9) + '" cy="140" r="5" fill="#fff" stroke="' + INK + '" stroke-width="2"/><circle cx="' + (x + 9) + '" cy="140" r="5" fill="#fff" stroke="' + INK + '" stroke-width="2"/><line x1="' + (x - 26) + '" y1="146" x2="' + (x + 26) + '" y2="146" stroke="' + INK + '" stroke-width="3"/>';
+        else if (t === 3) s = '<rect x="' + (x - 7) + '" y="90" width="14" height="60" fill="#cfd9e6" stroke="' + INK + '" stroke-width="2.5"/>';
+        else s = '<text x="' + x + '" y="130" text-anchor="middle" font-size="12" fill="#889">пусто</text>';
+        return s;
       }
-      var html = head(2, 'Епюру згинального моменту малюють з боку розтягнутих волокон. Для кожної балки оберіть правильну форму епюри.') +
-        '<p><b>Балка 1.</b> Сила посередині.</p>' + beamF + grid(optsA, S.s2[0], 0) +
-        '<p><b>Балка 2.</b> Рівномірне навантаження по всій довжині.</p>' + beamQ + grid(optsB, S.s2[1], 1);
-      var body = g.modal(html);
-      body.onclick = function (e) {
-        var b = e.target.closest('button[data-q]'); if (!b) return;
-        var q = +b.getAttribute('data-q'); S.s2[q] = b.getAttribute('data-v');
-        [].forEach.call(body.querySelectorAll('button[data-q="' + q + '"]'), function (x) { x.classList.toggle('on', x === b); });
-        refresh();
-      };
-    }
-
-    /* 3. Шарнір */
-    function st3() {
-      var pts = [['a', 50, 'A'], ['b', 150, 'B'], ['c', 250, 'C'], ['d', 330, 'D'], ['e', 410, 'E']];
-      var svg3 = '<svg viewBox="0 0 470 170" class="st-pic st-wide">' + ARW +
-        '<rect x="34" y="40" width="12" height="90" fill="#cfd9e6" stroke="' + INK + '" stroke-width="2"/>' + hatch(34, 52, 6, -8, 8, 14) +
-        '<line x1="46" y1="84" x2="410" y2="84" stroke="' + INK + '" stroke-width="7"/>' +
-        '<circle cx="250" cy="84" r="8" fill="#fff" stroke="' + INK + '" stroke-width="3.5"/>' +
-        '<polygon points="410,88 396,112 424,112" fill="#fff" stroke="' + INK + '" stroke-width="2"/><circle cx="403" cy="118" r="4" fill="#fff" stroke="' + INK + '" stroke-width="2"/><circle cx="417" cy="118" r="4" fill="#fff" stroke="' + INK + '" stroke-width="2"/>' +
-        '<line x1="150" y1="30" x2="150" y2="76" stroke="#b5392b" stroke-width="3.5" marker-end="url(#qa)"/><text x="162" y="42" font-size="14" fill="#b5392b" font-weight="700">F</text>' +
-        '<rect x="250" y="52" width="160" height="22" fill="rgba(66,153,225,.15)" stroke="#3182ce"/>' +
-        [0, 1, 2, 3, 4, 5, 6, 7].map(function (k) { return '<line x1="' + (258 + k * 20) + '" y1="52" x2="' + (258 + k * 20) + '" y2="78" stroke="#3182ce" stroke-width="2" marker-end="url(#qa)"/>'; }).join('') +
-        '<text x="330" y="44" text-anchor="middle" font-size="14" fill="#2b6cb0" font-weight="700">q</text>' +
-        pts.map(function (p) {
-          return '<g class="st-pt' + (S.s3[p[0]] ? ' on' : '') + '" data-p="' + p[0] + '"><circle cx="' + p[1] + '" cy="84" r="15"/><text x="' + p[1] + '" y="146" text-anchor="middle" font-size="16" font-weight="700" fill="' + INK + '">' + p[2] + '</text></g>';
-        }).join('') + '</svg>';
-      var html = head(3, 'Це балка із защемленням у стіні (зліва), шарніром у точці C і опорою на котках справа. Натисніть усі точки, у яких згинальний момент точно дорівнює нулю. Точок може бути кілька.') + svg3 +
-        '<p class="muted">Підказка: де балка не може передати момент?</p>';
-      var body = g.modal(html);
-      body.onclick = function (e) {
-        var t = e.target.closest('.st-pt'); if (!t) return;
-        var k = t.getAttribute('data-p'); S.s3[k] = !S.s3[k];
-        t.classList.toggle('on', !!S.s3[k]);
-        refresh();
-      };
-    }
-
-    /* 4. Центр ваги */
-    function st4() {
-      var X = function (x) { return 60 + 38 * x; }, Y = function (y) { return 230 - 38 * y; };
-      var dots = [['a', 1, 4.5], ['b', 1, 1], ['c', 2.2, 2.2], ['d', 4.5, 1], ['e', 3.6, 3.6]];
-      var shape = '<polygon points="' + [[0, 0], [6, 0], [6, 2], [2, 2], [2, 6], [0, 6]].map(function (p) { return X(p[0]) + ',' + Y(p[1]); }).join(' ') + '" fill="#cfd9e6" stroke="' + INK + '" stroke-width="3"/>';
-      var svg4 = '<svg viewBox="0 0 320 250" class="st-pic st-wide">' + shape +
-        dots.map(function (d) {
-          return '<g class="st-pt' + (S.s4 === d[0] ? ' on' : '') + '" data-p="' + d[0] + '"><circle cx="' + X(d[1]) + '" cy="' + Y(d[2]) + '" r="11"/><text x="' + (X(d[1]) + 15) + '" y="' + (Y(d[2]) - 9) + '" font-size="15" font-weight="700" fill="#b5392b">' + d[0].toUpperCase() + '</text></g>';
-        }).join('') + '</svg>';
-      var html = head(4, 'Це плоска пластина однакової товщини з однорідного матеріалу, вирізана літерою «Г». Куди треба поставити вістря голки, щоб пластина не нахилялась? Натисніть одну точку.') + svg4 +
-        '<p class="muted">Не поспішайте: центр ваги не завжди лежить усередині самого матеріалу.</p>';
-      var body = g.modal(html);
-      body.onclick = function (e) {
-        var t = e.target.closest('.st-pt'); if (!t) return;
-        S.s4 = t.getAttribute('data-p');
-        [].forEach.call(body.querySelectorAll('.st-pt'), function (x) { x.classList.toggle('on', x === t); });
-        refresh();
-      };
-    }
-
-    /* 5. Тертя */
-    var TH = { a: 5.7, b: 24.2, c: 42 };
-    function st5() {
-      var mats = [['a', 'Лід', '#bfe3f5'], ['b', 'Дерево', '#c28b4c'], ['c', 'Гума', '#333']];
-      var lanes = mats.map(function (m, i) {
-        return '<svg viewBox="0 -10 160 185" class="st-lane" style="overflow:visible"><g class="st-plank" data-m="' + m[0] + '" style="transform-origin:140px 140px"><rect x="20" y="140" width="130" height="8" fill="#8b6a3f" stroke="' + INK + '" stroke-width="2"/>' +
-          '<g class="st-blk" style="transition:transform .8s ease-in"><rect x="26" y="122" width="26" height="18" fill="' + m[2] + '" stroke="' + INK + '" stroke-width="2"/></g></g>' +
-          '<text x="80" y="165" text-anchor="middle" font-size="14" font-weight="700" fill="' + INK + '">' + m[1] + '</text></svg>';
-      }).join('');
-      var shuffled = [mats[2], mats[0], mats[1]];
-      var html = head(5, 'Три однакові бруски стоять на однакових похилих дошках, але зроблені з різних матеріалів. Повільно піднімайте дошки повзунком і спостерігайте. Потім натискайте матеріали в порядку, в якому бруски починають ковзати вниз.') +
-        '<div class="st-lanes">' + lanes + '</div>' +
-        '<label class="st-slide">Кут нахилу: <b class="st-ang">0°</b><input type="range" min="0" max="60" step="0.5" value="0" class="st-range"></label>' +
-        '<p><b>Порядок ковзання:</b> <span class="st-ord"></span> <button type="button" class="st-opt st-small" data-reset="1">Скинути</button></p>' +
-        '<div class="st-row">' + shuffled.map(function (m) { return '<button type="button" class="st-opt" data-m="' + m[0] + '">' + m[1] + '</button>'; }).join('') + '</div>';
-      var body = g.modal(html);
-      var range = body.querySelector('.st-range'), ang = body.querySelector('.st-ang'), ord = body.querySelector('.st-ord');
-      var NAME = { a: 'лід', b: 'дерево', c: 'гума' };
-      function upd() {
-        var a = +range.value; ang.textContent = a + '°';
-        [].forEach.call(body.querySelectorAll('.st-plank'), function (p) {
-          var m = p.getAttribute('data-m');
-          p.style.transition = 'transform .25s';
-          p.style.transform = 'rotate(' + a + 'deg)';
-          p.querySelector('.st-blk').style.transform = a > TH[m] ? 'translateX(98px)' : 'translateX(0)';
-        });
+      function paint(body) {
+        var L = supEnds[0], R = supEnds[1];
+        body.querySelector('.st-bsvg').innerHTML = '<line x1="40" y1="96" x2="300" y2="96" stroke="' + INK + '" stroke-width="10"/>' + supSvg(50, L) + supSvg(290, R) + arrow(170, 40, 170, 88) +
+          '<text x="184" y="56" font-size="14" font-weight="700" fill="' + RED + '">вантаж</text>';
+        body.querySelector('.st-lbtn').textContent = 'Лівий кінець: ' + SUP[L];
+        body.querySelector('.st-rbtn').textContent = 'Правий кінець: ' + SUP[R];
+        var msg = body.querySelector('.st-bmsg'), ok = false;
+        if (L === 0 || R === 0) msg.textContent = 'Міст має лежати на обох берегах: на кожному кінці має бути опора.';
+        else if (L === 2 && R === 2) msg.textContent = 'Обидві опори рухомі: міст нічим не втримується від зсуву вздовж. Він «поїде» вбік.';
+        else if (L === 1 && R === 1) msg.textContent = 'Дві нерухомі опори: тримає, але зайвих зв’язків більше, ніж потрібно. У мосту від нагріву з’являться розпірні сили. Інженери так не роблять.';
+        else if (L === 3 || R === 3) msg.textContent = 'Защемлення на кінці мосту дає зайві зв’язки: міст важко розрахувати, а осідання берега ламає його. Потрібна простіша схема.';
+        else { msg.textContent = 'Міст стоїть, тримається й легко розраховується: усе необхідне, нічого зайвого.'; ok = true; }
+        body.querySelector('.st-bq').hidden = !ok;
+        return ok;
       }
-      function showOrd() {
-        ord.textContent = S.s5.length ? S.s5.map(function (k, i) { return (i + 1) + ') ' + NAME[k]; }).join(', ') : 'ще не вибрано';
-        [].forEach.call(body.querySelectorAll('button[data-m]'), function (b) { b.classList.toggle('on', S.s5.indexOf(b.getAttribute('data-m')) >= 0); });
+      var html = '<h3>Макет моста</h3><p>Поставте опори під кінці мосту. Натискайте кнопки: вони по черзі міняють тип опори. Потрібно підібрати найпростіше розв’язання: міст має стояти, не їхати вбік і не мати зайвих зв’язків.</p>' +
+        '<svg viewBox="0 0 340 170" class="st-pic st-wide st-bsvg"></svg>' +
+        '<div class="st-row"><button type="button" class="st-opt st-lbtn"></button><button type="button" class="st-opt st-rbtn"></button></div><p class="kp-msg st-bmsg"></p>' +
+        '<div class="st-bq" hidden><p><b>На схемі в цих опорах разом виникає стільки опорних реакцій. Скільки?</b> Натисніть число, щоб вписати його на табличку макета.</p><div class="st-row">' +
+        [1, 2, 3, 4, 5, 6].map(function (n) { return '<button type="button" class="st-opt" data-n="' + n + '">' + n + '</button>'; }).join('') + '</div></div>';
+      var body = g.modal(html);
+      paint(body);
+      body.onclick = function (e) {
+        var b = e.target.closest('button'); if (!b) return;
+        if (b.classList.contains('st-lbtn')) { supEnds[0] = (supEnds[0] + 1) % 4; paint(body); return; }
+        if (b.classList.contains('st-rbtn')) { supEnds[1] = (supEnds[1] + 1) % 4; paint(body); return; }
+        var n = b.getAttribute('data-n'); if (!n) return;
+        var real = reactCount[supEnds[0]] + reactCount[supEnds[1]];
+        if (+n !== real) { body.querySelector('.st-bmsg').textContent = 'Табличка не підходить: порахуйте реакції кожної опори ще раз. Нерухома дає дві, рухома одну.'; return; }
+        got('bridge', real, 'Табличка на макеті: «' + real + '». Ви записали цифру ' + real + ' у блокнот. Вона перша в коді.');
+        g.close();
+      };
+    }
+
+    /* ---------- дослід 2: гойдалка ---------- */
+    function seesawModal() {
+      if (!has.weight) { g.say('На гойдалці сидить важкий вантаж, а зрівноважити його нічим. Потрібна гирька.'); return; }
+      var pos = 0;
+      var html = '<h3>Лабораторна гойдалка</h3><p>Праворуч, біля позначки 2, закріплений важкий вантаж: він удвічі важчий за вашу гирьку. Ставте гирьку на ліве плече в позначки 1…6 і дивіться, куди хилиться гойдалка. Зрівноважте її.</p>' +
+        '<svg viewBox="0 0 340 170" class="st-pic st-wide st-ssvg"></svg>' +
+        '<div class="st-row">' + [1, 2, 3, 4, 5, 6].map(function (n) { return '<button type="button" class="st-opt" data-p="' + n + '">' + n + '</button>'; }).join('') + '</div><p class="kp-msg st-smsg">Оберіть позначку.</p>';
+      var body = g.modal(html);
+      function paint(p) {
+        var tilt = p === 0 ? 0 : (p * 1 - 2 * 2); // момент гирьки мінус момент вантажу
+        var ang = -Math.max(-14, Math.min(14, tilt * 5)); // ліва сторона важча: вона йде вниз (проти годинникової)
+        var s = '<g transform="rotate(' + ang + ' 170 100)"><rect x="20" y="94" width="300" height="12" fill="#c28b4c" stroke="' + INK + '" stroke-width="2"/>';
+        for (var k = 1; k <= 6; k++) s += '<line x1="' + (170 - k * 24) + '" y1="94" x2="' + (170 - k * 24) + '" y2="106" stroke="' + INK + '" stroke-width="2"/><text x="' + (170 - k * 24) + '" y="124" text-anchor="middle" font-size="12" font-weight="700" fill="' + INK + '">' + k + '</text>';
+        for (k = 1; k <= 6; k++) s += '<text x="' + (170 + k * 24) + '" y="124" text-anchor="middle" font-size="12" fill="#889">' + k + '</text>';
+        s += '<rect x="' + (170 + 2 * 24 - 15) + '" y="64" width="30" height="30" fill="#4a5568" stroke="' + INK + '" stroke-width="2"/><text x="' + (170 + 48) + '" y="84" text-anchor="middle" font-size="11" fill="#fff">2m</text>';
+        if (p) s += '<rect x="' + (170 - p * 24 - 9) + '" y="76" width="18" height="18" fill="#a0aec0" stroke="' + INK + '" stroke-width="2"/><text x="' + (170 - p * 24) + '" y="89" text-anchor="middle" font-size="11" fill="' + INK + '">m</text>';
+        s += '</g><polygon points="170,106 150,150 190,150" fill="#fff" stroke="' + INK + '" stroke-width="3"/>';
+        body.querySelector('.st-ssvg').innerHTML = s;
       }
-      range.addEventListener('input', upd);
+      paint(0);
       body.onclick = function (e) {
-        if (e.target.closest('[data-reset]')) { S.s5 = []; showOrd(); refresh(); return; }
-        var b = e.target.closest('button[data-m]'); if (!b) return;
-        var m = b.getAttribute('data-m');
-        if (S.s5.indexOf(m) < 0 && S.s5.length < 3) S.s5.push(m);
-        showOrd(); refresh();
-      };
-      upd(); showOrd();
-    }
-
-    /* 6. Ферма */
-    var RS = { r: 'розтяг', s: 'стиск' };
-    function st6() {
-      function rod(id, x1, y1, x2, y2) {
-        var v = S.s6[id];
-        return '<g class="st-rod' + (v ? ' ' + v : '') + '" data-r="' + id + '"><line x1="' + x1 + '" y1="' + y1 + '" x2="' + x2 + '" y2="' + y2 + '" class="st-hit"/><line x1="' + x1 + '" y1="' + y1 + '" x2="' + x2 + '" y2="' + y2 + '" class="st-line"/>' +
-          '<text x="' + ((x1 + x2) / 2) + '" y="' + ((y1 + y2) / 2 - 8) + '" text-anchor="middle" class="st-rl">' + (v ? RS[v] : 'натисніть') + '</text></g>';
-      }
-      var t1 = '<svg viewBox="0 0 300 190" class="st-pic st-wide">' + ARW +
-        rod('a', 40, 150, 150, 40) + rod('b', 150, 40, 260, 150) + rod('c', 40, 150, 260, 150) +
-        '<polygon points="40,154 26,176 54,176" fill="#fff" stroke="' + INK + '" stroke-width="2"/><polygon points="260,154 246,172 274,172" fill="#fff" stroke="' + INK + '" stroke-width="2"/><circle cx="260" cy="177" r="3.5" fill="#fff" stroke="' + INK + '" stroke-width="2"/>' +
-        '<line x1="150" y1="2" x2="150" y2="34" stroke="#b5392b" stroke-width="3.5" marker-end="url(#qa)"/><text x="162" y="18" font-size="14" fill="#b5392b" font-weight="700">F</text></svg>';
-      var t2 = '<svg viewBox="0 0 300 190" class="st-pic st-wide">' + ARW +
-        '<rect x="20" y="20" width="12" height="150" fill="#cfd9e6" stroke="' + INK + '" stroke-width="2"/>' + hatch(20, 32, 8, -8, 8, 18) +
-        rod('d', 32, 50, 230, 50) + rod('e', 32, 150, 230, 50) +
-        '<line x1="230" y1="52" x2="230" y2="110" stroke="#b5392b" stroke-width="3.5" marker-end="url(#qa)"/><text x="242" y="96" font-size="14" fill="#b5392b" font-weight="700">F</text></svg>';
-      var html = head(6, 'Стержні ферми працюють лише на розтяг або на стиск. Натискайте на стержень, щоб змінити його стан: розтяг (синій) або стиск (червоний). Сили F спрямовані вниз.') +
-        '<p><b>Дах: дві опори, сила на вершині.</b></p>' + t1 + '<p><b>Кронштейн на стіні: сила на кінці.</b></p>' + t2;
-      var body = g.modal(html);
-      body.onclick = function (e) {
-        var r = e.target.closest('.st-rod'); if (!r) return;
-        var id = r.getAttribute('data-r'), cur = S.s6[id];
-        S.s6[id] = cur === null ? 'r' : cur === 'r' ? 's' : 'r';
-        r.setAttribute('class', 'st-rod ' + S.s6[id]);
-        r.querySelector('.st-rl').textContent = RS[S.s6[id]];
-        refresh();
-      };
-    }
-
-    /* 7. Рух (графіки швидкості) */
-    function st7() {
-      var graphs = [
-        ['1', '<polyline points="20,20 140,90" fill="none" stroke="#c05621" stroke-width="4"/>'],
-        ['2', '<polyline points="20,90 140,20" fill="none" stroke="#c05621" stroke-width="4"/>'],
-        ['3', '<polyline points="20,40 140,40" fill="none" stroke="#c05621" stroke-width="4"/>']
-      ];
-      var gsvg = graphs.map(function (gr) {
-        return '<div class="st-gr"><svg viewBox="0 0 160 110" class="st-pic"><line x1="20" y1="95" x2="150" y2="95" stroke="' + INK + '" stroke-width="2"/><line x1="20" y1="95" x2="20" y2="8" stroke="' + INK + '" stroke-width="2"/>' +
-          '<text x="148" y="108" font-size="11" fill="' + INK + '">t</text><text x="4" y="14" font-size="11" fill="' + INK + '">v</text>' + gr[1] + '</svg><b>Графік ' + gr[0] + '</b></div>';
-      }).join('');
-      var qs = ['Автомобіль їде рівномірно, з постійною швидкістю.', 'Автомобіль рушає зі стану спокою й розганяється рівномірно.', 'Автомобіль гальмує рівномірно аж до повної зупинки.'];
-      var html = head(7, 'Графіки показують, як швидкість v залежить від часу t. До кожного опису руху оберіть свій графік.') +
-        '<div class="st-grs">' + gsvg + '</div>' +
-        qs.map(function (q, i) {
-          return '<div class="st-q"><p>' + (i + 1) + '. ' + q + '</p>' + btnRow([['1', 'Графік 1'], ['2', 'Графік 2'], ['3', 'Графік 3']], S.s7[i], 'data-i="' + i + '" data-v') + '</div>';
-        }).join('');
-      var body = g.modal(html);
-      body.onclick = function (e) {
-        var b = e.target.closest('button[data-v]'); if (!b) return;
-        var i = +b.getAttribute('data-i'); S.s7[i] = b.getAttribute('data-v');
-        [].forEach.call(body.querySelectorAll('button[data-i="' + i + '"]'), function (x) { x.classList.toggle('on', x === b); });
-        refresh();
-      };
-    }
-
-    /* 8. Момент сили */
-    function st8() {
-      var door = '<svg viewBox="0 0 260 110" class="st-pic st-wide">' + ARW +
-        '<rect x="30" y="50" width="200" height="12" fill="#c28b4c" stroke="' + INK + '" stroke-width="2"/><circle cx="34" cy="56" r="8" fill="#fff" stroke="' + INK + '" stroke-width="3"/>' +
-        '<text x="34" y="88" text-anchor="middle" font-size="12" fill="' + INK + '">петлі</text>' +
-        [['a', 70], ['b', 130], ['c', 214]].map(function (p) {
-          return '<g class="st-pt" data-p="' + p[0] + '"><line x1="' + p[1] + '" y1="14" x2="' + p[1] + '" y2="46" stroke="#b5392b" stroke-width="3.5" marker-end="url(#qa)"/><circle cx="' + p[1] + '" cy="56" r="13" fill="rgba(197,48,48,.12)" stroke="none"/><text x="' + (p[1] + 12) + '" y="24" font-size="15" font-weight="700" fill="#b5392b">' + p[0].toUpperCase() + '</text></g>';
-        }).join('') + '</svg>';
-      var html = head(8, 'Момент сили залежить від сили та від плеча.') +
-        '<p><b>Двері, вид зверху.</b> У яку точку треба штовхнути з однаковою силою, щоб двері відчинити найлегше?</p>' + door +
-        '<p><b>Гойдалка.</b> Важкий хлопчик і легкий хлопчик хочуть зрівноважити гойдалку. Де має сидіти важкий хлопчик?</p>' +
-        btnRow([['a', 'Ближче до опори, ніж легкий'], ['b', 'Далі від опори, ніж легкий'], ['c', 'На такій самій відстані']], S.s8[1], 'data-sw');
-      var body = g.modal(html);
-      if (S.s8[0]) mark(body, '.st-pt', S.s8[0], 'data-p');
-      [].forEach.call(body.querySelectorAll('.st-pt'), function (x) { x.classList.toggle('on', x.getAttribute('data-p') === S.s8[0]); });
-      body.onclick = function (e) {
-        var t = e.target.closest('.st-pt');
-        if (t) {
-          S.s8[0] = t.getAttribute('data-p');
-          [].forEach.call(body.querySelectorAll('.st-pt'), function (x) { x.classList.toggle('on', x === t); });
-          refresh(); return;
+        var b = e.target.closest('button[data-p]'); if (!b) return;
+        var p = +b.getAttribute('data-p'), m = body.querySelector('.st-smsg');
+        paint(p);
+        var d = p - 4;
+        if (d < 0) m.textContent = 'Гойдалка хилиться вправо: гирька надто близько до опори, її момент замалий.';
+        else if (d > 0) m.textContent = 'Гойдалка хилиться вліво: гирька надто далеко, її момент завеликий.';
+        else {
+          m.textContent = 'Рівновага! Момент гирьки (малий вантаж, велике плече) дорівнює моменту важкого вантажу (великий вантаж, мале плече).';
+          got('seesaw', p, 'Гойдалка зрівноважена на позначці ' + p + '. Це друга цифра коду, її записано в блокнот.');
         }
-        var b = e.target.closest('button[data-sw]'); if (!b) return;
-        S.s8[1] = b.getAttribute('data-sw');
-        [].forEach.call(body.querySelectorAll('button[data-sw]'), function (x) { x.classList.toggle('on', x === b); });
-        refresh();
       };
     }
 
-    /* 9. Правда чи ні */
-    function st9() {
-      var qs = [
-        'Шарнір у балці передає і силу, і згинальний момент.',
-        'Реакція рухомої опори спрямована перпендикулярно до опорної поверхні.',
-        'Сила, лінія дії якої проходить через точку, дає відносно цієї точки нульовий момент.',
-        'Центр ваги тіла завжди лежить усередині самого тіла.',
-        'Балка статично визначувана, якщо кількість невідомих дорівнює кількості рівнянь статики.',
-        'Що менша площа перерізу, то менше напруження при тій самій силі розтягу.'
-      ];
-      var html = head(9, 'Оцініть кожне твердження.') + qs.map(function (q, i) {
-        return '<div class="st-q"><p>' + (i + 1) + '. ' + q + '</p>' + btnRow([['t', 'Правда'], ['f', 'Неправда']], S.s9[i], 'data-i="' + i + '" data-v') + '</div>';
-      }).join('');
+    /* ---------- дослід 3: центр ваги пластини ---------- */
+    function plateModal() {
+      if (!has.plumb) { g.say('Модель пластини висить на цвяшку. Щоб знайти її центр ваги, потрібна виска.'); return; }
+      var C = { x: 2.2, y: 2.2 }, S = 38, ox = 40, oy = 210;
+      function X(x) { return ox + S * x; } function Y(y) { return oy - S * y; }
+      var pts = [['a', 0, 6], ['b', 6, 0], ['c', 0, 0], ['d', 6, 2], ['e', 2, 6]];
+      var picked = [];
+      var html = '<h3>Модель пластини</h3><p>Пластина однорідна, вирізана літерою «Г». Центр ваги знаходять дослідом: пластину підвішують за точку, і виска показує вертикаль. Центр ваги завжди лежить на цій вертикалі під точкою підвісу. Підвісьте пластину за дві різні точки, і центр ваги буде там, де лінії перетнуться.</p>' +
+        '<svg viewBox="0 0 300 250" class="st-pic st-wide st-psvg" style="max-width:300px"></svg><p class="kp-msg st-pmsg">Оберіть точку підвісу.</p>' +
+        '<div class="st-row">' + pts.map(function (p) { return '<button type="button" class="st-opt st-small" data-p="' + p[0] + '">Підвіс ' + p[0].toUpperCase() + '</button>'; }).join('') + '</div>';
       var body = g.modal(html);
-      body.onclick = function (e) {
-        var b = e.target.closest('button[data-v]'); if (!b) return;
-        var i = +b.getAttribute('data-i'); S.s9[i] = b.getAttribute('data-v');
-        [].forEach.call(body.querySelectorAll('button[data-i="' + i + '"]'), function (x) { x.classList.toggle('on', x === b); });
-        refresh();
-      };
-    }
-
-    /* Здача паспорта */
-    var sent = false;
-    function gate() {
-      var t = tokens(), left = [];
-      t.forEach(function (x, i) { if (!x) left.push(i + 1); });
-      var html = '<h3>Паспорт об’єкта</h3>' + t.map(function (x, i) {
-        return '<p class="st-line-r">' + (x ? '✓' : '—') + ' Станція ' + (i + 1) + '. ' + TITLES[i] + '</p>';
-      }).join('');
-      if (left.length) {
-        html += '<p class="kp-msg">Ще не всі станції заповнені: ' + left.join(', ') + '.</p>';
-        g.modal(html); return;
-      }
-      html += '<p class="muted">Усі станції заповнені. Паспорт можна здавати скільки завгодно разів, поки не вийде час. Якщо відповідь неправильна, я не скажу, на якій станції помилка.</p>' +
-        '<button type="button" class="btn st-send">Здати паспорт</button><p class="kp-msg muted st-msg"></p>';
-      var body = g.modal(html);
-      var btn = body.querySelector('.st-send'), msg = body.querySelector('.st-msg');
-      btn.addEventListener('click', function () {
-        if (sent) return;
-        sent = true; btn.disabled = true; msg.textContent = 'Перевіряємо…';
-        g.submit(tokens().join('-')).then(function (r) {
-          sent = false; btn.disabled = false;
-          if (r.expired) { return; }
-          if (!r.correct) { msg.textContent = 'Паспорт не прийнято: десь є помилка. Поверніться на станції й перевірте відповіді.'; return; }
-          g.close();
-          g.say('Паспорт прийнято. Об’єкт допущено до роботи!');
-          setTimeout(function () { g.finish(r); }, 1200);
-        }).catch(function (err) {
-          sent = false; btn.disabled = false;
-          msg.textContent = err && err.message === 'NETWORK' ? 'Немає зв’язку. Спробуйте ще раз.' : 'Не вдалося перевірити (' + (err && err.message) + ').';
+      function paint() {
+        var s = '<polygon points="' + [[0, 0], [6, 0], [6, 2], [2, 2], [2, 6], [0, 6]].map(function (p) { return X(p[0]) + ',' + Y(p[1]); }).join(' ') + '" fill="#cfd9e6" stroke="' + INK + '" stroke-width="3"/>';
+        pts.forEach(function (p) {
+          s += '<circle cx="' + X(p[1]) + '" cy="' + Y(p[2]) + '" r="5" fill="' + (picked.indexOf(p[0]) >= 0 ? RED : INK) + '"/><text x="' + (X(p[1]) + (p[1] === 6 ? 8 : 8)) + '" y="' + (Y(p[2]) - 8) + '" font-size="13" font-weight="700" fill="' + RED + '">' + p[0].toUpperCase() + '</text>';
         });
+        picked.forEach(function (k) {
+          var p = pts.filter(function (q) { return q[0] === k; })[0];
+          var dx = C.x - p[1], dy = C.y - p[2], len = Math.sqrt(dx * dx + dy * dy), t = 1.3;
+          s += '<line x1="' + X(p[1]) + '" y1="' + Y(p[2]) + '" x2="' + X(p[1] + dx * t) + '" y2="' + Y(p[2] + dy * t) + '" stroke="' + BLUE + '" stroke-width="2.5" stroke-dasharray="6 4"/>';
+        });
+        if (picked.length >= 2) s += '<circle cx="' + X(C.x) + '" cy="' + Y(C.y) + '" r="9" fill="none" stroke="' + RED + '" stroke-width="3"/><text x="' + (X(C.x) + 14) + '" y="' + (Y(C.y) + 4) + '" font-size="26" font-weight="700" fill="' + RED + '">7</text>';
+        body.querySelector('.st-psvg').innerHTML = s;
+      }
+      paint();
+      body.onclick = function (e) {
+        var b = e.target.closest('button[data-p]'); if (!b) return;
+        var k = b.getAttribute('data-p'); if (picked.indexOf(k) < 0) picked.push(k);
+        paint();
+        var m = body.querySelector('.st-pmsg');
+        if (picked.length < 2) { m.textContent = 'Виска показала першу вертикаль. Підвісьте пластину ще за одну точку.'; return; }
+        m.textContent = 'Дві вертикалі перетнулися: це центр ваги. Зверніть увагу, він лежить поза металом, у «куті» літери. На цьому місці на пластині нанесена цифра 7.';
+        got('plate', 7, 'Центр ваги пластини знайдено. На місці перетину виска показала цифру 7. Це третя цифра коду.');
+      };
+    }
+
+    /* ---------- дослід 4: похила дошка ---------- */
+    function rampModal() {
+      var slid = false;
+      var html = '<h3>Похила дошка</h3><p>Ящик стоїть на дошці. Повільно піднімайте дошку повзунком, доки ящик не поїде. Тертя утримує його, поки нахил малий. Запам’ятайте, біля якої цифри шкали (десятки градусів) ящик почав ковзати.</p>' +
+        '<svg viewBox="0 0 340 190" class="st-pic st-wide st-rsvg"></svg>' +
+        '<label class="st-slide">Нахил дошки<input type="range" min="0" max="60" step="0.5" value="0" class="st-range"></label><p class="kp-msg st-rmsg"></p>';
+      var body = g.modal(html);
+      var r = body.querySelector('.st-range');
+      function paint(a, slidAt) {
+        var rad = a * Math.PI / 180, L = 240;
+        var px = 60, py = 160, ex = px + L * Math.cos(rad), ey = py - L * Math.sin(rad);
+        var off = slidAt ? 150 : 40; // положення ящика вздовж дошки
+        var s = '<line x1="' + px + '" y1="' + py + '" x2="' + ex + '" y2="' + ey + '" stroke="#8b6a3f" stroke-width="8"/>' +
+          '<g transform="translate(' + px + ' ' + py + ') rotate(' + (-a) + ')"><rect x="' + off + '" y="-30" width="34" height="24" fill="#6aa7d9" stroke="' + INK + '" stroke-width="2"/></g>' +
+          '<path d="M60 160 H300" stroke="#889" stroke-width="2"/>';
+        for (var k = 0; k <= 6; k++) {
+          var ang = k * 10 * Math.PI / 180, x = 60 + 270 * Math.cos(ang), y = 160 - 270 * Math.sin(ang);
+          s += '<text x="' + (x > 320 ? 322 : x) + '" y="' + (y + 4) + '" font-size="13" font-weight="700" fill="' + RED + '">' + k + '</text>';
+        }
+        body.querySelector('.st-rsvg').innerHTML = s;
+      }
+      paint(0, false);
+      r.addEventListener('input', function () {
+        var a = +r.value;
+        if (!slid && a > 26) { slid = true; }
+        paint(a, slid);
+        var m = body.querySelector('.st-rmsg');
+        if (slid) {
+          m.textContent = 'Ящик поїхав! Це сталося між цифрами 2 і 3 на шкалі, тобто дошка була нахилена на двадцять з чимось градусів.';
+          got('ramp', 2, 'Ящик почав ковзати біля цифри 2 (двадцять із чимось градусів). Це четверта цифра коду.');
+        } else m.textContent = a > 0 ? 'Тертя ще тримає ящик.' : '';
       });
     }
 
-    var OPEN = { s1: st1, s2: st2, s3: st3, s4: st4, s5: st5, s6: st6, s7: st7, s8: st8, s9: st9, gate: gate };
+    /* ---------- табличка і замок ---------- */
+    function plaque() {
+      g.modal('<h3>Табличка над дверима</h3><p>Код складається з чотирьох цифр у такому порядку:</p><div class="tk-note"><p><b>1. Макет моста<br>2. Гойдалка<br>3. Пластина<br>4. Похила дошка</b></p></div><p class="muted">Кожну цифру дає свій дослід. Цифри з усіх дослідів зібрані на жовтих листочках унизу.</p>');
+    }
+    var code4 = '';
+    var busy = false;
+    function keypad() {
+      if (opened) { g.say('Двері вже відчинені.'); return; }
+      code4 = '';
+      var html = '<h3>Кодовий замок</h3><p>Введіть чотири цифри (порядок на табличці над дверима).</p><div class="tk-led st-kled" style="font:700 28px monospace;letter-spacing:6px;text-align:center;background:#111;color:#7ee08b;padding:8px;border-radius:6px;min-height:44px">····</div>' +
+        '<div class="st-pad" style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin:8px 0">' +
+        ['1', '2', '3', '4', '5', '6', '7', '8', '9', 'C', '0', 'ok'].map(function (k) { return '<button type="button" class="st-opt" data-k="' + k + '">' + (k === 'ok' ? 'OK' : k) + '</button>'; }).join('') + '</div><p class="kp-msg st-kmsg"></p>';
+      var body = g.modal(html), led = body.querySelector('.st-kled'), msg = body.querySelector('.st-kmsg');
+      function show() { led.textContent = (code4 + '····').slice(0, 4); }
+      body.onclick = function (e) {
+        var b = e.target.closest('button[data-k]'); if (!b || busy) return;
+        var k = b.getAttribute('data-k');
+        if (k === 'C') { code4 = ''; msg.textContent = ''; show(); return; }
+        if (k === 'ok') {
+          if (code4.length < 4) { msg.textContent = 'Потрібно чотири цифри.'; return; }
+          busy = true; msg.textContent = 'Перевіряємо…';
+          g.submit(code4).then(function (r) {
+            busy = false;
+            if (r.expired) return;
+            if (!r.correct) { msg.textContent = 'Замок не відкрився. Перевірте, чи кожен дослід виконано правильно.'; code4 = ''; show(); return; }
+            opened = true; g.close();
+            svg.querySelector('.st-door-open').setAttribute('opacity', '1');
+            svg.querySelector('.st-led').textContent = 'OPEN';
+            g.say('Клац! Двері відчинено. Ви вийшли з лабораторії.');
+            setTimeout(function () { g.finish(r); }, 1800);
+          }).catch(function (err) { busy = false; msg.textContent = err && err.message === 'NETWORK' ? 'Немає зв’язку. Спробуйте ще раз.' : 'Не вдалося перевірити (' + (err && err.message) + ').'; });
+          return;
+        }
+        if (code4.length < 4) { code4 += k; show(); }
+      };
+    }
+
+    var OPEN = { box: takeBox, drawer: drawer, cabinet: cabinet, bridge: bridgeModal, seesaw: seesawModal, plate: plateModal, ramp: rampModal, plaque: plaque, keypad: keypad };
     svg.addEventListener('click', function (e) {
       var t = e.target.closest('[data-id]'); if (!t) return;
       var f = OPEN[t.getAttribute('data-id')]; if (f) f();
