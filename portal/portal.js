@@ -18,6 +18,7 @@
   var ERR = {
     AUTH: 'Сеанс завершився. Увійдіть знову.',
     BAD_POINTS: 'Перевірте бали: потрібне число від -1000 до 1000 і назва завдання.',
+    BAD_EMAIL: 'Перевірте пошту: вона має виглядати як name@gmail.com.',
     BAD_NAME: 'Напишіть прізвище та ім’я (не менше 3 символів).',
     BAD_GROUP: 'Оберіть групу зі списку.',
     BAD_CODE: 'Невірний код семестру. Запитайте його у викладача.',
@@ -860,6 +861,7 @@
     admStudents = r.students;
     admTasks = tasks || admTasks;
     fillAdminSelects();
+    $('#add-group').innerHTML = me.groups.map(function (g) { return '<option>' + esc(g) + '</option>'; }).join('');
     $('#adm-body').innerHTML = r.students.map(function (s) {
       var active = s.status === 'активний';
       return '<tr class="' + (active ? '' : 'blocked') + '"><td>' + esc(s.name) + '</td><td>' + esc(s.group) +
@@ -910,6 +912,17 @@
     api('admin_points', { email: email, task: task, points: sign * val }).then(function () {
       say((sign > 0 ? 'Додано ' : 'Знято ') + val + ' балів: ' + who + '.');
       $('#pts-val').value = '';
+      refreshAdmin();
+    }).catch(fail);
+  });
+
+  $('#add-form').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var name = $('#add-name').value, email = $('#add-email').value, group = $('#add-group').value;
+    if (!name.trim() || !email.trim()) { say('Впишіть ПІБ і пошту, оберіть групу.', true); return; }
+    api('admin_add_student', { fullName: name, email: email, group: group }).then(function (r) {
+      say((r.updated ? 'Дані оновлено: ' : 'Студента додано: ') + name.trim() + ', ' + group + '.');
+      $('#add-name').value = ''; $('#add-email').value = '';
       refreshAdmin();
     }).catch(fail);
   });

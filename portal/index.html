@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Кабінет студента | Навчальний портал з механіки</title>
     <link rel="stylesheet" href="../style.css">
-    <link rel="stylesheet" href="portal.css?v=28">
+    <link rel="stylesheet" href="portal.css?v=29">
 </head>
 <body>
 
@@ -140,6 +140,14 @@
                     <input id="adm-code" type="text" maxlength="40">
                     <button class="btn" type="submit">Змінити код</button>
                 </form>
+                <h3>Додати студента</h3>
+                <p class="muted">Вручну: прізвище та ім’я, група і пошта Google. Студент зможе увійти цією поштою без коду семестру.</p>
+                <form id="add-form" class="code-form">
+                    <input id="add-name" type="text" maxlength="80" placeholder="ПІБ" aria-label="ПІБ" autocomplete="off">
+                    <select id="add-group" aria-label="Група"></select>
+                    <input id="add-email" type="email" maxlength="120" placeholder="Пошта (gmail)" aria-label="Пошта" autocomplete="off">
+                    <button class="btn" type="submit">Додати студента</button>
+                </form>
                 <h3>Бали студента</h3>
                 <p class="muted">Поточні бали видно біля імені. «Додати» й «Зняти» змінюють суму та записують причину.</p>
                 <form id="pts-form" class="code-form">
@@ -172,10 +180,10 @@
         <p>© Навчальний портал з механіки | Кабінет студента</p>
     </footer>
 
-    <script src="config.js?v=28"></script>
-    <script src="tasks.js?v=28"></script>
-    <script src="portal.js?v=28"></script>
+    <script src="config.js?v=29"></script>
+    <script src="tasks.js?v=29"></script>
+    <script src="portal.js?v=29"></script>
     <script src="https://accounts.google.com/gsi/client" async defer></script>
-    <script src="portal-bg.js?v=28"></script>
+    <script src="portal-bg.js?v=29"></script>
 </body>
 </html>
