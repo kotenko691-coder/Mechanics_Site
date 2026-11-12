@@ -634,6 +634,55 @@
   $('#lec-done-top').addEventListener('click', onDoneClick);
 
   /* ---------- рейтинг ---------- */
+  // Топ-5: каркас висотки, що будується. Кожен поверх = студент, заливка поверху = бали, на даху кран піднімає балку лідерові
+  function topSvg(top, tmax) {
+    var W = 560, H = 410, ground = 372, fh = 60, fx = 16, fw = 392, n = 5;
+    var cut = function (t, m) { t = String(t); return t.length > m ? t.slice(0, m - 1) + '…' : t; };
+    var s = '<svg viewBox="0 0 ' + W + ' ' + H + '" class="rt-svg rt-top-svg" role="img" aria-label="Топ-5 студентів: ' +
+      esc(top.map(function (x) { return x.place + '. ' + x.name + ' (' + x.group + ') ' + num(x.points); }).join('; ')) + '">' +
+      '<defs><linearGradient id="sky2" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#b9d5f7"/><stop offset="1" stop-color="#f4f8ff"/></linearGradient>' +
+      '<pattern id="haz2" width="16" height="16" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="8" height="16" fill="#f5a300"/><rect x="8" width="8" height="16" fill="' + INK + '"/></pattern>' +
+      '<linearGradient id="glass2" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#3b5f93"/><stop offset="1" stop-color="#5f86bd"/></linearGradient></defs>' +
+      '<rect width="' + W + '" height="' + ground + '" fill="url(#sky2)"/>' +
+      '<g fill="#fff" opacity="0.85"><ellipse cx="470" cy="46" rx="34" ry="9"/><ellipse cx="452" cy="40" rx="20" ry="8"/><ellipse cx="90" cy="30" rx="30" ry="8"/></g>' +
+      '<rect y="' + ground + '" width="' + W + '" height="' + (H - ground) + '" fill="#d9e0ea"/><rect y="' + ground + '" width="' + W + '" height="8" fill="url(#haz2)"/>' +
+      // кран (праворуч)
+      '<g stroke="' + INK + '" stroke-width="2.4" fill="none"><rect x="470" y="40" width="22" height="' + (ground - 40) + '" fill="#f5a300"/>' +
+      '<path d="M470 ' + (ground) + ' L492 ' + (ground - 40) + ' M492 ' + ground + ' L470 ' + (ground - 40) + ' M470 ' + (ground - 40) + ' L492 ' + (ground - 80) + ' M492 ' + (ground - 40) + ' L470 ' + (ground - 80) + '" stroke="' + INK + '" stroke-width="1.4"/>' +
+      '<rect x="60" y="22" width="470" height="14" fill="#f5a300"/><path d="M60 36 L100 22 L140 36 L180 22 L220 36 L260 22 L300 36 L340 22 L380 36 L420 22 L460 36 L500 22" stroke-width="1.4"/>' +
+      '<rect x="500" y="36" width="30" height="22" fill="#6b7a90"/></g>' +
+      '<g class="rt-hook"><line x1="130" y1="36" x2="130" y2="' + (ground - fh * n - 28) + '" stroke="' + INK + '" stroke-width="2"/>' +
+      '<rect x="92" y="' + (ground - fh * n - 28) + '" width="76" height="12" fill="url(#haz2)" stroke="' + INK + '" stroke-width="2"/></g>' +
+      // фундамент
+      '<rect x="' + (fx - 8) + '" y="' + (ground - 8) + '" width="' + (fw + 16) + '" height="10" fill="#6b7a90" stroke="' + INK + '" stroke-width="2"/>';
+    for (var i = 0; i < n; i++) {
+      var e = top[n - 1 - i];                       // знизу місце 5, нагорі місце 1
+      var y = ground - 8 - (i + 1) * fh + 8;
+      if (!top[n - 1 - i]) { // вільний поверх: лише каркас
+        s += '<rect x="' + fx + '" y="' + y + '" width="' + fw + '" height="' + fh + '" fill="none" stroke="' + INK + '" stroke-width="1.6" stroke-dasharray="6 5" opacity="0.45"/>';
+        continue;
+      }
+      var pw = tmax > 0 ? Math.max(14, Math.round(e.points / tmax * (fw - 8))) : 14;
+      var mine = e.me;
+      s += '<g class="rt-floor" style="animation-delay:' + (i * 120) + 'ms">' +
+        '<rect x="' + fx + '" y="' + y + '" width="' + fw + '" height="' + fh + '" fill="#e9eef6" stroke="' + INK + '" stroke-width="2"/>' +
+        '<rect x="' + (fx + 4) + '" y="' + (y + 8) + '" width="' + pw + '" height="' + (fh - 16) + '" fill="' + (mine ? '#f5a300' : 'url(#glass2)') + '"/>' +
+        '<g stroke="rgba(255,255,255,.35)" stroke-width="1">' + [1, 2, 3, 4, 5, 6, 7].map(function (k) { return '<line x1="' + (fx + 4 + k * 48) + '" y1="' + (y + 8) + '" x2="' + (fx + 4 + k * 48) + '" y2="' + (y + fh - 8) + '"/>'; }).join('') + '</g>' +
+        '<rect x="' + (fx - 4) + '" y="' + (y - 3) + '" width="' + (fw + 8) + '" height="7" fill="#8a96a8" stroke="' + INK + '" stroke-width="1.6"/>' +
+        '<text x="' + (fx + 14) + '" y="' + (y + 27) + '" font-size="17" font-weight="700" fill="' + (mine ? INK : '#fff') + '" style="paint-order:stroke;stroke:' + (mine ? '#fff0c4' : INK) + ';stroke-width:3px">' + e.place + '. ' + esc(cut(e.name, 22)) + '</text>' +
+        '<text x="' + (fx + 14) + '" y="' + (y + 47) + '" font-size="13" fill="' + (mine ? INK : '#fff') + '" style="paint-order:stroke;stroke:' + (mine ? '#fff0c4' : INK) + ';stroke-width:2.5px">' + esc(e.group) + '</text>' +
+        '<rect x="' + (fx + fw - 74) + '" y="' + (y + 14) + '" width="64" height="32" rx="4" fill="#fff" stroke="' + INK + '" stroke-width="2"/>' +
+        '<text x="' + (fx + fw - 42) + '" y="' + (y + 36) + '" font-size="18" font-weight="800" text-anchor="middle" fill="' + INK + '">' + esc(num(e.points)) + '</text>';
+      if (e.place === 1) {
+        s += '<line x1="' + (fx + fw - 40) + '" y1="' + (y - 3) + '" x2="' + (fx + fw - 40) + '" y2="' + (y - 40) + '" stroke="' + INK + '" stroke-width="2.4"/>' +
+          '<polygon points="' + (fx + fw - 40) + ',' + (y - 40) + ' ' + (fx + fw - 12) + ',' + (y - 32) + ' ' + (fx + fw - 40) + ',' + (y - 24) + '" fill="#b5392b" stroke="' + INK + '" stroke-width="1.5"/>';
+      }
+      s += '</g>';
+    }
+    // каска на даху
+    return s + '</svg>';
+  }
+
   function ratingRow(place, label, value, max, me, extra) {
     var medal = place === 1 ? 'gold' : place === 2 ? 'silver' : place === 3 ? 'bronze' : '';
     var w = max > 0 ? Math.max(3, Math.round(Math.max(value, 0) / max * 100)) : 3;
@@ -764,9 +813,7 @@
     var gs = r.groups.slice().sort(function (a, b) { return a.place - b.place || a.group.localeCompare(b.group, 'uk'); });
     var myG = r.groups.filter(function (g) { return g.mine; })[0];
     var top = r.top || [], tmax = Math.max.apply(null, top.map(function (s) { return s.points; }).concat([0]));
-    $('#rt-top').innerHTML = top.map(function (s) {
-      return ratingRow(s.place, s.name, s.points, tmax, s.me, s.group);
-    }).join('');
+    $('#rt-top').innerHTML = top.length ? topSvg(top.slice(0, 5), tmax) : '';
     $('#rt-top-empty').hidden = top.length > 0;
     $('#rt-hero').innerHTML = heroHtml(r, myG);
     $('#rt-towers').innerHTML = towersSvg(gs, gmax);

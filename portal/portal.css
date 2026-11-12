@@ -286,3 +286,12 @@ body.pseudo-full .lec-top { display: none; }
 #login-hint { margin-top: 1rem; }
 #login-hint.is-warn { color: var(--ink); background: #fff3cd; border-left: 4px solid var(--amber); padding: .8rem 1rem; }
 #login-hint .btn { display: block; margin-top: .6rem; }
+
+.rt-top { margin: .5rem 0 1.5rem; border: 2px solid var(--ink); border-radius: 6px; overflow: hidden; background: #f4f8ff; }
+.rt-top .rt-svg { display: block; width: 100%; height: auto; }
+@media (prefers-reduced-motion: no-preference) {
+  .rt-floor { animation: rtFloorIn .5s ease-out both; }
+  .rt-hook { transform-origin: 130px 36px; animation: rtSwing 4s ease-in-out infinite; }
+}
+@keyframes rtFloorIn { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: none; } }
+@keyframes rtSwing { 0%, 100% { transform: rotate(-1.6deg); } 50% { transform: rotate(1.6deg); } }
