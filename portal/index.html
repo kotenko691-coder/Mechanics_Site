@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Кабінет студента | Навчальний портал з механіки</title>
     <link rel="stylesheet" href="../style.css">
-    <link rel="stylesheet" href="portal.css?v=30">
+    <link rel="stylesheet" href="portal.css?v=31">
 </head>
 <body>
 
@@ -151,6 +151,7 @@
                 <h3>Бали студента</h3>
                 <p class="muted">Поточні бали видно біля імені. «Додати» й «Зняти» змінюють суму та записують причину.</p>
                 <form id="pts-form" class="code-form">
+                    <select id="pts-group" aria-label="Група"></select>
                     <select id="pts-student" aria-label="Студент"></select>
                     <input id="pts-task" type="text" maxlength="80" placeholder="Завдання або причина" aria-label="Завдання або причина">
                     <input id="pts-val" type="number" step="any" min="0" max="1000" placeholder="Бали" aria-label="Бали" style="max-width:110px">
@@ -160,6 +161,7 @@
                 <h3>Проходження завдань</h3>
                 <p class="muted">Студент пройшов завдання, але потрібна ще одна спроба? Скиньте його результат. Бали за це завдання віднімуться, і студент зможе пройти знову.</p>
                 <form id="rs-form" class="code-form">
+                    <select id="rs-group" aria-label="Група"></select>
                     <select id="rs-student" aria-label="Студент"></select>
                     <select id="rs-task" aria-label="Завдання"></select>
                     <button class="btn" type="submit" id="rs-btn">Дозволити пройти знову</button>
@@ -181,10 +183,10 @@
         <p>© Навчальний портал з механіки | Кабінет студента</p>
     </footer>
 
-    <script src="config.js?v=30"></script>
-    <script src="tasks.js?v=30"></script>
-    <script src="portal.js?v=30"></script>
+    <script src="config.js?v=31"></script>
+    <script src="tasks.js?v=31"></script>
+    <script src="portal.js?v=31"></script>
     <script src="https://accounts.google.com/gsi/client" async defer></script>
-    <script src="portal-bg.js?v=30"></script>
+    <script src="portal-bg.js?v=31"></script>
 </body>
 </html>

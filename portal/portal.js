@@ -827,14 +827,16 @@
   function fillAdminSelects() {
     var act = admStudents.filter(function (s) { return s.status === 'активний'; })
       .sort(function (a, b) { return (a.group + a.name).localeCompare(b.group + b.name, 'uk'); });
-    var opts = act.map(function (s) {
-      return '<option value="' + esc(s.email) + '">' + esc(s.group + ' · ' + s.name + ' · ' + s.points + ' б.') + '</option>';
-    }).join('');
-    var keep1 = $('#pts-student').value, keep2 = $('#rs-student').value;
-    $('#pts-student').innerHTML = opts;
-    $('#rs-student').innerHTML = opts;
-    if (keep1) $('#pts-student').value = keep1;
-    if (keep2) $('#rs-student').value = keep2;
+    var gopts = '<option value="">Усі групи</option>' + me.groups.map(function (g) { return '<option>' + esc(g) + '</option>'; }).join('');
+    ['pts', 'rs'].forEach(function (p) {
+      var gs = $('#' + p + '-group'), gk = gs.value, sel = $('#' + p + '-student'), keep = sel.value;
+      gs.innerHTML = gopts;
+      gs.value = me.groups.indexOf(gk) >= 0 ? gk : '';
+      sel.innerHTML = act.filter(function (s) { return !gs.value || s.group === gs.value; }).map(function (s) {
+        return '<option value="' + esc(s.email) + '">' + esc(s.group + ' · ' + s.name + ' · ' + s.points + ' б.') + '</option>';
+      }).join('');
+      if (keep) sel.value = keep;
+    });
     var keepT = $('#rs-task').value;
     $('#rs-task').innerHTML = admTasks.map(function (t) { return '<option value="' + esc(t.id) + '">' + esc(t.name) + '</option>'; }).join('');
     if (keepT) $('#rs-task').value = keepT;
@@ -924,6 +926,9 @@
     }).catch(fail);
   });
 
+  ['pts', 'rs'].forEach(function (p) {
+    $('#' + p + '-group').addEventListener('change', function () { fillAdminSelects(); });
+  });
   $('#adm-filter').addEventListener('change', function () { if (lastAdmin) renderAdmin(lastAdmin.r, lastAdmin.t); });
   $('#add-form').addEventListener('submit', function (e) {
     e.preventDefault();
