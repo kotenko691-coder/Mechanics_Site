@@ -341,3 +341,73 @@ body.pseudo-full .lec-top { display: none; }
 .tk-bubble[hidden]{display:none}
 .tk-bubble::after{content:'';position:absolute;left:var(--ax,50%);bottom:-9px;margin-left:-8px;border:8px solid transparent;border-top-color:#12284a;border-bottom:0}
 .tk-bubble.tk-below::after{bottom:auto;top:-9px;border-top:0;border-bottom:8px solid #12284a}
+
+
+/* ==========================================================
+   СТИЛЬ «МІНІМАЛ» для кабінету
+   ========================================================== */
+.msg { background: #f6f6f6; border-left: 2px solid #000; color: #000; font-weight: 500; }
+.msg.error { background: #fff; border-left-color: #b42318; color: #b42318; }
+.muted { color: #919191; }
+form label { color: #000; font-size: 12px; text-transform: uppercase; letter-spacing: .12em; font-weight: 600; }
+form input[type="text"], form select, .owner-bar select, .code-form input, .code-form select, input[type="email"], input[type="number"] {
+  border: 0; border-bottom: 1px solid #000; border-radius: 0; background: #fff; padding: 10px 2px; color: #000;
+}
+form input:focus, form select:focus, .owner-bar select:focus { border-color: #000; outline: none; box-shadow: 0 1px 0 #000; }
+.btn-ghost { background: #fff; color: #000; border: 1px solid #000; }
+.btn-ghost:hover { background: #000; color: #fff; }
+
+.progress-text { color: #000; font-weight: 500; }
+
+/* список лекцій: рядки з номером і стрілкою */
+.lec-list { gap: 0; counter-reset: lec; border-top: 1px solid #000; }
+.lec-list li { counter-increment: lec; }
+.lec-list button {
+  background: #fff; border: 0; border-bottom: 1px solid #f0f0f0; border-left: 0; border-radius: 0;
+  padding: 20px 4px; font-size: 18px; font-weight: 600; color: #000; font-family: var(--font-head);
+  transition: padding .2s, background .2s;
+}
+.lec-list button::before {
+  content: "Nr. " counter(lec, decimal-leading-zero); flex: none; min-width: 68px;
+  font: 500 12px/1 var(--font-body); letter-spacing: .12em; text-transform: uppercase; color: #919191;
+}
+.lec-list button::after { content: "\2192"; margin-left: 8px; color: #000; font-weight: 400; }
+.lec-list button:hover { transform: none; padding-left: 14px; background: #fafafa; border-left: 0; }
+.lec-list .mark { margin-left: auto; font: 500 11px var(--font-body); letter-spacing: .12em; text-transform: uppercase; color: #919191; }
+.lec-list .done button { border-left: 0; }
+.lec-list .done .mark { color: var(--ok); font-weight: 700; }
+.lec-empty { color: #919191; }
+
+.lec-frame { border: 1px solid #e9e9e9; border-radius: 0; }
+
+/* таблиці */
+.adm-table th { background: #fff; color: #000; border-bottom: 1px solid #000; font-size: 11px; text-transform: uppercase; letter-spacing: .12em; }
+.adm-table td { border-bottom: 1px solid #f0f0f0; }
+.adm-table button { background: #fff; border: 1px solid #000; border-radius: 0; }
+
+/* завантаження */
+.loader { background: #000; color: #fff; border-bottom: 0; border-radius: 0; box-shadow: none; font-weight: 500; letter-spacing: .04em; }
+.spinner { border-color: rgba(255,255,255,.3); border-top-color: #fff; }
+
+/* вкладки */
+.tabs { gap: 0; border-bottom: 1px solid #f0f0f0; margin-bottom: 28px; }
+.tabs button { background: #fff; color: #919191; border: 0; border-bottom: 2px solid transparent; border-radius: 0; padding: 12px 20px; font-size: 12px; text-transform: uppercase; letter-spacing: .14em; margin-bottom: -1px; }
+.tabs button.on { background: #fff; color: #000; border-bottom: 2px solid #000; }
+.tabs button:hover:not(.on) { background: #fff; color: #000; }
+
+/* рейтинг */
+.rt-row { background: #fff; border: 0; border-bottom: 1px solid #f0f0f0; border-left: 0; border-radius: 0; }
+.rt-row.me { background: #f6f6f6; }
+.rt-place { border: 1px solid #000; background: #fff; }
+.rt-bar { background: #f0f0f0; border-radius: 0; }
+.rt-bar i, .rt-row.me .rt-bar i { background: #000; border-radius: 0; }
+.rt-hero { background: #000; border-bottom: 0; border-radius: 0; }
+.rt-bigplace b { color: #000; }
+.rt-svg, .rt-top { border: 1px solid #e9e9e9; border-radius: 0; }
+
+/* завдання */
+.tk-card { border: 0; border-bottom: 1px solid #f0f0f0; border-radius: 0; font-family: var(--font-head); font-weight: 600; padding: 20px 4px; }
+.tk-card:hover { background: #fafafa; }
+.tk-badge { background: #f6f6f6; color: #000; border-radius: 0; text-transform: uppercase; letter-spacing: .1em; font-size: 11px; }
+.tk-badge.ok { background: #fff; color: var(--ok); border: 1px solid var(--ok); }
+#login-hint.is-warn { background: #f6f6f6; border-left: 2px solid #000; }
