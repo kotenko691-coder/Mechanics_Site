@@ -434,3 +434,10 @@ header p { color: rgba(255,255,255,.92); }
 
 .loader { padding: 8px 16px; gap: 8px; font-size: 14px; }
 .loader-ico { width: 78px; height: 24px; }
+
+/* Заставка без рамки: біла напівпрозора завіса, по центру ферма і дрібний підпис */
+.loader { inset: 0; left: 0; top: 0; transform: none; max-width: none; width: auto; border: 0; box-shadow: none; border-radius: 0;
+  background: rgba(255,255,255,.88); backdrop-filter: blur(3px); color: #000;
+  flex-direction: column; justify-content: center; align-items: center; gap: 18px; padding: 0; pointer-events: none; }
+.loader-ico { width: 150px; height: 46px; }
+#loader-text { font-size: 11px; font-weight: 600; letter-spacing: .3em; text-transform: uppercase; color: #000; }
