@@ -915,13 +915,14 @@
 
   function renderTaskList(r) {
     var list = r.items || [];
-    $('#tk-empty').hidden = list.length > 0;
+    $('#tk-empty').hidden = true;
     $('#tk-list').innerHTML = list.map(function (t) {
       var st = t.done
         ? '<span class="tk-badge ok">Пройдено · ' + mm(t.seconds) + ' · ' + t.points + ' балів</span>'
         : '<span class="tk-badge">до ' + t.max + ' балів · ліміт ' + mm(t.limit) + '</span>';
       return '<li><button type="button" class="tk-card" data-task="' + esc(t.id) + '"><b>' + esc(t.name) + '</b>' + st + '</button></li>';
-    }).join('');
+    }).join('') +
+      '<li><button type="button" class="tk-card" data-game="1"><b>Кімната механіка</b><span class="tk-badge">до 100 балів · ліміт 20:00</span></button></li>';
     show('v-tasks');
   }
   function showTasks() { api('tasks').then(renderTaskList).catch(fail); }
@@ -942,6 +943,20 @@
   $('#tk-list').addEventListener('click', function (e) {
     var b = e.target.closest('button[data-task]');
     if (b) startTask(b.getAttribute('data-task'));
+  });
+  // Гра «Кімната механіка» відкривається в тому ж вікні завдання
+  function openGame() {
+    $('#tk-title').textContent = 'Кімната механіка';
+    $('#tk-box').innerHTML = '<iframe id="game-frame" src="game/?embed=1" title="Кімната механіка" style="display:block;width:100%;height:760px;border:0" allow="fullscreen"></iframe>';
+    show('v-task');
+  }
+  $('#tk-list').addEventListener('click', function (e) {
+    if (e.target.closest('button[data-game]')) openGame();
+  });
+  window.addEventListener('message', function (e) {
+    if (e.origin !== location.origin || !e.data || !e.data.gameH) return;
+    var f = document.getElementById('game-frame');
+    if (f) f.style.height = Math.ceil(e.data.gameH) + 'px';
   });
   $('#tk-back').addEventListener('click', function () { showTasks(); });
   $('#nav-tasks').addEventListener('click', function (e) { e.preventDefault(); say(''); showTasks(); });
