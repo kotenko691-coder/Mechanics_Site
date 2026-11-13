@@ -718,12 +718,12 @@ footer { padding-left: 32px; }
 .hero {
   position: relative; overflow: hidden; min-height: 460px; display: flex; flex-direction: column; justify-content: flex-end;
   background:
-    linear-gradient(180deg, rgba(0,0,0,.25) 0%, rgba(0,0,0,.7) 100%),
+    linear-gradient(180deg, rgba(0,0,0,.45) 0%, rgba(0,0,0,.75) 100%),
     url('hero.jpg') center / cover no-repeat,
     #0b0b0b;
 }
 .hero::before {
-  content: ''; display: block; position: absolute; inset: 0; border: 0; width: auto; height: auto; top: 0; right: 0; z-index: 0; opacity: .5;
+  content: ''; display: block; position: absolute; inset: 0; border: 0; width: auto; height: auto; top: 0; right: 0; z-index: 0; opacity: 0;
   background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1200 460' preserveAspectRatio='xMidYMid slice' fill='none' stroke='%23ffffff' stroke-width='1' stroke-opacity='.28'%3E%3Cpath d='M0 330H1200M0 120H1200M100 330L220 120L340 330L460 120L580 330L700 120L820 330L940 120L1060 330L1180 120M220 120H1180M100 330H1060'/%3E%3Ccircle cx='220' cy='120' r='5'/%3E%3Ccircle cx='460' cy='120' r='5'/%3E%3Ccircle cx='700' cy='120' r='5'/%3E%3Ccircle cx='940' cy='120' r='5'/%3E%3C/svg%3E") center / cover no-repeat;
 }
 .hero > * { position: relative; z-index: 1; }
@@ -735,3 +735,20 @@ footer { padding-left: 32px; }
   white-space: nowrap; font-size: 11px; letter-spacing: .3em; text-transform: uppercase; color: rgba(255,255,255,.7);
 }
 @media (max-width: 640px) { .hero { min-height: 380px; } .hero::after { display: none; } }
+
+
+/* ФОТО НА ВСЮ ШАПКУ (білої смуги зверху немає) */
+header {
+  max-width: none; margin: 0; color: #fff; min-height: 62vh;
+  display: flex; flex-direction: column; justify-content: flex-end;
+  padding: 80px max(32px, calc((100vw - 1180px) / 2 + 32px)) 56px;
+  background: linear-gradient(180deg, rgba(0,0,0,.35) 0%, rgba(0,0,0,.72) 100%), url('hero.jpg') center / cover no-repeat, #0b0b0b;
+}
+header h1 { color: #fff; }
+header p { color: rgba(255,255,255,.75); }
+/* у кабінеті шапка нижча */
+body:has(#v-login) header { min-height: 34vh; }
+/* герой на головній без дубля фото */
+.hero { background: #000; min-height: 0; justify-content: flex-start; }
+.hero::after { display: none; }
+@media (max-width: 640px) { header { min-height: 52vh; padding: 60px 18px 36px; } }
