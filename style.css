@@ -788,3 +788,16 @@ nav.solid a:hover, nav.solid a.active { color: #000 !important; border-bottom-co
 .sec-arrow { font-size: 22px; margin-top: 18px; transition: transform .25s; }
 .sec-card:hover .sec-arrow { transform: translateX(8px); }
 @media (max-width: 860px) { .sections { grid-template-columns: 1fr; } .sec-card { min-height: 280px; } }
+
+
+/* ЧИТАТИ: журнали й новини */
+.read-list { margin-top: 18px; border-top: 1px solid #000; }
+.read-row { display: flex; align-items: center; gap: 22px; padding: 22px 4px; border-bottom: 1px solid #f0f0f0; color: #000; text-decoration: none; transition: padding .2s, background .2s; }
+.read-row:hover { padding-left: 14px; background: #fafafa; }
+.read-tag { flex: none; width: 84px; font-size: 11px; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; color: #919191; }
+.read-body { flex: 1; display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.read-title { font-family: var(--font-head); font-size: 20px; font-weight: 700; color: #000; }
+.read-desc { font-size: 14px; color: #666; }
+.read-arrow { flex: none; font-size: 22px; transition: transform .2s; }
+.read-row:hover .read-arrow { transform: translate(3px, -3px); }
+@media (max-width: 640px) { .read-row { flex-wrap: wrap; gap: 6px; } .read-tag { width: 100%; } }
