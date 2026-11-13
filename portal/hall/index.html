@@ -461,7 +461,7 @@ function blue(x, w, h) { x.fillStyle = '#0f2236'; x.fillRect(0, 0, w, h); x.stro
   bookcase(1, -3.9, 'Книжкова шафа', 'Підручники: «Теоретична механіка», «Опір матеріалів», «Будівельна механіка». Курсові теж тут.');
   bookcase(1, 3.9, 'Книжкова шафа', 'На нижній полиці стара збірка задач. Закладка на сторінці про рівновагу.');
   // захід: картини біля п'єдесталу
-  painting(3, -3.9, 1.9, 1.3, 0.9, function (x, w, h) { blue(x, w, h); x.beginPath(); x.moveTo(30, h - 40); x.lineTo(w - 30, h - 40); x.moveTo(60, h - 40); x.lineTo(110, 60); x.lineTo(160, h - 40); x.lineTo(210, 60); x.lineTo(w - 70, h - 40); x.moveTo(110, 60); x.lineTo(210, 60); x.stroke(); x.font = '22px Georgia'; x.fillText('ФЕРМА', 20, 30); }, 'Креслення ферми', 'Креслення ферми. Кожен стержень або стискається, або розтягується.');
+  painting(3, -3.9, 1.9, 1.3, 0.9, function (x, w, h) { blue(x, w, h); x.lineWidth = 4; x.beginPath(); var L = 40, R = w - 40, B = h - 40, T = 64, M = w / 2, d = (R - L) / 3, qy = (B + T) / 2; x.moveTo(L, B); x.lineTo(R, B); x.moveTo(L, B); x.lineTo(M, T); x.lineTo(R, B); x.moveTo(L + d, B); x.lineTo((L + M) / 2, qy); x.moveTo(L + d, B); x.lineTo(M, T); x.lineTo(R - d, B); x.lineTo((M + R) / 2, qy); x.stroke(); [[L, B], [R, B], [M, T], [L + d, B], [R - d, B]].forEach(function (q) { x.beginPath(); x.arc(q[0], q[1], 5, 0, 6.28); x.fill(); }); x.font = '22px Georgia'; x.fillText('ФЕРМА', 20, 30); }, 'Креслення ферми', 'Креслення ферми. Кожен стержень або стискається, або розтягується.');
   painting(3, 3.9, 1.9, 1.3, 0.9, function (x, w, h) { blue(x, w, h); x.beginPath(); x.moveTo(30, h / 2); x.lineTo(w - 30, h / 2); x.stroke(); x.beginPath(); x.moveTo(w / 2, 40); x.lineTo(w / 2, h / 2 - 6); x.moveTo(w / 2 - 8, h / 2 - 18); x.lineTo(w / 2, h / 2 - 6); x.lineTo(w / 2 + 8, h / 2 - 18); x.stroke(); x.font = '24px Georgia'; x.fillText('ΣM = 0', 20, 34); x.fillText('ΣF = 0', 20, h - 18); }, 'Рівновага', 'Дві умови рівноваги: сума сил і сума моментів дорівнюють нулю.');
   // північ і південь: картини між дверима
   [[0, -1.8], [0, 1.8], [2, -1.8], [2, 1.8]].forEach(function (a, i) {
@@ -499,12 +499,12 @@ function blue(x, w, h) { x.fillStyle = '#0f2236'; x.fillRect(0, 0, w, h); x.stro
   // бюст на постаменті (SE) та рослини
   var bs = grp(5.1, 0, 4.7, hallG); box(0.6, 1.0, 0.6, mat(0x777770, { map: TX.concrete, tint: 0xbbbbb0 }), 0, 0.5, 0, bs); var head = sph(0.22, mat(0xcfc9b8, { rough: .6 }), 0, 1.25, 0, bs); box(0.34, 0.22, 0.24, mat(0xcfc9b8, { rough: .6 }), 0, 1.0 + 0.04, 0, bs).position.y = 1.08; bs.rotation.y = -2.3;
   act(head, 'Бюст', say('Бюст інженера. Табличка стерта, видно лише: «…Ейлер».'), { reach: 4 }); blockBox(HALL, 5.1, 4.7, 0.4, 0.4);
-  [[5.2, 1.2], [-5.2, -1.3], [-5.2, 3.6]].forEach(function (a) {
+  [[5.2, 1.2], [-5.2, -3.4], [-5.2, 3.9]].forEach(function (a) {
     var pt = grp(a[0], 0, a[1], hallG); cyl(0.26, 0.2, 0.45, mat(0x6a3a22), 0, 0.22, 0, pt); for (var k = 0; k < 9; k++) { var ang = k / 9 * 6.28, lf = box(0.07, 0.5, 0.22, M.green, Math.cos(ang) * 0.18, 0.75, Math.sin(ang) * 0.18, pt); lf.rotation.set(Math.sin(ang) * 0.5, -ang, Math.cos(ang) * 0.5); }
     act(pt.children[0], 'Рослина', say('Фікус. Живий, поливається по вівторках.'), { reach: 4 }); blockBox(HALL, a[0], a[1], 0.3, 0.3);
   });
   // ящики з написами (SE нижче, біля дверей гри) та діаграма
-  var cr = grp(-5.0, 0, 1.4, hallG, 0.2); box(0.8, 0.7, 0.8, M.wood, 0, 0.35, 0, cr); box(0.6, 0.5, 0.6, mat(0x4a3622), 0.05, 0.95, 0, cr).rotation.y = 0.4; act(cr.children[0], 'Ящики', say('Ящики з написом «КРИХКЕ. МОСТ». У них, схоже, міст у розібраному вигляді.'), { reach: 4 }); blockBox(HALL, -5.0, 1.4, 0.55, 0.55);
+  var cr = grp(-5.0, 0, -4.6, hallG, 0.2); box(0.8, 0.7, 0.8, M.wood, 0, 0.35, 0, cr); box(0.6, 0.5, 0.6, mat(0x4a3622), 0.05, 0.95, 0, cr).rotation.y = 0.4; act(cr.children[0], 'Ящики', say('Ящики з написом «КРИХКЕ. МОСТ». У них, схоже, міст у розібраному вигляді.'), { reach: 4 }); blockBox(HALL, -5.0, -4.6, 0.55, 0.55);
   // люстра
   var ch = grp(0, HH, 0, hallG); box(0.02, 1.1, 0.02, M.brass, 0, -0.55, 0, ch); var ring = new THREE.Mesh(new THREE.TorusGeometry(0.55, 0.03, 8, 28), M.brass); ring.rotation.x = Math.PI / 2; ring.position.y = -1.15; ch.add(ring);
   for (var k = 0; k < 6; k++) { var a = k / 6 * Math.PI * 2; sph(0.06, basic(0xffd9a0), Math.cos(a) * 0.55, -1.1, Math.sin(a) * 0.55, ch); }
