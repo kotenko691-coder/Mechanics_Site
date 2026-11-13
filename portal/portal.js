@@ -309,25 +309,29 @@
     var n = Math.max(total, 1);
     var fh = Math.min(30, Math.floor(230 / n));
     var w = 120, base = 250, top = base - n * fh;
-    var s = '<svg viewBox="0 0 170 290" role="img" aria-label="Опрацьовано ' + done + ' з ' + total + '">';
-    s += '<line x1="10" y1="' + base + '" x2="160" y2="' + base + '" stroke="#12284a" stroke-width="4"/>';
+    var vy = Math.min(0, top - 48);
+    var s = '<svg viewBox="0 ' + vy + ' 170 ' + (270 - vy) + '" role="img" aria-label="Опрацьовано ' + done + ' з ' + total + '" fill="none" stroke="#000" stroke-linecap="round" stroke-linejoin="round">';
+    s += '<line x1="8" y1="' + base + '" x2="162" y2="' + base + '" stroke-width="1.5"/>';
     for (var i = 0; i < n; i++) {
       var y = base - (i + 1) * fh;
       var ok = i < done;
-      s += '<rect class="' + (ok ? 'floor-done' : '') + '" style="animation-delay:' + (i * 90) + 'ms" x="25" y="' + y +
-        '" width="' + w + '" height="' + (fh - 3) + '" fill="' + (ok ? '#f5a300' : '#fbfcfe') +
-        '" stroke="#12284a" stroke-width="2"/>';
       if (ok) {
-        s += '<rect x="45" y="' + (y + 5) + '" width="14" height="' + Math.max(4, fh - 13) + '" fill="#fff" opacity="0.7"/>' +
-             '<rect x="95" y="' + (y + 5) + '" width="14" height="' + Math.max(4, fh - 13) + '" fill="#fff" opacity="0.7"/>';
+        s += '<rect class="floor-done" style="animation-delay:' + (i * 90) + 'ms" x="25" y="' + y + '" width="' + w + '" height="' + (fh - 3) + '" fill="#000" stroke="none"/>' +
+             '<line x1="40" y1="' + (y + (fh - 3) / 2) + '" x2="130" y2="' + (y + (fh - 3) / 2) + '" stroke="#fff" stroke-width="1" stroke-dasharray="8 6"/>';
+      } else {
+        s += '<rect x="25" y="' + y + '" width="' + w + '" height="' + (fh - 3) + '" stroke="#000" stroke-opacity=".45" stroke-width="1" stroke-dasharray="4 3"/>';
       }
     }
+    /* тонкий баштовий кран праворуч */
+    var cx = 156, ct = top - 40;
+    s += '<path d="M' + cx + ' ' + base + 'V' + ct + 'M' + (cx - 26) + ' ' + ct + 'H' + (cx + 8) + 'M' + cx + ' ' + (ct + 14) + 'L' + (cx - 26) + ' ' + ct + '" stroke-width="1" stroke-opacity=".6"/>' +
+         '<path d="M' + (cx - 22) + ' ' + ct + 'V' + (ct + 12) + '" stroke-width="1" stroke-opacity=".6"/>';
     var complete = total > 0 && done >= total;
     if (complete) {
-      s += '<polygon points="25,' + top + ' 145,' + top + ' 85,' + (top - 26) + '" fill="#12284a"/>';
+      s += '<polygon points="25,' + top + ' 145,' + top + ' 85,' + (top - 26) + '" fill="#000" stroke="none"/>';
     } else {
-      s += '<line x1="85" y1="' + top + '" x2="85" y2="' + (top - 26) + '" stroke="#12284a" stroke-width="3"/>' +
-           '<circle cx="85" cy="' + (top - 30) + '" r="5" fill="#f5a300" stroke="#12284a" stroke-width="2"/>';
+      s += '<line x1="85" y1="' + top + '" x2="85" y2="' + (top - 26) + '" stroke-width="1.5"/>' +
+           '<circle cx="85" cy="' + (top - 30) + '" r="4.5" fill="#fff" stroke-width="1.5"/>';
     }
     return s + '</svg>';
   }
