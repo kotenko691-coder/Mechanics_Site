@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Кімната механіка</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@600;800&family=Roboto:wght@400;500&family=Marck+Script&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0b0b0c; --panel: #151618; --line: #3a3b3f; --chalk: #ececec; --dim: #9a9ca1;
+  --brass: #b08d4a; --brass-hi: #d9b66a; --steel: #8a9099; --navy: #0b1a2b;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--bg); color: var(--chalk); font-family: 'Roboto', Arial, sans-serif; }
+a { color: var(--chalk); }
+.wrap { max-width: 1040px; margin: 0 auto; padding: 14px 16px 40px; }
+.top { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 10px; }
+.top a { font-size: 12px; letter-spacing: .14em; text-transform: uppercase; text-decoration: none; color: var(--dim); }
+.top a:hover { color: #fff; }
+h1 { font: 800 clamp(20px, 3vw, 28px)/1.1 'Manrope', sans-serif; margin: 0; letter-spacing: -.01em; }
+.act-tag { font-size: 12px; letter-spacing: .2em; text-transform: uppercase; color: var(--brass-hi); }
+.stage-box { position: relative; border: 1px solid var(--line); background: #000; overflow: hidden; }
+#stage svg { display: block; width: 100%; height: auto; user-select: none; -webkit-user-select: none; }
+.hot { cursor: pointer; }
+.hot:hover .hl, .hot:focus .hl { stroke: #fff; opacity: 1; }
+.hl { fill: none; stroke: var(--brass-hi); stroke-width: 2; stroke-dasharray: 6 5; opacity: 0; transition: opacity .2s; }
+.hint-pulse .hl { opacity: .55; animation: pulse 2.2s infinite; }
+@keyframes pulse { 50% { opacity: .15; } }
+.flicker { animation: flick 3.4s infinite steps(1, end); }
+@keyframes flick { 0%{opacity:.95} 7%{opacity:.5} 9%{opacity:.95} 31%{opacity:.9} 33%{opacity:.35} 36%{opacity:.9} 62%{opacity:.95} 64%{opacity:.6} 66%{opacity:.95} 100%{opacity:.92} }
+.say { min-height: 3.2em; margin: 14px 0 6px; font-size: 17px; line-height: 1.5; color: var(--chalk); }
+.say.note { font-family: 'Marck Script', cursive; font-size: 22px; }
+.bar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 8px; }
+.bar .lbl { font-size: 11px; letter-spacing: .18em; text-transform: uppercase; color: var(--dim); margin-right: 4px; }
+.slot { width: 56px; height: 56px; border: 1px solid var(--line); background: var(--panel); display: grid; place-items: center; cursor: pointer; padding: 0; color: var(--chalk); }
+.slot.sel { border-color: var(--brass-hi); box-shadow: 0 0 0 2px rgba(217,182,106,.35); }
+.slot:empty::after { content: ''; width: 10px; height: 1px; background: var(--line); }
+.slot svg { width: 40px; height: 40px; }
+.btn { background: var(--chalk); color: #000; border: 1px solid var(--chalk); padding: 12px 22px; font: 600 12px 'Roboto', sans-serif; letter-spacing: .14em; text-transform: uppercase; cursor: pointer; }
+.btn:hover { background: transparent; color: var(--chalk); }
+.btn.ghost { background: transparent; color: var(--chalk); border-color: var(--line); }
+.btn.ghost:hover { border-color: var(--chalk); }
+.btn[disabled] { opacity: .35; cursor: default; }
+.btn[disabled]:hover { background: var(--chalk); color: #000; }
+.tray { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-top: 12px; }
+.wt { min-width: 74px; height: 52px; border: 1px solid var(--steel); background: #1b1d20; color: var(--chalk); font: 800 18px 'Manrope', sans-serif; cursor: pointer; }
+.wt.sel { border-color: var(--brass-hi); box-shadow: 0 0 0 2px rgba(217,182,106,.35); }
+.wt.used { opacity: .25; cursor: default; }
+
+/* вікно: сторінка лекції, калькулятор */
+#modal { position: fixed; inset: 0; z-index: 50; background: rgba(0,0,0,.78); display: grid; place-items: center; padding: 16px; }
+#modal[hidden] { display: none; }
+.mbox { position: relative; width: 100%; max-width: 560px; max-height: 92vh; overflow: auto; background: #101113; border: 1px solid var(--chalk); padding: 26px 26px 22px; }
+.mx { position: absolute; top: 8px; right: 10px; background: none; border: 0; color: var(--chalk); font-size: 26px; cursor: pointer; line-height: 1; }
+.mbox h2 { font: 800 13px 'Manrope', sans-serif; letter-spacing: .2em; text-transform: uppercase; margin: 0 0 14px; color: var(--brass-hi); }
+.page p { margin: 0 0 12px; font-family: 'Marck Script', cursive; font-size: 22px; line-height: 1.35; }
+.calc-line { display: block; width: 100%; text-align: left; background: transparent; border: 0; border-bottom: 1px dashed var(--line); color: var(--chalk); padding: 12px 6px; font: 500 20px 'Marck Script', cursive; cursor: pointer; }
+.calc-line:hover { background: rgba(255,255,255,.06); }
+.calc-line.bad { color: #ff8f8f; }
+.calc-line.good { color: #b8e0b8; }
+.calc { max-width: 300px; margin: 0 auto; padding: 16px; background: linear-gradient(#2c2d30, #1a1b1d); border: 2px solid var(--steel); border-radius: 6px; }
+.calc .scr { height: 54px; margin-bottom: 14px; background: #060707; border: 2px inset #444; color: #e9ffe9; font: 500 30px/54px 'Roboto', monospace; text-align: right; padding: 0 12px; overflow: hidden; letter-spacing: .04em; }
+.keys { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.key { height: 48px; border: 1px solid #555; border-bottom-width: 4px; background: #34363a; color: var(--chalk); font: 600 18px 'Roboto', sans-serif; cursor: pointer; border-radius: 4px; }
+.key:active { border-bottom-width: 1px; transform: translateY(3px); }
+.key.ok { grid-column: span 2; background: var(--brass); color: #000; }
+.key.jam { transform: rotate(-4deg) translateY(2px); background: #25262a; color: #777; border-color: #3a3b3f; cursor: not-allowed; }
+.key.jam:nth-child(3n) { transform: rotate(3deg); }
+.mmsg { min-height: 2.8em; margin-top: 14px; font-size: 15px; line-height: 1.45; color: var(--chalk); }
+.mmsg.err { color: #ff9c9c; }
+
+/* заставка акту */
+.card { position: absolute; inset: 0; z-index: 20; background: #000; display: grid; place-items: center; text-align: center; opacity: 0; pointer-events: none; transition: opacity .6s; }
+.card.on { opacity: 1; pointer-events: auto; }
+.card b { display: block; font: 800 clamp(22px, 5vw, 44px) 'Manrope', sans-serif; letter-spacing: .06em; margin-bottom: 10px; }
+.card span { color: var(--brass-hi); letter-spacing: .24em; font-size: 12px; text-transform: uppercase; }
+
+.fall { animation: fall 1.6s cubic-bezier(.3, 1.5, .5, 1) forwards; }
+@keyframes fall { from { transform: translateY(-420px) rotate(-140deg); } to { transform: translateY(0) rotate(0); } }
+.shake { animation: shake .5s; }
+@keyframes shake { 20%{transform:translate(-4px,2px)} 40%{transform:translate(5px,-2px)} 60%{transform:translate(-3px,3px)} 80%{transform:translate(3px,-1px)} }
+.spin { animation: spin 5s linear infinite; transform-box: fill-box; transform-origin: center; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.wheel-go { animation: wheel 2.6s ease-in-out forwards; transform-box: fill-box; transform-origin: center; }
+@keyframes wheel { to { transform: rotate(1080deg); } }
+.needle { transition: transform 2.4s ease-in-out; }
+.doorL, .doorR { transition: transform 3.2s cubic-bezier(.5, 0, .3, 1); }
+.open .doorL { transform: translateX(-250px); }
+.open .doorR { transform: translateX(250px); }
+.finale { position: absolute; left: 50%; width: min(80%, 400px); transform: translateX(-50%); top: 38%; text-align: center; opacity: 0; transition: opacity 1.4s 1.6s; pointer-events: none; color: #000; padding: 0 16px; }
+.finale.on { opacity: 1; pointer-events: auto; }
+.finale b { display: block; font: 800 clamp(17px, 2.8vw, 27px)/1.2 'Manrope', sans-serif; margin-bottom: 18px; }
+.finale .btn { background: #000; color: #fff; border-color: #000; }
+@media (max-width: 560px) { .say { font-size: 15px; } .say.note { font-size: 20px; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <div><div class="act-tag" id="act-tag">Акт 1 з 3</div><h1>Кімната механіка</h1></div>
+    <a href="../">← Кабінет студента</a>
+  </div>
+  <div class="stage-box">
+    <div id="stage"></div>
+    <div class="card" id="card"><div><b id="card-t"></b><span id="card-s"></span></div></div>
+  </div>
+  <p class="say note" id="say" role="status" aria-live="polite"></p>
+  <div id="tools"></div>
+  <div class="bar" id="inv"><span class="lbl">Інвентар</span><button class="slot" id="s-key" type="button" aria-label="Ключ"></button><button class="slot" id="s-gear" type="button" aria-label="Шестерня"></button></div>
+</div>
+<div id="modal" hidden><div class="mbox"><button class="mx" type="button" aria-label="Закрити">×</button><div id="mbody"></div></div></div>
+
+<script>
+(function () {
+  'use strict';
+  var $ = function (s) { return document.querySelector(s); };
+  var stage = $('#stage'), sayEl = $('#say'), tools = $('#tools');
+
+  var S = {
+    act: 1, sel: null, inv: { key: false, gear: false },
+    a1: { defect: false, drawer: false },
+    a2: { placed: {}, left: { 2: true, 3: true, 5: true }, solved: false, cracked: false },
+    a3: { key: false, gear: false, open: false, spun: false }
+  };
+
+  function say(t) { sayEl.textContent = t || ''; }
+  function openModal(html) { $('#mbody').innerHTML = html; $('#modal').hidden = false; }
+  function closeModal() { $('#modal').hidden = true; $('#mbody').innerHTML = ''; }
+  $('#modal').addEventListener('click', function (e) { if (e.target.id === 'modal' || e.target.closest('.mx')) closeModal(); });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeModal(); });
+
+  /* ---------- значки інвентарю ---------- */
+  var KEY_SVG = '<svg viewBox="0 0 40 40" fill="none" stroke="#d9b66a" stroke-width="2"><circle cx="11" cy="14" r="7"/><circle cx="11" cy="14" r="2.5"/><path d="M16 19 L33 36 M27 30 L31 26 M31 34 L35 30"/><path d="M33 36 l-3 0 M33 36 l0 -3"/></svg>';
+  function gearPts(cx, cy, r, n, depth) {
+    var p = [], i, a, k = n * 4;
+    for (i = 0; i < k; i++) {
+      a = (i / k) * Math.PI * 2;
+      var rr = (i % 4 < 2) ? r : r - depth;
+      p.push((cx + Math.cos(a) * rr).toFixed(1) + ',' + (cy + Math.sin(a) * rr).toFixed(1));
+    }
+    return p.join(' ');
+  }
+  var GEAR_SVG = '<svg viewBox="0 0 40 40"><polygon points="' + gearPts(20, 20, 17, 9, 4) + '" fill="#6e5a2e" stroke="#d9b66a" stroke-width="1.5"/><circle cx="20" cy="20" r="5" fill="#0b0b0c" stroke="#d9b66a" stroke-width="1.5"/></svg>';
+  function renderInv() {
+    $('#s-key').innerHTML = S.inv.key ? KEY_SVG : '';
+    $('#s-gear').innerHTML = S.inv.gear ? GEAR_SVG : '';
+    $('#s-key').classList.toggle('sel', S.sel === 'key');
+    $('#s-gear').classList.toggle('sel', S.sel === 'gear');
+  }
+  ['key', 'gear'].forEach(function (k) {
+    $('#s-' + k).addEventListener('click', function () {
+      if (!S.inv[k]) return;
+      S.sel = (S.sel === k) ? null : k;
+      renderInv();
+      if (S.sel) say(k === 'key' ? 'Ключ вибрано. Зуб у формі гайкового ключа. На ручці витиснено: «КЛЮЧ РІВНОВАГИ».' : 'Шестерню вибрано. Вона тепла, ніби щойно з механізму.');
+    });
+  });
+
+  /* ---------- спільні шматки сцени ---------- */
+  var DEFS =
+    '<defs>' +
+    '<radialGradient id="bgG" cx="31%" cy="30%" r="80%"><stop offset="0" stop-color="#2b2c2f"/><stop offset=".55" stop-color="#101113"/><stop offset="1" stop-color="#050506"/></radialGradient>' +
+    '<linearGradient id="cone" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".42"/><stop offset="1" stop-color="#fff" stop-opacity=".02"/></linearGradient>' +
+    '<linearGradient id="brassG" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#d9b66a"/><stop offset="1" stop-color="#6e5a2e"/></linearGradient>' +
+    '<filter id="chalk" x="-5%" y="-5%" width="110%" height="110%"><feTurbulence type="fractalNoise" baseFrequency=".035" numOctaves="2" seed="4" result="n"/><feDisplacementMap in="SourceGraphic" in2="n" scale="3.2"/></filter>' +
+    '<filter id="gray"><feColorMatrix type="saturate" values="0"/></filter>' +
+    '</defs>';
+  function svgOpen(extra) { return '<svg viewBox="0 0 960 600" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Сцена гри">' + DEFS + (extra || ''); }
+
+  /* ====================== АКТ 1 ====================== */
+  function scene1() {
+    var open = S.a1.drawer, hasKey = !S.inv.key && S.a1.drawer;
+    return svgOpen() +
+      '<rect width="960" height="600" fill="url(#bgG)"/>' +
+      /* дошка-стіна з написами */
+      '<g filter="url(#chalk)" fill="#ececec" opacity=".42" font-family="Marck Script, cursive">' +
+        '<text x="600" y="90" font-size="34">σ = M / W</text><text x="660" y="140" font-size="28">n = σт / σ</text>' +
+        '<text x="590" y="190" font-size="24">Mmax = ?</text>' +
+        '<path d="M620 215 q60 -14 160 4" stroke="#ececec" stroke-width="2" fill="none"/>' +
+      '</g>' +
+      /* лампа */
+      '<g class="hot" data-h="lamp" tabindex="0"><line x1="300" y1="0" x2="300" y2="92" stroke="#777" stroke-width="2"/>' +
+      '<path d="M254 152 L346 152 L322 94 L278 94 Z" fill="#5a4a26" stroke="#b08d4a" stroke-width="2"/><circle cx="300" cy="154" r="7" fill="#fff"/><rect class="hl" x="246" y="86" width="108" height="76"/></g>' +
+      '<polygon class="flicker" points="283,158 317,158 560,470 40,470" fill="url(#cone)"/>' +
+      /* стіл */
+      '<polygon points="170,330 790,330 880,452 80,452" fill="#1b1c1f" stroke="#cfcfcf" stroke-width="1.5" filter="url(#chalk)"/>' +
+      '<rect x="80" y="452" width="800" height="26" fill="#121315" stroke="#cfcfcf" stroke-width="1.5"/>' +
+      '<rect x="104" y="478" width="26" height="118" fill="#0f1011" stroke="#555"/><rect x="830" y="478" width="26" height="118" fill="#0f1011" stroke="#555"/>' +
+      '<rect x="330" y="478" width="300" height="78" fill="#0d0e10" stroke="#444"/>' +
+      /* шухляда */
+      '<g class="hot' + (S.a1.drawer ? '' : '') + '" data-h="drawer" tabindex="0" ' + (open ? 'transform="translate(0,26)"' : '') + '>' +
+      '<rect x="350" y="486" width="260" height="56" fill="#17181b" stroke="#cfcfcf" stroke-width="1.5"/><circle cx="480" cy="514" r="7" fill="url(#brassG)"/>' +
+      '<rect class="hl" x="344" y="480" width="272" height="68"/></g>' +
+      (hasKey ? '<g class="hot hint-pulse" data-h="key" tabindex="0" transform="translate(442,512) scale(1.7)"><g transform="rotate(-18 20 20)">' + KEY_SVG.replace('<svg viewBox="0 0 40 40"', '<g').replace('</svg>', '</g>') + '</g><rect class="hl" x="-4" y="2" width="46" height="40"/></g>' : '') +
+      /* книга */
+      '<g class="hot' + (S.a1.defect ? '' : ' hint-pulse') + '" data-h="book" tabindex="0">' +
+      '<polygon points="196,352 332,342 332,424 196,434" fill="#23242a" stroke="#cfcfcf" stroke-width="1.4"/>' +
+      '<polygon points="332,342 468,352 468,434 332,424" fill="#292a30" stroke="#cfcfcf" stroke-width="1.4"/>' +
+      '<g stroke="#ececec" stroke-width="1.4" opacity=".75" filter="url(#chalk)"><path d="M210 366 L318 360 M210 378 L318 372 M210 390 L300 385 M210 402 L318 396"/><path d="M346 360 L452 366 M346 372 L452 378 M346 384 L430 390"/>' +
+      '<circle cx="398" cy="408" r="12" fill="none"/><circle cx="398" cy="408" r="4" fill="none"/></g>' +
+      '<text x="212" y="356" font-size="9" fill="#d9b66a" letter-spacing="1.5" font-family="Manrope">ЛЕКЦІЯ №12</text>' +
+      '<polygon points="196,434 468,434 462,442 202,442" fill="#6e5a2e"/>' +
+      '<polygon class="hl" points="190,346 332,336 474,346 474,446 190,446"/></g>' +
+      /* калькулятор */
+      '<g class="hot' + (S.a1.defect && !S.a1.drawer ? ' hint-pulse' : '') + '" data-h="calc" tabindex="0">' +
+      '<rect x="600" y="338" width="142" height="104" rx="6" fill="#2d2e32" stroke="#9a9ca1" stroke-width="1.5" transform="skewX(-6) translate(40 0)"/>' +
+      '<rect x="618" y="350" width="98" height="24" fill="#050606" stroke="#555" transform="skewX(-6) translate(40 0)"/>' +
+      '<text x="712" y="368" font-size="15" fill="#c8f5c8" text-anchor="end" font-family="Roboto" transform="skewX(-6) translate(40 0)">n = ?</text>' +
+      keysSvg() +
+      '<rect class="hl" x="606" y="332" width="150" height="116"/></g>' +
+      /* дрібниці: олівець, циркуль */
+      '<g stroke="#cfcfcf" stroke-width="2" fill="none" opacity=".8"><path d="M520 436 L590 408"/><path d="M590 408 l8 -3" stroke="#b08d4a"/><path d="M760 425 L800 380 M760 425 L792 392 M800 380 q4 -8 10 -4" /></g>' +
+      '<polygon points="0,560 960,560 960,600 0,600" fill="#000" opacity=".5"/>' +
+      '</svg>';
+  }
+  function keysSvg() {
+    var s = '<g transform="skewX(-6) translate(40 0)" fill="#3a3b3f" stroke="#777">', r, c, i = 0;
+    for (r = 0; r < 3; r++) for (c = 0; c < 6; c++) {
+      var rot = (!S.a1.defect && (i === 4 || i === 9 || i === 13)) ? ' transform="rotate(14 ' + (626 + c * 16) + ' ' + (390 + r * 15) + ')"' : '';
+      s += '<rect x="' + (619 + c * 16) + '" y="' + (383 + r * 15) + '" width="12" height="10"' + rot + '/>'; i++;
+    }
+    return s + '</g>';
+  }
+
+  function calcModal() {
+    var jam = !S.a1.defect;
+    var keys = ['7', '8', '9', 'C', '4', '5', '6', '⌫', '1', '2', '3', ',', '0'];
+    var html = '<h2>Калькулятор</h2><div class="calc"><div class="scr" id="scr">' + (jam ? '' : '') + '</div><div class="keys">';
+    keys.forEach(function (k) { html += '<button type="button" class="key' + (jam ? ' jam' : '') + '" data-k="' + k + '">' + k + '</button>'; });
+    html += '<button type="button" class="key ok' + (jam ? ' jam' : '') + '" data-k="OK">n = ?</button></div></div><p class="mmsg" id="mmsg">' +
+      (jam ? 'Кнопки заклинило, ніби їх давно ніхто не натискав. Мабуть, спершу треба розібратися з лекцією.' : 'Кнопки вільні. Порахуйте коефіцієнт безпеки n і введіть його.') + '</p>';
+    openModal(html);
+    var buf = '';
+    function paint() { $('#scr').textContent = buf; }
+    $('#mbody').querySelector('.keys').addEventListener('click', function (e) {
+      var b = e.target.closest('.key'); if (!b || jam) return;
+      var k = b.getAttribute('data-k'), m = $('#mmsg');
+      m.className = 'mmsg';
+      if (k === 'C') { buf = ''; }
+      else if (k === '⌫') { buf = buf.slice(0, -1); }
+      else if (k === 'OK') {
+        var v = parseFloat(buf.replace(',', '.'));
+        if (isNaN(v)) { m.textContent = 'Спершу введіть число.'; m.className = 'mmsg err'; return; }
+        if (Math.abs(v - 1.5) < 0.005) {
+          S.a1.drawer = true; closeModal(); renderScene(); say('Щось клацнуло знизу. Шухляда прочинилась, і в ній щось блищить. Це ключ із зубом у формі гайкового ключа. Візьміть його.');
+          return;
+        }
+        m.className = 'mmsg err';
+        if (Math.abs(v - 0.75) < 0.005) m.textContent = 'n = 0,75: так балка б зламалася. Ви взяли Mmax з помилкової формули. Для балки на двох опорах із рівномірним навантаженням Mmax = qL²/8.';
+        else if (v < 1) m.textContent = 'n менше за 1: балка руйнується. Перевірте Mmax.';
+        else m.textContent = 'Не збігається. Пам’ятайте: σ = Mmax / W, n = σт / σ. Одиниці: кН·м у Н·м, см³ у м³.';
+        buf = '';
+      } else { if (buf.length < 8 && !(k === ',' && buf.indexOf(',') >= 0)) buf += k; }
+      paint();
+    });
+    paint();
+  }
+  function bookModal() {
+    var d = S.a1.defect;
+    var html = '<h2>Лекція №12 · Згин балки</h2><div class="page">' +
+      '<p>Дано: q = 10 кН/м, L = 4 м, W = 100 см³, σт = 300 МПа. Балка на двох опорах.</p>' +
+      '<p style="font-size:18px;opacity:.8;font-family:Roboto">' + (d ? 'Помилку знайдено. Виправлений рядок 1: Mmax = qL²/8.' : 'У розрахунку заховано брак. Натисніть на рядок, у якому помилка.') + '</p></div>' +
+      '<button class="calc-line' + (d ? ' bad' : '') + '" data-l="1">1) Mmax = qL²/4 = 10·4²/4 = 40 кН·м</button>' +
+      '<button class="calc-line" data-l="2">2) σ = Mmax / W = 40·10³ / 10⁻⁴ = 400 МПа</button>' +
+      '<button class="calc-line" data-l="3">3) n = σт / σ = 300 / 400 = 0,75</button>' +
+      '<p class="mmsg" id="mmsg"></p>';
+    openModal(html);
+    $('#mbody').addEventListener('click', onBookClick);
+  }
+  function onBookClick(e) {
+    var b = e.target.closest('.calc-line'); if (!b) return;
+    var l = b.getAttribute('data-l'), m = $('#mmsg');
+    if (!m) return;
+    if (l === '1') {
+      b.classList.add('bad');
+      m.className = 'mmsg'; m.textContent = 'Так. Для рівномірного навантаження момент посередині балки Mmax = qL²/8, а не /4. Розрахунок треба зробити заново. Кнопки калькулятора відпустило.';
+      if (!S.a1.defect) { S.a1.defect = true; renderScene(); say('Брак знайдено: у першому рядку Mmax порахований за хибною формулою. Тепер можна рахувати на калькуляторі.'); }
+    } else {
+      m.className = 'mmsg err';
+      m.textContent = 'Цей рядок лише наслідок попереднього: формули тут правильні. Шукайте помилку раніше.';
+    }
+  }
+  function act1Click(h) {
+    if (h === 'lamp') say('Лампа мерехтить. Хтось давно не міняв дріт.');
+    else if (h === 'book') bookModal();
+    else if (h === 'calc') calcModal();
+    else if (h === 'drawer') {
+      if (S.a1.drawer) say(S.inv.key ? 'Шухляда порожня.' : 'У шухляді лежить старовинний ключ. Натисніть на нього.');
+      else say('Шухляда замкнена. Замок із цифровою шкалою: схоже, відкриється, коли калькулятор дасть правильну відповідь.');
+    } else if (h === 'key') {
+      S.inv.key = true; renderInv(); renderScene();
+      say('Ключ у вас. Далі.');
+      setTimeout(function () { card('Акт 2', 'Креслення мосту', function () { S.act = 2; start(); }); }, 700);
+    }
+  }
+
+  /* ====================== АКТ 2 ====================== */
+  var XA = 150, DX = 66, YD = 380;
+  function px(m) { return XA + m * DX; }
+  function momentO() {
+    var sum = 5 * (2 - 5), k;
+    for (k in S.a2.placed) sum += S.a2.placed[k] * (+k - 5);
+    return sum;
+  }
+  function scene2() {
+    var i, s = svgOpen('') +
+      '<rect width="960" height="600" fill="#08131f"/>' +
+      '<image href="../../img/photo-bridge.jpg" x="0" y="0" width="960" height="600" preserveAspectRatio="xMidYMid slice" opacity=".2" filter="url(#gray)"/>' +
+      '<g stroke="#fff" stroke-opacity=".06">';
+    for (i = 0; i <= 960; i += 40) s += '<line x1="' + i + '" y1="0" x2="' + i + '" y2="600"/>';
+    for (i = 0; i <= 600; i += 40) s += '<line x1="0" y1="' + i + '" x2="960" y2="' + i + '"/>';
+    s += '</g><rect x="14" y="14" width="932" height="572" fill="none" stroke="#b08d4a" stroke-width="3" opacity=".8"/>' +
+      '<g filter="url(#chalk)" fill="#ececec" font-family="Marck Script, cursive">' +
+      '<text x="48" y="70" font-size="30" opacity=".85">ЗАКОН РІВНОВАГИ</text><text x="48" y="118" font-size="40">ΣM(O) = 0</text>' +
+      '<text x="48" y="154" font-size="20" opacity=".7">Центр прольоту O. Умова: опори навантажені однаково.</text></g>';
+    /* ферма */
+    var crack = S.a2.cracked, st = crack ? '#ff9c9c' : '#ececec';
+    s += '<g id="truss" pointer-events="none" filter="url(#chalk)" stroke="' + st + '" stroke-width="2.6" fill="none">' +
+      '<path d="M' + px(0) + ' ' + YD + ' L' + px(10) + ' ' + YD + '"/>' +
+      '<path d="M' + px(1) + ' 300 L' + px(9) + ' 300"/>' +
+      '<path d="M' + px(0) + ' ' + YD + ' L' + px(1) + ' 300 M' + px(10) + ' ' + YD + ' L' + px(9) + ' 300"/>';
+    for (i = 1; i <= 9; i++) s += '<path d="M' + px(i) + ' 300 L' + px(i) + ' ' + YD + '"/>';
+    for (i = 1; i < 9; i++) s += '<path d="M' + px(i) + ' ' + (i < 5 ? YD : 300) + ' L' + px(i + 1) + ' ' + (i < 5 ? 300 : YD) + '" stroke-width="1.6" opacity=".75"/>';
+    s += '</g>';
+    /* опори */
+    s += '<g stroke="#ececec" stroke-width="2.4" fill="#0b1a2b" filter="url(#chalk)"><polygon points="' + px(0) + ',' + YD + ' ' + (px(0) - 26) + ',432 ' + (px(0) + 26) + ',432"/>' +
+      '<circle cx="' + px(10) + '" cy="398" r="16"/><path d="M' + (px(10) - 40) + ' 432 L' + (px(10) + 40) + ' 432"/><path d="M' + (px(0) - 50) + ' 432 L' + (px(0) + 50) + ' 432"/></g>' +
+      '<g fill="#ececec" font-family="Manrope" font-size="15" font-weight="800"><text x="' + (px(0) - 6) + '" y="458">A</text><text x="' + (px(10) - 6) + '" y="458">B</text></g>';
+    /* лінійка */
+    s += '<g stroke="#ececec" stroke-opacity=".6"><line x1="' + px(0) + '" y1="484" x2="' + px(10) + '" y2="484"/>';
+    for (i = 0; i <= 10; i++) s += '<line x1="' + px(i) + '" y1="478" x2="' + px(i) + '" y2="490"/>';
+    s += '</g><g fill="#ececec" fill-opacity=".8" font-family="Roboto" font-size="14" text-anchor="middle">';
+    for (i = 0; i <= 10; i++) s += '<text x="' + px(i) + '" y="508">' + i + ' м</text>';
+    s += '</g>';
+    /* точка O */
+    s += '<g><line x1="' + px(5) + '" y1="282" x2="' + px(5) + '" y2="482" stroke="#d9b66a" stroke-dasharray="5 6"/><circle cx="' + px(5) + '" cy="300" r="7" fill="#d9b66a"/>' +
+      '<text x="' + (px(5) + 12) + '" y="288" fill="#d9b66a" font-family="Manrope" font-weight="800" font-size="16">O</text></g>';
+    /* фіксований вантаж 5 т у точці 2 */
+    s += wBlock(2, 5, true);
+    /* слоти + вантажі користувача */
+    for (i = 1; i <= 9; i++) {
+      if (i === 2) continue;
+      if (S.a2.placed[i]) { s += wBlock(i, S.a2.placed[i], false); }
+      else s += '<g class="hot" data-h="slot" data-m="' + i + '" tabindex="0"><circle cx="' + px(i) + '" cy="362" r="15" fill="#fff" fill-opacity=".02" stroke="#ececec" stroke-opacity=".5" stroke-dasharray="4 4"/><circle class="hl" cx="' + px(i) + '" cy="362" r="19"/></g>';
+    }
+    /* тріщини */
+    if (crack) {
+      s += '<g stroke="#fff" stroke-width="2" fill="none"><path d="M' + px(4) + ' 380 l8 -22 l-10 -14 l12 -20"/><path d="M' + px(6) + ' 300 l-6 18 l10 14 l-6 20"/></g>';
+    }
+    /* шестерня згори */
+    if (S.a2.solved && !S.inv.gear) {
+      s += '<g transform="translate(480,200)"><g class="hot hint-pulse fall" data-h="gear" tabindex="0"><polygon points="' + gearPts(0, 0, 36, 10, 9) + '" fill="url(#brassG)" stroke="#fff" stroke-width="1.5"/><circle r="11" fill="#08131f" stroke="#fff"/><rect class="hl" x="-46" y="-46" width="92" height="92"/></g></g>';
+    }
+    return s + '</svg>';
+  }
+  function wBlock(m, t, fixed) {
+    var w = 30 + t * 4, h = 20 + t * 5, x = px(m), y = 380 - h - 2;
+    var g = '<g' + (fixed ? '' : ' class="hot" data-h="wt" data-m="' + m + '" tabindex="0"') + '>' +
+      '<line x1="' + x + '" y1="380" x2="' + x + '" y2="' + y + '" stroke="#ececec" stroke-opacity=".7"/>' +
+      '<rect x="' + (x - w / 2) + '" y="' + (y - h) + '" width="' + w + '" height="' + h + '" fill="' + (fixed ? '#2c3037' : '#3b3f46') + '" stroke="' + (fixed ? '#8a9099' : '#d9b66a') + '" stroke-width="2.2"/>' +
+      '<text x="' + x + '" y="' + (y - h / 2 + 6) + '" text-anchor="middle" font-family="Manrope" font-weight="800" font-size="16" fill="#ececec">' + t + ' т</text>';
+    if (!fixed) g += '<rect class="hl" x="' + (x - w / 2 - 4) + '" y="' + (y - h - 4) + '" width="' + (w + 8) + '" height="' + (h + 8) + '"/>';
+    return g + '</g>';
+  }
+  function tray2() {
+    var h = '<div class="tray"><span class="lbl" style="font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:#9a9ca1">Вантажі</span>';
+    [2, 3, 5].forEach(function (t) {
+      h += '<button type="button" class="wt' + (S.a2.left[t] ? '' : ' used') + (S.sel === 'w' + t ? ' sel' : '') + '" data-t="' + t + '">' + t + ' т</button>';
+    });
+    h += '<button type="button" class="btn" id="chk"' + (S.a2.solved ? ' disabled' : '') + '>Перевірити міст</button><button type="button" class="btn ghost" id="clr"' + (S.a2.solved ? ' disabled' : '') + '>Зняти все</button></div>';
+    tools.innerHTML = h;
+    tools.querySelector('.tray').addEventListener('click', function (e) {
+      var b = e.target.closest('button'); if (!b) return;
+      if (b.id === 'chk') return check2();
+      if (b.id === 'clr') { S.a2.placed = {}; S.a2.left = { 2: true, 3: true, 5: true }; S.sel = null; S.a2.cracked = false; renderScene(); renderInv(); return; }
+      var t = b.getAttribute('data-t');
+      if (!S.a2.left[t] || S.a2.solved) return;
+      S.sel = (S.sel === 'w' + t) ? null : 'w' + t; renderInv(); tray2();
+      say(S.sel ? 'Вантаж ' + t + ' т вибрано. Натисніть на кружечок настилу, щоб поставити його.' : '');
+    });
+  }
+  function check2() {
+    if (Object.keys(S.a2.placed).length < 3) { say('Спершу поставте всі три вантажі на настил: 2 т, 3 т і 5 т.'); return; }
+    var M = momentO();
+    var box = $('#truss');
+    if (M === 0) {
+      S.a2.solved = true; S.a2.cracked = false;
+      renderScene(); tray2();
+      say('Міст завмер. ΣM(O) = 0: опори навантажені однаково, настил рівний. Згори щось гупнуло: це металева шестерня. Візьміть її.');
+    } else {
+      S.a2.cracked = true; renderScene();
+      var sv = $('#stage svg'); sv.classList.remove('shake'); void sv.getBoundingClientRect(); sv.classList.add('shake');
+      say('Міст тріщить! ΣM(O) ≠ 0: перетяжила сторона ' + (M < 0 ? 'опори A (ліворуч)' : 'опори B (праворуч)') + '. Згадайте: момент = маса × плече від точки O. Підказка є в розділі «Лекції», тема «Рівновага. Сума моментів».');
+      var hint = document.createElement('a'); hint.href = '../'; hint.textContent = ' Відкрити «Лекції»'; hint.style.fontSize = '16px'; sayEl.appendChild(hint);
+    }
+  }
+  function act2Click(h, el) {
+    if (h === 'slot') {
+      var m = +el.getAttribute('data-m');
+      if (!S.sel || S.sel.charAt(0) !== 'w') { say('Спершу виберіть вантаж унизу.'); return; }
+      var t = +S.sel.slice(1);
+      S.a2.placed[m] = t; S.a2.left[t] = false; S.sel = null; S.a2.cracked = false;
+      renderScene(); renderInv(); tray2(); say('Вантаж ' + t + ' т стоїть на відмітці ' + m + ' м. Плече від O: ' + Math.abs(m - 5) + ' м.');
+    } else if (h === 'wt') {
+      var mm = +el.getAttribute('data-m'), tt = S.a2.placed[mm];
+      if (S.a2.solved) return;
+      delete S.a2.placed[mm]; S.a2.left[tt] = true; S.a2.cracked = false; renderScene(); tray2(); say('Вантаж ' + tt + ' т знято.');
+    } else if (h === 'gear') {
+      S.inv.gear = true; renderInv(); renderScene(); say('Шестерня у вас. Лишилось зібрати механізм дверей.');
+      setTimeout(function () { card('Акт 3', 'Двері з маховиком', function () { S.act = 3; start(); }); }, 700);
+    }
+  }
+
+  /* ====================== АКТ 3 ====================== */
+  function gauge(cx, cy, id) {
+    var t = '<g><circle cx="' + cx + '" cy="' + cy + '" r="46" fill="#0d0e10" stroke="url(#brassG)" stroke-width="4"/>';
+    for (var a = -120; a <= 120; a += 30) {
+      var r = a * Math.PI / 180;
+      t += '<line x1="' + (cx + Math.sin(r) * 34) + '" y1="' + (cy - Math.cos(r) * 34) + '" x2="' + (cx + Math.sin(r) * 40) + '" y2="' + (cy - Math.cos(r) * 40) + '" stroke="#ececec" stroke-opacity=".7"/>';
+    }
+    return t + '<line class="needle" id="' + id + '" x1="' + cx + '" y1="' + cy + '" x2="' + cx + '" y2="' + (cy - 34) + '" stroke="#ececec" stroke-width="2.4" style="transform-origin:' + cx + 'px ' + cy + 'px;transform:rotate(-110deg)"/><circle cx="' + cx + '" cy="' + cy + '" r="4" fill="#b08d4a"/></g>';
+  }
+  function scene3() {
+    var both = S.a3.key && S.a3.gear, rivets = '', i;
+    for (i = 0; i < 24; i++) {
+      var a = i / 24 * Math.PI * 2;
+      rivets += '<circle cx="' + (480 + Math.cos(a) * 236) + '" cy="' + (340 + Math.sin(a) * 236) + '" r="5" fill="#1d1e21" stroke="#777"/>';
+    }
+    var s = svgOpen() + '<rect width="960" height="600" fill="url(#bgG)"/>' +
+      '<g id="door3" class="' + (S.a3.open ? 'open' : '') + '">' +
+      /* світло за дверима */
+      '<defs><clipPath id="clipDoor"><circle cx="480" cy="340" r="258"/></clipPath><radialGradient id="light" cx="50%" cy="50%" r="60%"><stop offset="0" stop-color="#fff"/><stop offset="1" stop-color="#cfcfcf"/></radialGradient></defs>' +
+      '<g clip-path="url(#clipDoor)"><rect x="200" y="60" width="560" height="560" fill="url(#light)" opacity="' + (S.a3.open ? 1 : 0) + '" style="transition:opacity 1.2s"/>' +
+      '<g class="doorL"><path d="M480 82 A258 258 0 0 0 480 598 Z" fill="#17181a" stroke="#cfcfcf" stroke-width="2"/></g>' +
+      '<g class="doorR"><path d="M480 82 A258 258 0 0 1 480 598 Z" fill="#141517" stroke="#cfcfcf" stroke-width="2"/></g></g>' +
+      '</g>' +
+      '<circle cx="480" cy="340" r="258" fill="none" stroke="url(#brassG)" stroke-width="6"/>' +
+      '<g id="mech3" opacity="' + (S.a3.open ? 0 : 1) + '" style="transition:opacity 1s">' + rivets +
+      gauge(350, 190, 'n1') + gauge(480, 150, 'n2') + gauge(610, 190, 'n3') +
+      '<rect x="420" y="232" width="120" height="30" fill="#0d0e10" stroke="#cfcfcf"/><text x="480" y="254" text-anchor="middle" font-family="Manrope" font-weight="800" font-size="19" letter-spacing="5" fill="#ececec">ВИХІД</text>' +
+      /* маховик */
+      '<g class="hot' + (both && !S.a3.spun ? ' hint-pulse' : '') + '" data-h="wheel" tabindex="0"><g id="wheel"><circle cx="480" cy="400" r="86" fill="none" stroke="#8a9099" stroke-width="10"/><circle cx="480" cy="400" r="16" fill="url(#brassG)"/>';
+    for (i = 0; i < 6; i++) {
+      var r = i / 6 * Math.PI * 2;
+      s += '<line x1="480" y1="400" x2="' + (480 + Math.cos(r) * 86) + '" y2="' + (400 + Math.sin(r) * 86) + '" stroke="#8a9099" stroke-width="7"/><circle cx="' + (480 + Math.cos(r) * 98) + '" cy="' + (400 + Math.sin(r) * 98) + '" r="7" fill="#b08d4a"/>';
+    }
+    s += '</g><circle class="hl" cx="480" cy="400" r="108"/></g>' +
+      /* гнізда: ключ ліворуч, шестерня праворуч */
+      '<g class="hot' + (S.a3.key ? '' : ' hint-pulse') + '" data-h="keyhole" tabindex="0"><rect x="262" y="350" width="72" height="104" rx="8" fill="#0d0e10" stroke="#b08d4a" stroke-width="2"/>' +
+      (S.a3.key ? '<g transform="translate(266,368) scale(1.5)">' + KEY_SVG.replace('<svg viewBox="0 0 40 40"', '<g').replace('</svg>', '</g>') + '</g>' : '<circle cx="298" cy="392" r="8" fill="#000" stroke="#777"/><path d="M294 396 h8 l2 22 h-12 z" fill="#000" stroke="#777"/>') +
+      '<rect class="hl" x="256" y="344" width="84" height="116"/></g>' +
+      '<g class="hot' + (S.a3.gear ? '' : ' hint-pulse') + '" data-h="gearhole" tabindex="0"><circle cx="660" cy="402" r="48" fill="#0d0e10" stroke="#b08d4a" stroke-width="2" stroke-dasharray="' + (S.a3.gear ? '0' : '6 5') + '"/>' +
+      (S.a3.gear ? '<g class="' + (both ? 'spin' : '') + '"><polygon points="' + gearPts(660, 402, 40, 10, 9) + '" fill="url(#brassG)" stroke="#fff"/><circle cx="660" cy="402" r="9" fill="#0b0b0c" stroke="#fff"/></g>' : '<circle cx="660" cy="402" r="7" fill="#777"/>') +
+      '<rect class="hl" x="606" y="348" width="108" height="108"/></g>' +
+      '<line x1="566" y1="402" x2="618" y2="402" stroke="#8a9099" stroke-width="6" opacity="' + (both ? 1 : 0.25) + '"/>' +
+      '</g></svg>';
+    return s + '<div class="finale' + (S.a3.open ? ' on' : '') + '" id="finale"><b>Іспит здано.<br>Ласкаво просимо до кабінету студента!</b><a class="btn" href="../">Увійти до кабінету</a></div>';
+  }
+  function act3Click(h) {
+    if (h === 'keyhole') {
+      if (S.a3.key) { say('Ключ уже в замку.'); return; }
+      if (S.sel !== 'key') { say(S.inv.key ? 'Замок чекає на ключ. Виберіть ключ в інвентарі й натисніть на замок.' : 'Замок порожній.'); return; }
+      S.a3.key = true; S.inv.key = false; S.sel = null; renderInv(); renderScene(); say('Ключ ліг у замок і повернувся. Праворуч порожнє гніздо для шестерні.'); gaugeUp();
+    } else if (h === 'gearhole') {
+      if (S.a3.gear) { say('Шестерня вже на осі.'); return; }
+      if (S.sel !== 'gear') { say(S.inv.gear ? 'Виберіть шестерню в інвентарі й натисніть на гніздо.' : 'Гніздо порожнє: тут бракує шестерні.'); return; }
+      S.a3.gear = true; S.inv.gear = false; S.sel = null; renderInv(); renderScene(); gaugeUp();
+      say(S.a3.key ? 'Шестерня зачепилася за ланцюг, і механізм ожив. Тепер крутніть маховик.' : 'Шестерня на осі. Бракує ще ключа.');
+    } else if (h === 'wheel') {
+      if (!(S.a3.key && S.a3.gear)) { say('Маховик ледь рухається. Механізм неповний: потрібні і ключ, і шестерня.'); return; }
+      if (S.a3.spun) return;
+      S.a3.spun = true;
+      var w = $('#wheel'); w.classList.add('wheel-go');
+      say('Маховик крутиться, стрілки манометрів повзуть угору…');
+      ['n1', 'n2', 'n3'].forEach(function (id, i) { var n = document.getElementById(id); if (n) setTimeout(function () { n.style.transform = 'rotate(' + (60 + i * 15) + 'deg)'; }, 200 + i * 300); });
+      setTimeout(function () {
+        S.a3.open = true;
+        $('#door3').classList.add('open'); $('#finale').classList.add('on');
+        try { localStorage.setItem('mech-game-done', '1'); } catch (e) {}
+        say('Двері повільно відчиняються. Яскраве світло.');
+        var rect = $('#door3').querySelector('rect'); if (rect) rect.setAttribute('opacity', '1');
+        $('#mech3').setAttribute('opacity', '0');
+      }, 2700);
+    }
+  }
+  function gaugeUp() {
+    var n = (S.a3.key ? 1 : 0) + (S.a3.gear ? 1 : 0);
+    setTimeout(function () { ['n1', 'n2', 'n3'].forEach(function (id, i) { var el = document.getElementById(id); if (el) el.style.transform = 'rotate(' + (-110 + n * 40 + i * 6) + 'deg)'; }); }, 60);
+  }
+
+  /* ---------- керування ---------- */
+  function renderScene() {
+    stage.innerHTML = S.act === 1 ? scene1() : S.act === 2 ? scene2() : scene3();
+    $('#act-tag').textContent = 'Акт ' + S.act + ' з 3';
+  }
+  stage.addEventListener('click', function (e) {
+    var el = e.target.closest('[data-h]'); if (!el) return;
+    var h = el.getAttribute('data-h');
+    (S.act === 1 ? act1Click : S.act === 2 ? act2Click : act3Click)(h, el);
+  });
+  stage.addEventListener('keydown', function (e) {
+    if (e.key !== 'Enter' && e.key !== ' ') return;
+    var el = e.target.closest('[data-h]'); if (el) { e.preventDefault(); el.dispatchEvent(new MouseEvent('click', { bubbles: true })); }
+  });
+  function card(t, s, done) {
+    $('#card-t').textContent = t; $('#card-s').textContent = s;
+    var c = $('#card'); c.classList.add('on');
+    setTimeout(function () { done(); setTimeout(function () { c.classList.remove('on'); }, 200); }, 1500);
+  }
+  function start() {
+    tools.innerHTML = ''; S.sel = null; renderInv(); renderScene();
+    if (S.act === 1) say('Темна кімната. Лампа ледь світить. На столі лежить розкрита лекція й калькулятор. Шухляда замкнена. Огляньте предмети: натисніть на них.');
+    if (S.act === 2) { say('На стіні розгорнуто креслення мосту, того самого, що на головній сторінці. Опори навантажені нерівно. Розставте вантажі 2, 3 і 5 т так, щоб ΣM(O) = 0.'); tray2(); }
+    if (S.act === 3) { say('Вихід заблоковано важкими дверима з манометрами. Вам потрібні ключ і шестерня з інвентарю: виберіть предмет і натисніть на гніздо.'); }
+  }
+  /* для перевірки: ?act=2 або ?act=3 */
+  var m = /[?&]act=([123])/.exec(location.search);
+  if (m) { S.act = +m[1]; if (S.act >= 2) S.inv.key = true; if (S.act === 3) { S.inv.gear = true; } }
+  start();
+})();
+</script>
+</body>
+</html>
