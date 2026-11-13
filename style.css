@@ -752,3 +752,9 @@ body:has(#v-login) header { min-height: 34vh; }
 .hero { background: #000; min-height: 0; justify-content: flex-start; }
 .hero::after { display: none; }
 @media (max-width: 640px) { header { min-height: 52vh; padding: 60px 18px 36px; } }
+
+header { position: relative; }
+header::before { content: ''; position: absolute; inset: 0; z-index: 0; pointer-events: none;
+  background: linear-gradient(90deg, rgba(0,0,0,.6) 0%, rgba(0,0,0,.35) 45%, rgba(0,0,0,0) 80%); }
+header > * { position: relative; z-index: 1; }
+header p { color: rgba(255,255,255,.92); }

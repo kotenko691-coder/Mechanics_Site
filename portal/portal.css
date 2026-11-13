@@ -418,3 +418,12 @@ header { background-image: linear-gradient(180deg, rgba(0,0,0,.35) 0%, rgba(0,0,
 body[data-view="v-home"] header, body[data-view="v-lecture"] header { background-image: linear-gradient(180deg, rgba(0,0,0,.4) 0%, rgba(0,0,0,.75) 100%), url('../img/photo-building.jpg'); background-position: center 30%; }
 body[data-view="v-home"][data-sec="prac"] header { background-image: linear-gradient(180deg, rgba(0,0,0,.35) 0%, rgba(0,0,0,.72) 100%), url('../img/photo-construction.jpg'); background-position: center 40%; }
 body[data-view="v-tasks"] header, body[data-view="v-task"] header, body[data-view="v-admin"] header { background-image: linear-gradient(180deg, rgba(0,0,0,.3) 0%, rgba(0,0,0,.65) 100%), url('../img/photo-truss.jpg'); background-position: center; }
+
+
+/* читабельність: затемнення зліва під текстом, вища шапка, світліший підпис */
+body:has(#v-login) header { min-height: clamp(320px, 46vh, 520px); }
+header { background-blend-mode: normal; }
+header::before { content: ''; position: absolute; inset: 0; z-index: 0; pointer-events: none;
+  background: linear-gradient(90deg, rgba(0,0,0,.6) 0%, rgba(0,0,0,.35) 45%, rgba(0,0,0,0) 80%); }
+header > * { position: relative; z-index: 1; }
+header p { color: rgba(255,255,255,.92); }
