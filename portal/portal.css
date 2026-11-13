@@ -411,3 +411,10 @@ form input:focus, form select:focus, .owner-bar select:focus { border-color: #00
 .tk-badge { background: #f6f6f6; color: #000; border-radius: 0; text-transform: uppercase; letter-spacing: .1em; font-size: 11px; }
 .tk-badge.ok { background: #fff; color: var(--ok); border: 1px solid var(--ok); }
 #login-hint.is-warn { background: #f6f6f6; border-left: 2px solid #000; }
+
+
+/* Фото шапки залежать від розділу кабінету */
+header { background-image: linear-gradient(180deg, rgba(0,0,0,.35) 0%, rgba(0,0,0,.72) 100%), url('../img/photo-bridge.jpg'); background-size: cover; background-position: center; transition: background-image .3s; }
+body[data-view="v-home"] header, body[data-view="v-lecture"] header { background-image: linear-gradient(180deg, rgba(0,0,0,.4) 0%, rgba(0,0,0,.75) 100%), url('../img/photo-building.jpg'); background-position: center 30%; }
+body[data-view="v-home"][data-sec="prac"] header { background-image: linear-gradient(180deg, rgba(0,0,0,.35) 0%, rgba(0,0,0,.72) 100%), url('../img/photo-construction.jpg'); background-position: center 40%; }
+body[data-view="v-tasks"] header, body[data-view="v-task"] header, body[data-view="v-admin"] header { background-image: linear-gradient(180deg, rgba(0,0,0,.3) 0%, rgba(0,0,0,.65) 100%), url('../img/photo-truss.jpg'); background-position: center; }

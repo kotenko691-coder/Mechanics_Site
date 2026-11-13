@@ -176,6 +176,7 @@
 
   function show(id) {
     if (window.PortalBG) window.PortalBG.set(BG_THEME[id] || 'formulas');
+    document.body.setAttribute('data-view', id);
     VIEWS.forEach(function (v) { $('#' + v).hidden = (v !== id); });
     var loggedIn = id !== 'v-login';
     $('#nav-home').hidden = !loggedIn || id === 'v-register';
@@ -436,6 +437,7 @@
     var b = e.target.closest('button[data-sec]');
     if (!b) return;
     section = b.getAttribute('data-sec');
+    document.body.setAttribute('data-sec', section);
     renderHome();
   });
 
