@@ -922,7 +922,7 @@
         : '<span class="tk-badge">до ' + t.max + ' балів · ліміт ' + mm(t.limit) + '</span>';
       return '<li><button type="button" class="tk-card" data-task="' + esc(t.id) + '"><b>' + esc(t.name) + '</b>' + st + '</button></li>';
     }).join('') +
-      '<li><button type="button" class="tk-card" data-game="1"><b>Кімната механіка</b><span class="tk-badge">до 100 балів · ліміт 20:00</span></button></li>';
+      '<li><button type="button" class="tk-card" data-hall="1"><b>Завдання 6 · Хол із п’яти кімнат</b><span class="tk-badge">ті самі 5 завдань у 3D · результати зберігаються</span></button></li>';
     show('v-tasks');
   }
   function showTasks() { api('tasks').then(renderTaskList).catch(fail); }
@@ -944,19 +944,30 @@
     var b = e.target.closest('button[data-task]');
     if (b) startTask(b.getAttribute('data-task'));
   });
-  // Гра «Кімната механіка» відкривається в тому ж вікні завдання
-  function openGame() {
-    $('#tk-title').textContent = 'Кімната механіка';
-    $('#tk-box').innerHTML = '<iframe id="game-frame" src="game/?embed=1" title="Кімната механіка" style="display:block;width:100%;height:760px;border:0" allow="fullscreen"></iframe>';
-    show('v-task');
+  // Завдання 6: 3D-хол із п'яти кімнат. Бали й час рахує сервер так само, як у списку завдань вище.
+  window.PortalHall = { api: function (action, data) { return api(action, data, true); } };
+  function openHall() {
+    var ov = document.getElementById('hall-ov');
+    if (!ov) {
+      ov = document.createElement('div'); ov.id = 'hall-ov';
+      ov.style.cssText = 'position:fixed;inset:0;z-index:9999;background:#000';
+      ov.innerHTML = '<iframe id="hall-frame" title="Хол" allow="fullscreen" style="display:block;width:100%;height:100%;border:0"></iframe>';
+      document.body.appendChild(ov);
+    }
+    ov.hidden = false; ov.style.display = 'block';
+    document.getElementById('hall-frame').src = 'hall/?v=1';
+  }
+  function closeHall() {
+    var ov = document.getElementById('hall-ov');
+    if (ov) { ov.style.display = 'none'; document.getElementById('hall-frame').src = 'about:blank'; }
+    showTasks();
   }
   $('#tk-list').addEventListener('click', function (e) {
-    if (e.target.closest('button[data-game]')) openGame();
+    if (e.target.closest('button[data-hall]')) openHall();
   });
   window.addEventListener('message', function (e) {
-    if (e.origin !== location.origin || !e.data || !e.data.gameH) return;
-    var f = document.getElementById('game-frame');
-    if (f) f.style.height = Math.ceil(e.data.gameH) + 'px';
+    if (e.origin !== location.origin || !e.data || !e.data.hallExit) return;
+    closeHall();
   });
   $('#tk-back').addEventListener('click', function () { showTasks(); });
   $('#nav-tasks').addEventListener('click', function (e) { e.preventDefault(); say(''); showTasks(); });
