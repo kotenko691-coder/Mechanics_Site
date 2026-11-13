@@ -441,3 +441,18 @@ header p { color: rgba(255,255,255,.92); }
   flex-direction: column; justify-content: center; align-items: center; gap: 18px; padding: 0; pointer-events: none; }
 .loader-ico { width: 150px; height: 46px; }
 #loader-text { font-size: 11px; font-weight: 600; letter-spacing: .3em; text-transform: uppercase; color: #000; }
+
+/* Рейтинг: чорно-біла палітра */
+.rt-place.gold { background: #000; color: #fff; border-color: #000; }
+.rt-place.silver { background: #9a9a9a; border-color: #000; }
+.rt-place.bronze { background: #d9d9d9; border-color: #000; }
+.rt-hero { background: #f6f6f6; color: #000; border-bottom: 0; border-top: 1px solid #000; }
+.rt-hero-title { font-family: var(--font-head); font-weight: 800; color: #000; }
+.rt-hero-sub { color: #555c62; }
+.rt-bigplace b { color: #fff; text-shadow: 0 0 3px #000, 0 0 3px #000; }
+.rt-bigplace small { color: #000; }
+.pd-block { border: 1px solid #000; border-bottom: 0; border-radius: 0; background-color: #555;
+  background-image: linear-gradient(rgba(255,255,255,.18) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.18) 1px, transparent 1px); text-shadow: none; }
+.pd-col.me .pd-block { background-color: #000; color: #fff; }
+.pd-col.me .pd-name { color: #000; text-decoration-color: #000; }
+.rt-pts, .pd-pts, .rt-name { color: #000; }

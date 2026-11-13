@@ -655,21 +655,21 @@
     var cut = function (t, m) { t = String(t); return t.length > m ? t.slice(0, m - 1) + '…' : t; };
     var s = '<svg viewBox="0 0 ' + W + ' ' + H + '" class="rt-svg rt-top-svg" role="img" aria-label="Топ-5 студентів: ' +
       esc(top.map(function (x) { return x.place + '. ' + x.name + ' (' + x.group + ') ' + num(x.points); }).join('; ')) + '">' +
-      '<defs><linearGradient id="sky2" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#b9d5f7"/><stop offset="1" stop-color="#f4f8ff"/></linearGradient>' +
-      '<pattern id="haz2" width="16" height="16" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="8" height="16" fill="#f5a300"/><rect x="8" width="8" height="16" fill="' + INK + '"/></pattern>' +
-      '<linearGradient id="glass2" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#3b5f93"/><stop offset="1" stop-color="#5f86bd"/></linearGradient></defs>' +
+      '<defs><linearGradient id="sky2" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f4f4f4"/><stop offset="1" stop-color="#ffffff"/></linearGradient>' +
+      '<pattern id="haz2" width="16" height="16" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="8" height="16" fill="#000"/><rect x="8" width="8" height="16" fill="#fff"/></pattern>' +
+      '<linearGradient id="glass2" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#9a9a9a"/><stop offset="1" stop-color="#bdbdbd"/></linearGradient></defs>' +
       '<rect width="' + W + '" height="' + ground + '" fill="url(#sky2)"/>' +
-      '<g fill="#fff" opacity="0.85"><ellipse cx="470" cy="46" rx="34" ry="9"/><ellipse cx="452" cy="40" rx="20" ry="8"/><ellipse cx="90" cy="30" rx="30" ry="8"/></g>' +
-      '<rect y="' + ground + '" width="' + W + '" height="' + (H - ground) + '" fill="#d9e0ea"/><rect y="' + ground + '" width="' + W + '" height="8" fill="url(#haz2)"/>' +
+      '<g fill="#fff" opacity="0"><ellipse cx="470" cy="46" rx="34" ry="9"/><ellipse cx="452" cy="40" rx="20" ry="8"/><ellipse cx="90" cy="30" rx="30" ry="8"/></g>' +
+      '<rect y="' + ground + '" width="' + W + '" height="' + (H - ground) + '" fill="#f0f0f0"/><rect y="' + ground + '" width="' + W + '" height="8" fill="url(#haz2)"/>' +
       // кран (праворуч)
-      '<g stroke="' + INK + '" stroke-width="2.4" fill="none"><rect x="470" y="40" width="22" height="' + (ground - 40) + '" fill="#f5a300"/>' +
+      '<g stroke="' + INK + '" stroke-width="2.4" fill="none"><rect x="470" y="40" width="22" height="' + (ground - 40) + '" fill="#fff"/>' +
       '<path d="M470 ' + (ground) + ' L492 ' + (ground - 40) + ' M492 ' + ground + ' L470 ' + (ground - 40) + ' M470 ' + (ground - 40) + ' L492 ' + (ground - 80) + ' M492 ' + (ground - 40) + ' L470 ' + (ground - 80) + '" stroke="' + INK + '" stroke-width="1.4"/>' +
-      '<rect x="60" y="22" width="470" height="14" fill="#f5a300"/><path d="M60 36 L100 22 L140 36 L180 22 L220 36 L260 22 L300 36 L340 22 L380 36 L420 22 L460 36 L500 22" stroke-width="1.4"/>' +
-      '<rect x="500" y="36" width="30" height="22" fill="#6b7a90"/></g>' +
+      '<rect x="60" y="22" width="470" height="14" fill="#fff"/><path d="M60 36 L100 22 L140 36 L180 22 L220 36 L260 22 L300 36 L340 22 L380 36 L420 22 L460 36 L500 22" stroke-width="1.4"/>' +
+      '<rect x="500" y="36" width="30" height="22" fill="#888"/></g>' +
       '<g class="rt-hook"><line x1="130" y1="36" x2="130" y2="' + (ground - fh * n - 28) + '" stroke="' + INK + '" stroke-width="2"/>' +
       '<rect x="92" y="' + (ground - fh * n - 28) + '" width="76" height="12" fill="url(#haz2)" stroke="' + INK + '" stroke-width="2"/></g>' +
       // фундамент
-      '<rect x="' + (fx - 8) + '" y="' + (ground - 8) + '" width="' + (fw + 16) + '" height="10" fill="#6b7a90" stroke="' + INK + '" stroke-width="2"/>';
+      '<rect x="' + (fx - 8) + '" y="' + (ground - 8) + '" width="' + (fw + 16) + '" height="10" fill="#888" stroke="' + INK + '" stroke-width="2"/>';
     for (var i = 0; i < n; i++) {
       var e = top[n - 1 - i];                       // знизу місце 5, нагорі місце 1
       var y = ground - 8 - (i + 1) * fh + 8;
@@ -680,17 +680,17 @@
       var pw = tmax > 0 ? Math.max(14, Math.round(e.points / tmax * (fw - 8))) : 14;
       var mine = e.me;
       s += '<g class="rt-floor" style="animation-delay:' + (i * 120) + 'ms">' +
-        '<rect x="' + fx + '" y="' + y + '" width="' + fw + '" height="' + fh + '" fill="#e9eef6" stroke="' + INK + '" stroke-width="2"/>' +
-        '<rect x="' + (fx + 4) + '" y="' + (y + 8) + '" width="' + pw + '" height="' + (fh - 16) + '" fill="' + (mine ? '#f5a300' : 'url(#glass2)') + '"/>' +
+        '<rect x="' + fx + '" y="' + y + '" width="' + fw + '" height="' + fh + '" fill="#f4f4f4" stroke="' + INK + '" stroke-width="2"/>' +
+        '<rect x="' + (fx + 4) + '" y="' + (y + 8) + '" width="' + pw + '" height="' + (fh - 16) + '" fill="' + (mine ? '#000' : 'url(#glass2)') + '"/>' +
         '<g stroke="rgba(255,255,255,.35)" stroke-width="1">' + [1, 2, 3, 4, 5, 6, 7].map(function (k) { return '<line x1="' + (fx + 4 + k * 48) + '" y1="' + (y + 8) + '" x2="' + (fx + 4 + k * 48) + '" y2="' + (y + fh - 8) + '"/>'; }).join('') + '</g>' +
-        '<rect x="' + (fx - 4) + '" y="' + (y - 3) + '" width="' + (fw + 8) + '" height="7" fill="#8a96a8" stroke="' + INK + '" stroke-width="1.6"/>' +
-        '<text x="' + (fx + 14) + '" y="' + (y + 27) + '" font-size="17" font-weight="700" fill="' + (mine ? INK : '#fff') + '" style="paint-order:stroke;stroke:' + (mine ? '#fff0c4' : INK) + ';stroke-width:3px">' + e.place + '. ' + esc(cut(e.name, 22)) + '</text>' +
-        '<text x="' + (fx + 14) + '" y="' + (y + 47) + '" font-size="13" fill="' + (mine ? INK : '#fff') + '" style="paint-order:stroke;stroke:' + (mine ? '#fff0c4' : INK) + ';stroke-width:2.5px">' + esc(e.group) + '</text>' +
+        '<rect x="' + (fx - 4) + '" y="' + (y - 3) + '" width="' + (fw + 8) + '" height="7" fill="#d0d0d0" stroke="' + INK + '" stroke-width="1.6"/>' +
+        '<text x="' + (fx + 14) + '" y="' + (y + 27) + '" font-size="17" font-weight="700" fill="#fff" style="paint-order:stroke;stroke:#000;stroke-width:3px">' + e.place + '. ' + esc(cut(e.name, 22)) + '</text>' +
+        '<text x="' + (fx + 14) + '" y="' + (y + 47) + '" font-size="13" fill="#fff" style="paint-order:stroke;stroke:#000;stroke-width:2.5px">' + esc(e.group) + '</text>' +
         '<rect x="' + (fx + fw - 74) + '" y="' + (y + 14) + '" width="64" height="32" rx="4" fill="#fff" stroke="' + INK + '" stroke-width="2"/>' +
         '<text x="' + (fx + fw - 42) + '" y="' + (y + 36) + '" font-size="18" font-weight="800" text-anchor="middle" fill="' + INK + '">' + esc(num(e.points)) + '</text>';
       if (e.place === 1) {
         s += '<line x1="' + (fx + fw - 40) + '" y1="' + (y - 3) + '" x2="' + (fx + fw - 40) + '" y2="' + (y - 40) + '" stroke="' + INK + '" stroke-width="2.4"/>' +
-          '<polygon points="' + (fx + fw - 40) + ',' + (y - 40) + ' ' + (fx + fw - 12) + ',' + (y - 32) + ' ' + (fx + fw - 40) + ',' + (y - 24) + '" fill="#b5392b" stroke="' + INK + '" stroke-width="1.5"/>';
+          '<polygon points="' + (fx + fw - 40) + ',' + (y - 40) + ' ' + (fx + fw - 12) + ',' + (y - 32) + ' ' + (fx + fw - 40) + ',' + (y - 24) + '" fill="#000" stroke="' + INK + '" stroke-width="1.5"/>';
       }
       s += '</g>';
     }
@@ -707,8 +707,8 @@
       '<span class="rt-pts">' + esc(String(Math.round(value * 100) / 100)) + '</span></li>';
   }
 
-  var MEDAL = { 1: '#f5c542', 2: '#d5dbe3', 3: '#e0a572' };
-  var INK = '#12284a';
+  var MEDAL = { 1: '#000000', 2: '#9a9a9a', 3: '#d9d9d9' };
+  var INK = '#000000';
 
   function num(v) { return String(Math.round(v * 100) / 100); }
 
@@ -718,7 +718,7 @@
       '<path d="M8 38a24 24 0 0 1 48 0z" fill="' + col + '" stroke="' + INK + '" stroke-width="3" stroke-linejoin="round"/>' +
       '<rect x="27" y="10" width="10" height="28" fill="#fff" opacity="0.55"/>' +
       '<rect x="3" y="38" width="58" height="8" rx="3" fill="' + col + '" stroke="' + INK + '" stroke-width="3"/>' +
-      (text ? '<text x="32" y="34" text-anchor="middle" font-size="13" font-weight="800" fill="' + INK + '">' + esc(text) + '</text>' : '') +
+      (text ? '<text x="32" y="34" text-anchor="middle" font-size="13" font-weight="800" fill="' + (col === '#000000' ? '#fff' : INK) + '">' + esc(text) + '</text>' : '') +
       '</svg>';
   }
 
@@ -726,34 +726,34 @@
   function towersSvg(groups, gmax) {
     var cw = 92, W = groups.length * cw, H = 330, ground = 236, fh = 19, maxF = 9;
     var s = '<svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Будівництво: рейтинг груп" class="rt-svg">' +
-      '<defs><linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#cfe3fb"/><stop offset="1" stop-color="#f6faff"/></linearGradient>' +
-      '<pattern id="haz" width="16" height="16" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="8" height="16" fill="#f5a300"/><rect x="8" width="8" height="16" fill="' + INK + '"/></pattern></defs>' +
+      '<defs><linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f4f4f4"/><stop offset="1" stop-color="#ffffff"/></linearGradient>' +
+      '<pattern id="haz" width="16" height="16" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="8" height="16" fill="#000"/><rect x="8" width="8" height="16" fill="#fff"/></pattern></defs>' +
       '<rect width="' + W + '" height="' + ground + '" fill="url(#sky)"/>' +
-      '<g fill="#fff" opacity="0.9"><ellipse cx="' + (W * 0.2) + '" cy="40" rx="30" ry="9"/><ellipse cx="' + (W * 0.2 + 18) + '" cy="34" rx="20" ry="8"/>' +
+      '<g fill="#fff" opacity="0"><ellipse cx="' + (W * 0.2) + '" cy="40" rx="30" ry="9"/><ellipse cx="' + (W * 0.2 + 18) + '" cy="34" rx="20" ry="8"/>' +
       '<ellipse cx="' + (W * 0.7) + '" cy="62" rx="34" ry="9"/><ellipse cx="' + (W * 0.7 - 20) + '" cy="56" rx="20" ry="8"/></g>' +
-      '<rect y="' + ground + '" width="' + W + '" height="' + (H - ground) + '" fill="#e4e9f1"/>' +
+      '<rect y="' + ground + '" width="' + W + '" height="' + (H - ground) + '" fill="#f0f0f0"/>' +
       '<rect y="' + ground + '" width="' + W + '" height="7" fill="url(#haz)"/>';
     groups.forEach(function (g, i) {
       var x = i * cw + 10, w = 60, cx = x + w / 2;
       var fl = g.total > 0 && gmax > 0 ? Math.max(1, Math.round(g.total / gmax * maxF)) : 0;
       var done = g.place === 1 && fl > 0;
-      var body = g.mine ? '#f5a300' : '#8da2c0';
+      var body = g.mine ? '#000' : '#bdbdbd';
       var top = ground - fl * fh;
       s += '<g class="rt-tower" style="animation-delay:' + (i * 130) + 'ms">';
       // фундамент
-      s += '<rect x="' + (x - 5) + '" y="' + (ground - 5) + '" width="' + (w + 10) + '" height="6" fill="#6b7a90" stroke="' + INK + '" stroke-width="1.5"/>';
+      s += '<rect x="' + (x - 5) + '" y="' + (ground - 5) + '" width="' + (w + 10) + '" height="6" fill="#888" stroke="' + INK + '" stroke-width="1.5"/>';
       for (var f = 0; f < fl; f++) {
         var y = ground - 5 - (f + 1) * fh + 5;
         s += '<rect x="' + x + '" y="' + y + '" width="' + w + '" height="' + fh + '" fill="' + body + '" stroke="' + INK + '" stroke-width="1.6"/>' +
-             '<rect x="' + (x + 9) + '" y="' + (y + 5) + '" width="11" height="9" fill="#fff6d6" stroke="' + INK + '" stroke-width="1"/>' +
-             '<rect x="' + (x + 24) + '" y="' + (y + 5) + '" width="11" height="9" fill="#fff6d6" stroke="' + INK + '" stroke-width="1"/>' +
-             '<rect x="' + (x + 39) + '" y="' + (y + 5) + '" width="11" height="9" fill="#fff6d6" stroke="' + INK + '" stroke-width="1"/>';
+             '<rect x="' + (x + 9) + '" y="' + (y + 5) + '" width="11" height="9" fill="#fff" stroke="' + INK + '" stroke-width="1"/>' +
+             '<rect x="' + (x + 24) + '" y="' + (y + 5) + '" width="11" height="9" fill="#fff" stroke="' + INK + '" stroke-width="1"/>' +
+             '<rect x="' + (x + 39) + '" y="' + (y + 5) + '" width="11" height="9" fill="#fff" stroke="' + INK + '" stroke-width="1"/>';
       }
       var t = ground - fl * fh;
       if (done) {
-        s += '<polygon points="' + (x - 4) + ',' + t + ' ' + (x + w + 4) + ',' + t + ' ' + cx + ',' + (t - 22) + '" fill="#b5392b" stroke="' + INK + '" stroke-width="1.6"/>' +
+        s += '<polygon points="' + (x - 4) + ',' + t + ' ' + (x + w + 4) + ',' + t + ' ' + cx + ',' + (t - 22) + '" fill="#000" stroke="' + INK + '" stroke-width="1.6"/>' +
              '<line x1="' + cx + '" y1="' + (t - 22) + '" x2="' + cx + '" y2="' + (t - 46) + '" stroke="' + INK + '" stroke-width="2.4"/>' +
-             '<polygon points="' + cx + ',' + (t - 46) + ' ' + (cx + 24) + ',' + (t - 39) + ' ' + cx + ',' + (t - 32) + '" fill="#f5a300" stroke="' + INK + '" stroke-width="1.5"/>';
+             '<polygon points="' + cx + ',' + (t - 46) + ' ' + (cx + 24) + ',' + (t - 39) + ' ' + cx + ',' + (t - 32) + '" fill="#000" stroke="' + INK + '" stroke-width="1.5"/>';
         top = t - 52;
       } else {
         // риштування над останнім поверхом і кран
@@ -764,22 +764,22 @@
                '<line x1="' + (x + w + 3) + '" y1="' + sy + '" x2="' + (x - 3) + '" y2="' + t + '" stroke="' + INK + '" stroke-width="1.1"/>';
         }
         var cy = Math.min(t, ground - 20) - 54, mx = x + w + 9;
-        s += '<line x1="' + mx + '" y1="' + ground + '" x2="' + mx + '" y2="' + cy + '" stroke="#f5a300" stroke-width="4"/>' +
-             '<line x1="' + (mx - 40) + '" y1="' + cy + '" x2="' + (mx + 9) + '" y2="' + cy + '" stroke="#f5a300" stroke-width="4"/>' +
-             '<polygon points="' + (mx - 3) + ',' + cy + ' ' + mx + ',' + (cy - 14) + ' ' + (mx + 3) + ',' + cy + '" fill="#f5a300"/>' +
+        s += '<line x1="' + mx + '" y1="' + ground + '" x2="' + mx + '" y2="' + cy + '" stroke="#000" stroke-width="4"/>' +
+             '<line x1="' + (mx - 40) + '" y1="' + cy + '" x2="' + (mx + 9) + '" y2="' + cy + '" stroke="#000" stroke-width="4"/>' +
+             '<polygon points="' + (mx - 3) + ',' + cy + ' ' + mx + ',' + (cy - 14) + ' ' + (mx + 3) + ',' + cy + '" fill="#000"/>' +
              '<rect x="' + (mx + 3) + '" y="' + (cy + 2) + '" width="8" height="8" fill="' + INK + '"/>' +
              '<line x1="' + (mx - 32) + '" y1="' + cy + '" x2="' + (mx - 32) + '" y2="' + (Math.min(t, ground) - 12) + '" stroke="' + INK + '" stroke-width="1.2"/>' +
-             '<rect x="' + (mx - 37) + '" y="' + (Math.min(t, ground) - 12) + '" width="10" height="8" fill="#b5392b" stroke="' + INK + '" stroke-width="1.2"/>';
+             '<rect x="' + (mx - 37) + '" y="' + (Math.min(t, ground) - 12) + '" width="10" height="8" fill="#000" stroke="' + INK + '" stroke-width="1.2"/>';
         top = cy - 16;
       }
       s += '</g>';
       s += '<text x="' + cx + '" y="' + Math.max(16, top - 6) + '" text-anchor="middle" font-size="15" font-weight="800" fill="' + INK + '">' + num(g.total) + '</text>';
       // табличка групи на майданчику
-      s += '<rect x="' + (x - 6) + '" y="' + (ground + 14) + '" width="' + (w + 12) + '" height="26" rx="3" fill="' + (g.mine ? '#f5a300' : '#fbfcfe') + '" stroke="' + INK + '" stroke-width="2"/>' +
-           '<text x="' + cx + '" y="' + (ground + 32) + '" text-anchor="middle" font-size="14" font-weight="800" fill="' + INK + '">' + esc(g.group) + '</text>';
+      s += '<rect x="' + (x - 6) + '" y="' + (ground + 14) + '" width="' + (w + 12) + '" height="26" rx="3" fill="' + (g.mine ? '#000' : '#fff') + '" stroke="' + INK + '" stroke-width="2"/>' +
+           '<text x="' + cx + '" y="' + (ground + 32) + '" text-anchor="middle" font-size="14" font-weight="800" fill="' + (g.mine ? '#fff' : INK) + '">' + esc(g.group) + '</text>';
       s += '<g transform="translate(' + (cx - 14) + ',' + (ground + 46) + ')">' + helmet(MEDAL[g.place] || '#ffffff', '', 28) + '</g>' +
            '<text x="' + (cx + 20) + '" y="' + (ground + 66) + '" font-size="13" font-weight="800" fill="' + INK + '">' + g.place + '</text>' +
-           '<text x="' + cx + '" y="' + (ground + 84) + '" text-anchor="middle" font-size="10.5" fill="#5b6b82">' + g.count + ' студ.</text>';
+           '<text x="' + cx + '" y="' + (ground + 84) + '" text-anchor="middle" font-size="10.5" fill="#666">' + g.count + ' студ.</text>';
     });
     return s + '</svg>';
   }
