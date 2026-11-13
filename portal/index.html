@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Кабінет студента | Навчальний портал з механіки</title>
     <link rel="stylesheet" href="../style.css">
-    <link rel="stylesheet" href="portal.css?v=43">
+    <link rel="stylesheet" href="portal.css?v=44">
 </head>
 <body>
 
@@ -194,5 +194,10 @@
     <script src="portal.js?v=42"></script>
     <script src="https://accounts.google.com/gsi/client" async defer></script>
     <script src="portal-bg.js?v=39"></script>
+<script>
+(function(){var n=document.querySelector('nav'),h=document.querySelector('header');if(!n||!h)return;
+function f(){n.classList.toggle('solid',window.scrollY>h.offsetHeight-n.offsetHeight-10)}
+addEventListener('scroll',f,{passive:true});addEventListener('resize',f);f();})();
+</script>
 </body>
 </html>

@@ -57,5 +57,10 @@
     <!-- Живий фон: пружна ферма (файл background.js має лежати поруч) -->
     <script src="background.js"></script>
 
+<script>
+(function(){var n=document.querySelector('nav'),h=document.querySelector('header');if(!n||!h)return;
+function f(){n.classList.toggle('solid',window.scrollY>h.offsetHeight-n.offsetHeight-10)}
+addEventListener('scroll',f,{passive:true});addEventListener('resize',f);f();})();
+</script>
 </body>
 </html>

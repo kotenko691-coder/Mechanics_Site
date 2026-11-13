@@ -39,5 +39,10 @@
             <p><small>Останнє оновлення: листопад 2026.</small></p>
         </div>
     </div>
+<script>
+(function(){var n=document.querySelector('nav'),h=document.querySelector('header');if(!n||!h)return;
+function f(){n.classList.toggle('solid',window.scrollY>h.offsetHeight-n.offsetHeight-10)}
+addEventListener('scroll',f,{passive:true});addEventListener('resize',f);f();})();
+</script>
 </body>
 </html>

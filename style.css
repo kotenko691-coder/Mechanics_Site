@@ -758,3 +758,13 @@ header::before { content: ''; position: absolute; inset: 0; z-index: 0; pointer-
   background: linear-gradient(90deg, rgba(0,0,0,.6) 0%, rgba(0,0,0,.35) 45%, rgba(0,0,0,0) 80%); }
 header > * { position: relative; z-index: 1; }
 header p { color: rgba(255,255,255,.92); }
+
+
+/* МЕНЮ ПОВЕРХ ФОТО: прозоре з білим текстом, після прокрутки біле */
+nav { position: fixed; top: 0; left: 0; right: 0; background: linear-gradient(180deg, rgba(0,0,0,.6), rgba(0,0,0,0)); border-bottom: 0; backdrop-filter: none; transition: background .25s; }
+nav a { color: #fff; }
+nav a:hover { border-bottom-color: #fff; }
+nav a.active { color: #fff !important; border-bottom-color: #fff; }
+nav.solid { background: rgba(255,255,255,.97); border-bottom: 1px solid #f0f0f0; }
+nav.solid a { color: #000; }
+nav.solid a:hover, nav.solid a.active { color: #000 !important; border-bottom-color: #000; }
