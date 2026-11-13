@@ -466,3 +466,60 @@ header p { color: rgba(255,255,255,.92); }
 .tk-card { justify-content: flex-start; gap: 18px; }
 .tk-card .tk-badge { margin-left: auto; }
 .tk-card::after { content: "\2192"; color: #000; }
+
+
+/* ===== РЕЙТИНГ: темна «синька» зі скошеними рядками ===== */
+#v-rating .card {
+  position: relative; overflow: hidden; border: 0; color: #fff; padding: 40px 36px 48px;
+  background-color: #0b0b0b;
+  background-image:
+    linear-gradient(rgba(255,255,255,.045) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,.045) 1px, transparent 1px),
+    linear-gradient(rgba(255,255,255,.02) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,.02) 1px, transparent 1px);
+  background-size: 100px 100px, 100px 100px, 20px 20px, 20px 20px;
+}
+#v-rating .card::after {
+  content: 'σ = N / A        F = m·a'; position: absolute; right: 32px; bottom: 16px; z-index: 0;
+  font: italic 22px Georgia, 'Times New Roman', serif; color: rgba(255,255,255,.22); white-space: pre; pointer-events: none;
+}
+#v-rating .card > * { position: relative; z-index: 1; }
+#v-rating h2 { color: #fff; font-size: clamp(30px, 4vw, 48px); letter-spacing: .02em; text-transform: uppercase; }
+#v-rating h3 { color: #fff; font-size: 14px; letter-spacing: .2em; text-transform: uppercase; font-weight: 700; margin: 44px 0 6px; }
+#v-rating .muted { color: #9a9a9a; }
+
+#v-rating .rt-hero { background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.18); border-radius: 0; color: #fff; padding: 22px 28px; gap: 28px; clip-path: polygon(16px 0, 100% 0, calc(100% - 16px) 100%, 0 100%); }
+#v-rating .rt-hero-title { color: #fff; font-size: clamp(24px, 3vw, 34px); }
+#v-rating .rt-hero-sub { color: #bdbdbd; }
+#v-rating .rt-bigplace { width: auto; line-height: 1; text-align: left; animation: none; padding-right: 28px; border-right: 1px solid rgba(255,255,255,.25); }
+#v-rating .rt-bigplace b { position: static; display: block; font-size: 72px; font-weight: 800; color: #fff; text-shadow: none; }
+#v-rating .rt-bigplace small { color: #9a9a9a; margin-top: 8px; letter-spacing: .2em; }
+
+.lb { list-style: none; display: flex; flex-direction: column; gap: 12px; margin: 18px 0 0; padding: 0; }
+.lb-row { position: relative; display: flex; align-items: stretch; min-height: 62px; color: #fff; }
+.lb-row::before { content: ''; position: absolute; left: 40px; right: 40px; top: 4px; bottom: 4px; transform: skewX(-18deg);
+  background: linear-gradient(90deg, rgba(255,255,255,.02), rgba(255,255,255,.08)); border: 1px solid rgba(255,255,255,.22); border-left: 0; border-right: 0; }
+.lb-row > span { position: relative; display: flex; align-items: center; z-index: 1; }
+.lb-rank { flex: none; width: 110px; justify-content: center; gap: 8px; font-size: 26px; font-weight: 800; color: #111; }
+.lb-rank::before, .lb-score::before { content: ''; position: absolute; inset: 0; transform: skewX(-18deg); z-index: -1; border: 1px solid rgba(255,255,255,.4); }
+.lb-rank::before { background: linear-gradient(135deg, #5a5a5a, #a9a9a9 55%, #6a6a6a); }
+.lb-rank b { font-size: 26px; }
+.lb-rank svg { stroke: #111; }
+.lb-row.p1 .lb-rank::before { background: linear-gradient(135deg, #7a5d1e, #e6c875 55%, #9a7a2c); border-color: #e6c875; }
+.lb-row.p2 .lb-rank::before { background: linear-gradient(135deg, #6f6f6f, #d6d6d6 55%, #8a8a8a); border-color: #d6d6d6; }
+.lb-row.p3 .lb-rank::before { background: linear-gradient(135deg, #6b4a2e, #c58f5d 55%, #8a5f3a); border-color: #c58f5d; }
+.lb-name { flex: 1; min-width: 0; padding: 0 22px 0 34px; font-size: 18px; flex-wrap: wrap; align-content: center; column-gap: 12px; }
+.lb-name small { font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: #9a9a9a; }
+.lb-score { flex: none; min-width: 130px; justify-content: center; font-size: 24px; }
+.lb-score::before { background: rgba(255,255,255,.06); }
+.lb-score b { font-weight: 800; }
+.lb-row.me::before { border-color: #fff; background: linear-gradient(90deg, rgba(255,255,255,.08), rgba(255,255,255,.18)); }
+.lb-row.me .lb-name { font-weight: 700; }
+.lb-row.me .lb-score::before { background: rgba(255,255,255,.2); border-color: #fff; }
+@media (max-width: 640px) {
+  #v-rating .card { padding: 28px 16px 40px; }
+  .lb-rank { width: 80px; font-size: 20px; } .lb-rank svg { width: 20px; height: 20px; }
+  .lb-name { font-size: 15px; padding: 0 10px 0 22px; } .lb-score { min-width: 84px; font-size: 18px; }
+  #v-rating .card::after { display: none; }
+}
+#v-rating .rt-top { background: transparent; border: 0; overflow: visible; margin: 0; }
