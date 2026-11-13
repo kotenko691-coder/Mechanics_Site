@@ -499,7 +499,29 @@
     'addEventListener("load",s);addEventListener("resize",s);' +
     'if(window.ResizeObserver)new ResizeObserver(s).observe(document.body);setTimeout(s,300);})();<\/script>';
 
+  /* Оформлення тексту конспекту в стилі сайту: перекриває власні стилі файлу лекції */
+  var NOTES_CSS = '<style id="portal-notes-style">' +
+    "@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@500;700;800&family=Roboto:wght@300;400;500;700&display=swap&subset=cyrillic');" +
+    'html{background:#fff}' +
+    'body{font-family:Roboto,Arial,sans-serif!important;font-size:17px!important;line-height:1.75!important;color:#3b4046!important;max-width:760px!important;padding:6px 4px 40px!important;background:#fff!important}' +
+    'h1{font-family:Manrope,Roboto,Arial,sans-serif!important;font-size:clamp(28px,5vw,42px)!important;font-weight:800!important;line-height:1.1!important;letter-spacing:-.02em!important;color:#000!important;margin:0 0 18px!important}' +
+    'h2{font-family:Manrope,Roboto,Arial,sans-serif!important;font-size:clamp(21px,3vw,27px)!important;font-weight:800!important;letter-spacing:-.01em!important;color:#000!important;border:0!important;border-top:1px solid #000!important;padding:18px 0 0!important;margin:54px 0 14px!important}' +
+    'h3{font-family:Manrope,Roboto,Arial,sans-serif!important;font-size:18px!important;font-weight:700!important;color:#000!important;margin:28px 0 6px!important}' +
+    'p{margin:12px 0!important;color:#3b4046!important}' +
+    '.write{background:#f6f6f6!important;border:0!important;border-left:2px solid #000!important;border-radius:0!important;padding:18px 22px!important;margin:22px 0!important;color:#1a1d20!important}' +
+    '.write>b,.main>b{display:block;font-size:11px!important;font-weight:700!important;letter-spacing:.22em;text-transform:uppercase;margin-bottom:10px}' +
+    '.write>b{color:#000!important}' +
+    '.write ul{margin:0!important;padding-left:20px!important}.write li{margin:7px 0}' +
+    '.main{background:#000!important;color:#fff!important;border-radius:0!important;padding:20px 24px!important;margin:22px 0 8px!important}' +
+    '.main>b{color:#bdbdbd!important}.main p{color:#fff!important;font-family:Manrope,Roboto,Arial,sans-serif;font-size:19px;font-weight:700;line-height:1.4;margin:0!important}' +
+    '.formula{background:#f6f6f6!important;border:0!important;border-left:2px solid #000!important;border-radius:0!important;color:#000!important;padding:12px 18px!important}' +
+    '.fig{margin:26px 0!important}.fig img{border:1px solid #ececec}' +
+    'a{color:#000!important}' +
+    '</style>';
+
   function withReporter(html) {
+    var hi = html.indexOf('</head>');
+    if (hi >= 0) html = html.slice(0, hi) + NOTES_CSS + html.slice(hi); else html = NOTES_CSS + html;
     var i = html.lastIndexOf('</body>');
     return i < 0 ? html + REPORTER : html.slice(0, i) + REPORTER + html.slice(i);
   }
