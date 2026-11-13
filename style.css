@@ -801,3 +801,5 @@ nav.solid a:hover, nav.solid a.active { color: #000 !important; border-bottom-co
 .read-arrow { flex: none; font-size: 22px; transition: transform .2s; }
 .read-row:hover .read-arrow { transform: translate(3px, -3px); }
 @media (max-width: 640px) { .read-row { flex-wrap: wrap; gap: 6px; } .read-tag { width: 100%; } }
+
+.greet { font-family: var(--font-head); font-size: clamp(20px, 2.4vw, 28px); font-weight: 600; line-height: 1.4; color: #000 !important; max-width: 40ch; letter-spacing: -.01em; }
