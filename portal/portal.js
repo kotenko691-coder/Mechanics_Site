@@ -385,7 +385,7 @@
   var SEC_NAME = {
     lec: { all: 'Лекцій', empty: 'Лекцій для цієї групи поки немає. Загляньте пізніше.' },
     prac: { all: 'Практичних', empty: 'Практичних робіт для цієї групи поки немає. Загляньте пізніше.' },
-    extra: { all: 'Додатково', empty: 'Матеріалів поки немає. Загляньте пізніше.' }
+    extra: { all: 'Фантазер', empty: 'Матеріалів поки немає. Загляньте пізніше.' }
   };
   var section = 'lec';
 
@@ -398,7 +398,7 @@
       var n = items.filter(function (i) { return (i.section || 'lec') === s; }).length;
       b.classList.toggle('on', s === section);
       b.setAttribute('aria-selected', s === section ? 'true' : 'false');
-      b.textContent = (s === 'lec' ? 'Лекції' : s === 'prac' ? 'Практичні роботи' : 'Додатково') + ' (' + n + ')';
+      b.textContent = (s === 'lec' ? 'Лекції' : s === 'prac' ? 'Практичні роботи' : 'Фантазер') + ' (' + n + ')';
       if (s === 'extra') b.hidden = !n;
     });
     var cur = items.filter(function (i) { return (i.section || 'lec') === section; });
@@ -444,7 +444,7 @@
     say('');
     current = it;
     $('#lec-title').textContent = it.title;
-    var backText = '← До списку ' + ((it.section || 'lec') === 'prac' ? 'практичних робіт' : (it.section === 'extra' ? 'додаткових матеріалів' : 'лекцій'));
+    var backText = '← До списку ' + ((it.section || 'lec') === 'prac' ? 'практичних робіт' : (it.section === 'extra' ? 'матеріалів «Фантазера»' : 'лекцій'));
     $('#lec-back-top').textContent = backText;
     $('#lec-back').textContent = backText.replace('← ', '');
     $('#lec-body').innerHTML = '<p class="muted">Завантаження лекції…</p>';

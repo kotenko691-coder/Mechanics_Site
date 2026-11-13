@@ -1,0 +1,69 @@
+/* Зміна кольору фону: текст підлаштовується (змінні ставить theme.js) */
+html.themed body { background: var(--t-bg); color: var(--t-mid); }
+html.themed h1, html.themed h2, html.themed h3, html.themed h4,
+html.themed main a, html.themed .link-text, html.themed .sheet, html.themed .greet,
+html.themed .read-row, html.themed .read-title, html.themed .progress-text,
+html.themed .lec-list button, html.themed .tk-card, html.themed .lb-row, html.themed .lb-name,
+html.themed .lb-score, html.themed .lb-rank, html.themed form label, html.themed form input,
+html.themed form select, html.themed .msg, html.themed .stats b, html.themed .ctl output,
+html.themed .adm-table th, html.themed .adm-table td, html.themed #v-rating h3,
+html.themed #v-rating .rt-hero, html.themed #v-rating .rt-hero-title, html.themed #v-rating .rt-bigplace b,
+html.themed #v-rating .rt-bigplace small, html.themed .rt-pts, html.themed .rt-name,
+html.themed .tabs button.on, html.themed .tabs button:hover:not(.on), html.themed .lec-list button::after, html.themed .tk-card::after,
+html.themed .btn-ghost { color: var(--t-fg); }
+html.themed .tabs button { color: var(--t-low); }
+html.themed .lec-list .mark, html.themed .read-row .read-no { color: var(--t-low); }
+html.themed .sheet, html.themed .card-group, html.themed #auth-section, html.themed .stats div,
+html.themed form input, html.themed form select, html.themed .lec-list button, html.themed .tk-card,
+html.themed .tabs button, html.themed .tabs button.on, html.themed .tabs button:hover:not(.on),
+html.themed .adm-table th, html.themed .adm-table button, html.themed .btn-ghost, html.themed footer,
+html.themed .rt-row, html.themed .tk-modal-box, html.themed .tk-card { background: var(--t-bg); }
+html.themed .lec-list button:hover, html.themed .tk-card:hover, html.themed .lb-row:hover,
+html.themed .lb-row.me, html.themed .msg, html.themed .eq, html.themed .tk-badge,
+html.themed #login-hint.is-warn, html.themed #v-rating .rt-hero { background: var(--t-soft); }
+html.themed #v-rating .rt-hero { background: transparent; }
+html.themed #auth-section, html.themed form input, html.themed form select,
+html.themed .btn-ghost, html.themed .adm-table button, html.themed .tk-badge { border-color: var(--t-fg); }
+html.themed form input, html.themed form select { border-color: var(--t-fg); }
+html.themed .lec-list, html.themed .lb, html.themed .tk-list, html.themed .read-list,
+html.themed .sheet, html.themed .card-group, html.themed .stats div, html.themed #v-rating .rt-hero,
+html.themed .adm-table th, html.themed .lb-row.me { border-top-color: var(--t-fg); border-color: var(--t-fg); }
+html.themed .lec-list button, html.themed .tk-card, html.themed .lb-row, html.themed .read-row,
+html.themed .tabs, html.themed .adm-table td, html.themed footer { border-color: var(--t-line); }
+html.themed .lec-list, html.themed .lb, html.themed .tk-list, html.themed .read-list { border-top-color: var(--t-fg); }
+html.themed .tabs button.on { border-bottom: 2px solid var(--t-fg); }
+html.themed .tabs { border-bottom: 1px solid var(--t-line); }
+html.themed .lb-row.me { box-shadow: inset 3px 0 0 var(--t-fg); }
+html.themed .btn, html.themed .btn-main, html.themed .bar button { background: var(--t-fg); color: var(--t-bg); border-color: var(--t-fg); }
+html.themed .btn:hover, html.themed .btn-main:hover { background: var(--t-bg); color: var(--t-fg); }
+html.themed .hero .btn-main { background: #fff; color: #000; border-color: #fff; }
+html.themed .hero { background: #000; }
+html.themed .hero h1, html.themed .hero p, html.themed .hero .eyebrow, html.themed .sec-card, html.themed .sec-card * { color: #fff; }
+html.themed nav.solid { background: var(--t-bg); border-bottom-color: var(--t-line); }
+html.themed nav.solid a, html.themed nav.solid a:hover, html.themed nav.solid a.active { color: var(--t-fg) !important; border-bottom-color: var(--t-fg); }
+html.themed header, html.themed header h1, html.themed header p { color: #fff; }
+html.themed.t-dark #tower svg, html.themed.t-dark #rt-towers svg { filter: invert(1) hue-rotate(180deg); }
+
+/* кнопка і панель вибору */
+.th-btn { position: fixed; left: 16px; bottom: 16px; z-index: 2500; width: 42px; height: 42px; border-radius: 50%;
+  border: 1px solid #000; background: conic-gradient(#fff 0 25%, #f1e8d6 0 50%, #cfd3d8 0 75%, #151515 0); cursor: pointer; padding: 0; box-shadow: 0 2px 10px rgba(0,0,0,.25); }
+.th-panel { position: fixed; left: 16px; bottom: 66px; z-index: 2500; background: #fff; color: #000; border: 1px solid #000;
+  padding: 14px 16px; width: 224px; font: 500 13px/1.4 'Roboto', Arial, sans-serif; box-shadow: 0 8px 30px rgba(0,0,0,.3); }
+.th-panel[hidden] { display: none; }
+.th-panel b { display: block; font-size: 11px; letter-spacing: .14em; text-transform: uppercase; margin-bottom: 10px; }
+.th-sw { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+.th-sw button { width: 32px; height: 32px; border-radius: 50%; border: 1px solid #000; cursor: pointer; padding: 0; }
+.th-sw button.on { outline: 2px solid #000; outline-offset: 2px; }
+.th-own { display: flex; align-items: center; gap: 10px; }
+.th-own input { width: 40px; height: 28px; padding: 0; border: 1px solid #000; background: none; cursor: pointer; }
+
+html.themed .card, html.themed .card-group, html.themed .lec-frame, html.themed .home-grid > * { background: transparent; color: var(--t-mid); }
+html.themed .card h2, html.themed .card h3, html.themed .card p b { color: var(--t-fg); }
+html.themed .read-row, html.themed .read-row * { background: transparent; }
+html.themed .read-row .read-title { color: var(--t-fg); }
+html.themed .read-row { color: var(--t-fg); }
+html.themed .read-list { border-top-color: var(--t-fg); }
+html.themed .greet { color: var(--t-fg) !important; }
+html.themed .lb-row .lb-rank, html.themed .lb-row.p1 .lb-rank, html.themed .lb-row.p2 .lb-rank, html.themed .lb-row.p3 .lb-rank { color: var(--t-fg); }
+html.themed .lb-row .lb-rank { color: var(--t-low); }
+html.themed .lb-row.p1 .lb-rank, html.themed .lb-row.p2 .lb-rank, html.themed .lb-row.p3 .lb-rank { color: var(--t-fg); }
