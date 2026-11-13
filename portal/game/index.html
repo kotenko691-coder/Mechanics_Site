@@ -25,6 +25,13 @@ h1 { font: 800 clamp(20px, 3vw, 28px)/1.1 'Manrope', sans-serif; margin: 0; lett
 .over { position: absolute; inset: 0; z-index: 30; background: rgba(0,0,0,.92); display: grid; place-items: center; text-align: center; padding: 16px; }
 .over b { display: block; font: 800 clamp(22px, 4vw, 34px) 'Manrope', sans-serif; margin-bottom: 8px; }
 .over p { margin: 0 0 18px; color: var(--dim); }
+.hud { display: flex; gap: 0; margin: 0 0 10px; border: 1px solid var(--line); }
+.hud div { flex: 1; padding: 8px 14px; border-right: 1px solid var(--line); }
+.hud div:last-child { border-right: 0; }
+.hud small { display: block; font-size: 10px; letter-spacing: .18em; text-transform: uppercase; color: var(--dim); }
+.hud b { font: 800 20px 'Manrope', sans-serif; }
+.hud.late #h-p { color: #ff8f8f; }
+.finale p { margin: 0 0 16px; font: 600 16px 'Roboto', sans-serif; }
 .stage-box { position: relative; border: 1px solid var(--line); background: #000; overflow: hidden; }
 #stage svg { display: block; width: 100%; height: auto; user-select: none; -webkit-user-select: none; }
 .hot { cursor: pointer; }
@@ -105,8 +112,8 @@ h1 { font: 800 clamp(20px, 3vw, 28px)/1.1 'Manrope', sans-serif; margin: 0; lett
   <div class="top">
     <div><div class="act-tag" id="act-tag">Акт 1 з 3</div><h1>Кімната механіка</h1></div>
     <a href="../">← Кабінет студента</a>
-    <div class="timer" id="timer" aria-live="off">20:00</div>
   </div>
+  <div class="hud"><div><small>Час</small><b id="h-t">00:00</b></div><div><small>Ліміт</small><b>20:00</b></div><div><small>Бали зараз</small><b id="h-p">100</b></div></div>
   <div class="stage-box">
     <div id="stage"></div>
     <div class="card" id="card"><div><b id="card-t"></b><span id="card-s"></span></div></div>
@@ -130,6 +137,24 @@ h1 { font: 800 clamp(20px, 3vw, 28px)/1.1 'Manrope', sans-serif; margin: 0; lett
     a3: { key: false, gear: false, open: false, spun: false }
   };
 
+  var LIMIT = 1200, T0 = Date.now(), stopped = false, finalSec = 0;
+  function pts(sec) { if (sec <= 60) return 100; if (sec > LIMIT) return 0; return Math.round(100 - 90 * (sec - 60) / (LIMIT - 60)); }
+  function mmss(n) { n = Math.max(0, Math.floor(n)); var m = Math.floor(n / 60), x = n % 60; return (m < 10 ? '0' : '') + m + ':' + (x < 10 ? '0' : '') + x; }
+  function tick() {
+    if (stopped) return;
+    var sec = (Date.now() - T0) / 1000;
+    $('#h-t').textContent = mmss(sec); $('#h-p').textContent = pts(sec);
+    document.querySelector('.hud').classList.toggle('late', sec >= LIMIT - 120);
+    if (sec >= LIMIT) {
+      stopped = true; closeModal();
+      var o = document.createElement('div'); o.className = 'over';
+      o.innerHTML = '<div><b>Час вийшов</b><p>Двері так і не відчинилися: 0 балів. Спробуйте ще раз з початку.</p><button type="button" class="btn" id="again">Почати знову</button></div>';
+      document.querySelector('.stage-box').appendChild(o);
+      o.querySelector('#again').addEventListener('click', function () { location.href = location.pathname; });
+    }
+  }
+  setInterval(tick, 500); tick();
+  function stopTimer() { if (stopped) return; tick(); stopped = true; finalSec = Math.floor((Date.now() - T0) / 1000); }
   function say(t) { sayEl.textContent = t || ''; }
   function openModal(html) { $('#mbody').innerHTML = html; $('#modal').hidden = false; }
   function closeModal() { $('#modal').hidden = true; $('#mbody').innerHTML = ''; }
@@ -461,7 +486,7 @@ h1 { font: 800 clamp(20px, 3vw, 28px)/1.1 'Manrope', sans-serif; margin: 0; lett
       '<rect class="hl" x="606" y="348" width="108" height="108"/></g>' +
       '<line x1="566" y1="402" x2="618" y2="402" stroke="#8a9099" stroke-width="6" opacity="' + (both ? 1 : 0.25) + '"/>' +
       '</g></svg>';
-    return s + '<div class="finale' + (S.a3.open ? ' on' : '') + '" id="finale"><b>Іспит здано.<br>Ласкаво просимо до кабінету студента!</b><a class="btn" href="../">Увійти до кабінету</a></div>';
+    return s + '<div class="finale' + (S.a3.open ? ' on' : '') + '" id="finale"><b>Іспит здано.<br>Ласкаво просимо до кабінету студента!</b><p id="res"></p><a class="btn" href="../">Увійти до кабінету</a></div>';
   }
   function act3Click(h) {
     if (h === 'keyhole') {
@@ -481,11 +506,11 @@ h1 { font: 800 clamp(20px, 3vw, 28px)/1.1 'Manrope', sans-serif; margin: 0; lett
       say('Маховик крутиться, стрілки манометрів повзуть угору…');
       ['n1', 'n2', 'n3'].forEach(function (id, i) { var n = document.getElementById(id); if (n) setTimeout(function () { n.style.transform = 'rotate(' + (60 + i * 15) + 'deg)'; }, 200 + i * 300); });
       setTimeout(function () {
-        S.a3.open = true;
-        var used = stopTimer(); if (used != null) { var fb = $('#finale b'); fb.innerHTML += '<small style="display:block;font:500 15px Roboto,sans-serif;margin-top:8px">Ваш час: ' + mmss(used) + '</small>'; }
+        S.a3.open = true; stopTimer();
+        var rp = document.getElementById('res'); if (rp) rp.textContent = finalSec > LIMIT ? 'Час вийшов: 0 балів з 100 (' + mmss(finalSec) + ')' : 'Ваш результат: ' + pts(finalSec) + ' балів зі 100 за ' + mmss(finalSec);
         $('#door3').classList.add('open'); $('#finale').classList.add('on');
         try { localStorage.setItem('mech-game-done', '1'); } catch (e) {}
-        say('Двері повільно відчиняються. Яскраве світло.');
+        say(finalSec > LIMIT ? 'Двері відчиняються, але час уже вийшов.' : 'Двері повільно відчиняються. Яскраве світло.');
         var rect = $('#door3').querySelector('rect'); if (rect) rect.setAttribute('opacity', '1');
         $('#mech3').setAttribute('opacity', '0');
       }, 2700);
@@ -496,26 +521,6 @@ h1 { font: 800 clamp(20px, 3vw, 28px)/1.1 'Manrope', sans-serif; margin: 0; lett
     setTimeout(function () { ['n1', 'n2', 'n3'].forEach(function (id, i) { var el = document.getElementById(id); if (el) el.style.transform = 'rotate(' + (-110 + n * 40 + i * 6) + 'deg)'; }); }, 60);
   }
 
-
-  /* ---------- таймер: 20 хвилин ---------- */
-  var LIMIT = 20 * 60, T0 = Date.now(), tmr = null, stopped = false;
-  function mmss(n) { n = Math.max(0, n); var m = Math.floor(n / 60), s = n % 60; return (m < 10 ? '0' : '') + m + ':' + (s < 10 ? '0' : '') + s; }
-  function tick() {
-    var left = LIMIT - Math.floor((Date.now() - T0) / 1000), el = $('#timer');
-    el.textContent = mmss(left); el.classList.toggle('low', left <= 120);
-    if (left <= 0 && !stopped) {
-      stopped = true; clearInterval(tmr); closeModal();
-      var o = document.createElement('div'); o.className = 'over';
-      o.innerHTML = '<div><b>Час вийшов</b><p>Двері так і не відчинилися. Спробуйте ще раз з початку.</p><button type="button" class="btn" id="again">Почати знову</button></div>';
-      document.querySelector('.stage-box').appendChild(o);
-      o.querySelector('#again').addEventListener('click', function () { location.href = location.pathname; });
-    }
-  }
-  function stopTimer() {
-    if (stopped) return null; stopped = true; clearInterval(tmr);
-    var used = Math.floor((Date.now() - T0) / 1000); $('#timer').textContent = mmss(used); $('#timer').classList.remove('low'); return used;
-  }
-  tmr = setInterval(tick, 1000); tick();
 
   /* ---------- керування ---------- */
   function renderScene() {
