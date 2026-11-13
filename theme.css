@@ -67,3 +67,10 @@ html.themed .greet { color: var(--t-fg) !important; }
 html.themed .lb-row .lb-rank, html.themed .lb-row.p1 .lb-rank, html.themed .lb-row.p2 .lb-rank, html.themed .lb-row.p3 .lb-rank { color: var(--t-fg); }
 html.themed .lb-row .lb-rank { color: var(--t-low); }
 html.themed .lb-row.p1 .lb-rank, html.themed .lb-row.p2 .lb-rank, html.themed .lb-row.p3 .lb-rank { color: var(--t-fg); }
+html.themed .adm-table button { color: var(--t-fg); }
+html.themed .tk-badge { color: var(--t-fg); }
+html.themed .tk-badge.ok { color: var(--ok); background: transparent; }
+html.themed .adm-table .blocked td { color: var(--t-low); }
+html.themed .adm-table select, html.themed .owner-bar select { background: var(--t-bg); color: var(--t-fg); }
+/* посилання в шапці з фото завжди світлі */
+header a, header a:hover { color: #fff !important; }
