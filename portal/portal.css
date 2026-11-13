@@ -456,3 +456,13 @@ header p { color: rgba(255,255,255,.92); }
 .pd-col.me .pd-block { background-color: #000; color: #fff; }
 .pd-col.me .pd-name { color: #000; text-decoration-color: #000; }
 .rt-pts, .pd-pts, .rt-name { color: #000; }
+
+
+/* Завдання: великі рядки з номером */
+.tk-list { gap: 0; border-top: 1px solid #000; counter-reset: tk; margin-top: 18px; }
+.tk-list li { counter-increment: tk; }
+.tk-card { counter-increment: none; font-size: 18px; }
+.tk-card::before { content: "Nr. " counter(tk, decimal-leading-zero); font: 500 12px/1 var(--font-body); letter-spacing: .12em; text-transform: uppercase; color: #919191; min-width: 68px; }
+.tk-card { justify-content: flex-start; gap: 18px; }
+.tk-card .tk-badge { margin-left: auto; }
+.tk-card::after { content: "\2192"; color: #000; }
