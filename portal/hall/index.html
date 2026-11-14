@@ -1110,7 +1110,7 @@ function drawPreview(cv, o) {
 
 function openWardrobe() {
   var html = '<h3>Шафа: ваш вигляд</h3><div class="row" style="align-items:flex-start;gap:14px"><canvas id="avp" width="140" height="210" style="border:1px solid #6d5a3c;width:140px;height:210px;max-width:140px;flex:none"></canvas><div style="flex:1;min-width:190px">' +
-    '<p class="muted" style="margin:0 0 4px">Стать</p><div><button id="avm" type="button">Чоловік</button><button id="avf" type="button">Жінка</button></div>' +
+    '<p class="muted" style="margin:0 0 4px">Стать</p><div><button id="avm" type="button">Хлопчик</button><button id="avf" type="button">Дівчинка</button></div>' +
     '<p class="muted" style="margin:10px 0 4px">Колір одягу</p><div id="avc"></div><p class="muted" style="margin:10px 0 4px">Колір волосся</p><div id="avh"></div></div></div><button class="main" id="avok" type="button" style="margin-top:14px">Готово</button>';
   var b = modal(html); var pv = b.querySelector('#avp');
   function sw(cont, arr, key) {
