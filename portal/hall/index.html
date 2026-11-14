@@ -1619,7 +1619,7 @@ function console_(loc, wi, lx, w) {
     Object.keys(st.S).forEach(function (k) { if (k !== 'ans') delete st.S[k]; });
     Object.keys(o.S).forEach(function (k) { st.S[k] = o.S[k]; });
     st.checked = !!o.c; st.ok = !!o.ok; st.anim = o.an || null; st.sig = st.anim ? sigOf(st.S) : null;
-    build3D(st); if (curSt === st) { var m = $('modal'); if (m && m.style.display !== 'none' && m.style.display !== '' && $('pc')) { try { if (st.kind === 'beam') { B = st.S; drawBeam($('pc'), B); } else { R = st.S; drawRods($('pc'), R); } } catch (e) {} } }
+    st.built = stPack(st); build3D(st); if (curSt === st) { var m = $('modal'); if (m && m.style.display !== 'none' && m.style.display !== '' && $('pc')) { try { if (st.kind === 'beam') { B = st.S; drawBeam($('pc'), B); } else { R = st.S; drawRods($('pc'), R); } } catch (e) {} } }
   }
   function psStart() {
     var f = window.__fb; if (!f || !f.db || psInit) return; psInit = true;
@@ -1636,6 +1636,7 @@ function console_(loc, wi, lx, w) {
     });
   }
   updaters.push(function (s) {
+    STS.forEach(function (st) { if (st.loc !== cur) return; var q = stPack(st); if (st.built !== q) { st.built = q; if (st.built0) build3D(st); st.built0 = true; } });
     psStart(); var f = window.__fb; if (!f || !psInit || s - psLast < 0.35) return; psLast = s;
     STS.forEach(function (st) {
       if (st.loc !== cur) return; var p = stPack(st); if (p === st.last) return; st.last = p;
