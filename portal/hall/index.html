@@ -2286,14 +2286,17 @@ var RB = (function () {
   function pickVoice() {
     try {
       var vs = window.speechSynthesis ? window.speechSynthesis.getVoices() : []; if (!vs.length) return null;
-      var uk = vs.filter(function (v) { return /^uk/i.test(v.lang); }); return uk[0] || null;
+      var uk = vs.filter(function (v) { return /^uk([-_]|$)/i.test(v.lang || '') || /ukrain|україн|український|ukr/i.test(v.name || ''); }); uk.sort(function (a, b) { return (/google|natural|online/i.test(b.name) ? 1 : 0) - (/google|natural|online/i.test(a.name) ? 1 : 0); }); return uk[0] || null;
     } catch (e) { return null; }
   }
   if (window.speechSynthesis) { try { window.speechSynthesis.onvoiceschanged = function () { voice = pickVoice(); }; voice = pickVoice(); } catch (e) { /* ігноруємо */ } }
+  var warned = false;
+  function noVoice() { if (warned) return; warned = true; try { toast('На цьому пристрої немає українського голосу: лекція йде лише субтитрами. Додайте українську мову в налаштуваннях голосу пристрою.', 7000); } catch (e) { /* ігноруємо */ } }
   function say(text, onend, onerr) {
     if (!window.speechSynthesis) { if (onerr) onerr('none'); return; }
     try {
-      window.speechSynthesis.cancel(); var u = new SpeechSynthesisUtterance(text); u.lang = 'uk-UA'; if (voice || (voice = pickVoice())) u.voice = voice;
+      if (!voice) voice = pickVoice(); if (!voice) { noVoice(); if (onend) setTimeout(onend, Math.min(9000, 1500 + text.length * 55)); return; }
+      window.speechSynthesis.cancel(); var u = new SpeechSynthesisUtterance(text); u.lang = voice.lang || 'uk-UA'; u.voice = voice;
       u.pitch = 0.7; u.rate = 0.93; u.volume = 1;
       u.onend = function () { if (onend) onend(); }; u.onerror = function (e) { if (e && e.error === 'canceled' || e && e.error === 'interrupted') return; if (onerr) onerr(e && e.error || 'err'); };
       window.speechSynthesis.speak(u);
