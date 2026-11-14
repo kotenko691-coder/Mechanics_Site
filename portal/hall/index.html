@@ -2054,7 +2054,7 @@ var VP = (function () {
     var s = document.createElement('script'); s.src = 'https://www.youtube.com/iframe_api'; document.head.appendChild(s);
     window.onYouTubeIframeAPIReady = function () { waitYT.splice(0).forEach(function (f) { f(); }); };
   }
-  var vtv = null, poppedOut = false, scrPl = {}, layoutOn = false;
+  var vw = 640, vh = 360, evRef = null, evCb = null, vtv = null, poppedOut = false, scrPl = {}, layoutOn = false;
   function build() {
     if (box) return;
     vtv = document.createElement('div'); vtv.id = 'vtv'; vtv.style.cssText = 'position:fixed;left:0;top:0;width:640px;height:360px;z-index:5;background:#000;display:none;transform-origin:0 0;overflow:hidden;clip-path:inset(0)';
@@ -2104,8 +2104,8 @@ var VP = (function () {
     if (keep && bestPl !== lastPl && keep.sc < bestD + 90) { best = keep.pts; bestA = keep.ar; bestPl = lastPl; }
     lastPl = bestPl;
     if (!best || bestA < 4000) { vtv.style.opacity = 0; vtv.style.pointerEvents = 'none'; return; }
-    var tr = homog(640, 360, best); if (!tr) { vtv.style.opacity = 0; return; }
-    vtv.style.width = '640px'; vtv.style.height = '360px'; vtv.style.transform = tr; vtv.style.pointerEvents = 'none'; vtv.style.opacity = 1; vtv.style.display = 'block';
+    var tr = homog(vw, vh, best); if (!tr) { vtv.style.opacity = 0; return; }
+    vtv.style.width = vw + 'px'; vtv.style.height = vh + 'px'; vtv.style.transform = tr; vtv.style.pointerEvents = 'none'; vtv.style.opacity = 1; vtv.style.display = 'block';
   }
   var ro = null;
   function reopen(on) {
@@ -2113,7 +2113,7 @@ var VP = (function () {
     ro.style.display = on ? 'block' : 'none';
   }
   function destroy() {
-    clearInterval(loop); loop = null; if (pbig) pbig.style.display = 'none'; try { if (ytP && ytP.destroy) ytP.destroy(); } catch (e) { /* ігноруємо */ } ytP = null; ytReady = false; shown = '';
+    clearInterval(loop); loop = null; if (evRef && evCb) { try { evRef.off('value', evCb); } catch (e) { /* ігноруємо */ } } evRef = null; evCb = null; lpIfr = null; lpSend = null; if (pbig) pbig.style.display = 'none'; try { if (ytP && ytP.destroy) ytP.destroy(); } catch (e) { /* ігноруємо */ } ytP = null; ytReady = false; shown = '';
     if (vtv) { var f = vtv.querySelector('#vpf'); f.innerHTML = ''; var n = document.createElement('div'); n.id = 'vpf'; n.style.cssText = 'position:absolute;inset:0'; f.parentNode.replaceChild(n, f); }
   }
   function ytCmd(f, a) { try { var ifr = ytP && ytP.getIframe && ytP.getIframe(); if (ifr && ifr.contentWindow) ifr.contentWindow.postMessage(JSON.stringify({ event: 'command', func: f, args: a || [] }), '*'); } catch (e) { /* ігноруємо */ } }
@@ -2123,9 +2123,55 @@ var VP = (function () {
     try { if (muted) { if (ytP.mute) ytP.mute(); } else if (ytP.unMute) ytP.unMute(); } catch (e) { /* ігноруємо */ }
     ytCmd('setVolume', [vol]); ytCmd(muted ? 'mute' : 'unMute');
   }
+
+  /* ---------- тема з сайту на екрані ТВ (конспект або презентація), керує викладач ---------- */
+  var lpIfr = null, lpSend = null;
+  function lpDoc() { try { return lpIfr && lpIfr.contentDocument; } catch (e) { return null; } }
+  function lpApply(o) {
+    var d = lpDoc(), w = lpIfr && lpIfr.contentWindow; if (!d || !w) return;
+    try {
+      if (o.e === 'k') {
+        ['keydown', 'keyup'].forEach(function (tp) { var ev = new w.KeyboardEvent(tp, { key: o.key, code: o.code || o.key, bubbles: true, cancelable: true }); try { Object.defineProperty(ev, 'keyCode', { get: function () { return o.kc || 0; } }); Object.defineProperty(ev, 'which', { get: function () { return o.kc || 0; } }); } catch (e) { /* ігноруємо */ } (d.activeElement || d.body).dispatchEvent(ev); });
+      } else if (o.e === 's') {
+        var se = d.scrollingElement || d.documentElement; se.scrollTop = o.y * Math.max(0, se.scrollHeight - se.clientHeight);
+      } else if (o.e === 'c') {
+        var el = d.elementFromPoint(o.x * w.innerWidth, o.y * w.innerHeight); if (el) { el.dispatchEvent(new w.MouseEvent('click', { bubbles: true, cancelable: true, clientX: o.x * w.innerWidth, clientY: o.y * w.innerHeight, view: w })); }
+      }
+    } catch (e) { /* ігноруємо */ }
+  }
+  var KC = { ArrowLeft: 37, ArrowRight: 39, ArrowUp: 38, ArrowDown: 40, PageUp: 33, PageDown: 34, ' ': 32, Home: 36, End: 35 };
+  function lpKey(key) { var o = { e: 'k', key: key, code: key === ' ' ? 'Space' : key, kc: KC[key] || 0 }; lpApply(o); if (lpSend) lpSend(o); }
+  function lpScroll(dir) { var d = lpDoc(), w = lpIfr && lpIfr.contentWindow; if (!d || !w) return; var se = d.scrollingElement || d.documentElement; se.scrollTop += dir * w.innerHeight; lpSyncScroll(); }
+  function lpSyncScroll() { var d = lpDoc(); if (!d || !lpSend) return; var se = d.scrollingElement || d.documentElement, mx = se.scrollHeight - se.clientHeight; lpSend({ e: 's', y: mx > 0 ? se.scrollTop / mx : 0 }); }
+  function lpGet(lid) {
+    var NETx = window.parent && window.parent.PortalHall; if (!NETx || !NETx.lectureParts) return Promise.reject(new Error('no'));
+    return NETx.lectureParts(lid);
+  }
+  function mountLp(st, f, sig) {
+    var msg = document.createElement('div'); msg.style.cssText = 'position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#f2e2c0;font:34px Georgia,serif;background:#0b0907'; msg.textContent = 'Завантажуємо тему…'; f.appendChild(msg);
+    var parts = String(st.vid || '').split('|'), lid = parts[0], part = parts[1] || 'deck';
+    lpGet(lid).then(function (r) {
+      if (shown !== sig) return; var html = part === 'notes' ? r.notes : r.deck; if (!html) { msg.textContent = 'Цієї частини в темі немає.'; return; }
+      var ifr = document.createElement('iframe'); ifr.style.cssText = 'width:100%;height:100%;border:0;background:#fff'; ifr.setAttribute('sandbox', 'allow-scripts allow-same-origin'); lpIfr = ifr;
+      ifr.addEventListener('load', function () {
+        if (!ctl) return; var d = lpDoc(), w = ifr.contentWindow; if (!d) return;
+        d.addEventListener('keydown', function (e) { if (e.isTrusted) lpSend && lpSend({ e: 'k', key: e.key, code: e.code, kc: e.keyCode }); }, true);
+        d.addEventListener('scroll', function () { clearTimeout(lpSyncScroll.t); lpSyncScroll.t = setTimeout(lpSyncScroll, 180); }, true);
+        d.addEventListener('click', function (e) { if (e.isTrusted && w.innerWidth) lpSend && lpSend({ e: 'c', x: e.clientX / w.innerWidth, y: e.clientY / w.innerHeight }); }, true);
+      });
+      ifr.srcdoc = html; f.appendChild(ifr); msg.style.display = 'none';
+    }, function () { msg.textContent = 'Тема недоступна для вашої групи.'; });
+    var fx = fbx(); if (!fx) return; var n = 0, t0 = Date.now(); evRef = fx.db.ref('tv/' + st.room + '_ev');
+    if (ctl) { lpSend = function (o) { n++; evRef.set({ d: 'e', ev: JSON.stringify(o), t: Date.now(), n: n }).catch(function () {}); }; }
+    else { evCb = function (sn) { var v = sn.val(); if (!v || !v.ev || v.t < t0 - 1500) return; try { lpApply(JSON.parse(v.ev)); } catch (e) { /* ігноруємо */ } }; evRef.on('value', evCb); }
+  }
   function controls(st) {
     var c = box.querySelector('#vpc'); c.innerHTML = '';
-    if (st.k === 'yt') {
+    if (st.k === 'lp') {
+      function mkb(t, fn) { var b = document.createElement('button'); b.type = 'button'; b.textContent = t; b.style.cssText = 'padding:5px 9px;font:13px Georgia,serif;background:#241a10;color:#f2e2c0;border:1px solid #8a7347;cursor:pointer'; b.addEventListener('click', fn); c.appendChild(b); }
+      if (st.by && ctl) { mkb('◀ Назад', function () { lpKey('ArrowLeft'); }); mkb('Далі ▶', function () { lpKey('ArrowRight'); }); mkb('▲', function () { lpScroll(-0.8); }); mkb('▼', function () { lpScroll(0.8); }); }
+      else { var tt = document.createElement('span'); tt.style.color = '#a89468'; tt.textContent = 'Слайди й прокручування керує викладач.'; c.appendChild(tt); }
+    } else if (st.k === 'yt') {
       var mb = document.createElement('button'); mb.type = 'button'; mb.textContent = muted ? 'Звук вимкнено' : 'Звук увімкнено'; mb.style.cssText = 'padding:5px 9px;font:13px Georgia,serif;background:#241a10;color:#f2e2c0;border:1px solid #8a7347;cursor:pointer';
       var rg = document.createElement('input'); rg.type = 'range'; rg.min = 0; rg.max = 100; rg.value = vol; rg.style.cssText = 'flex:1;min-width:60px';
       function apply() { applyVol(); setTimeout(applyVol, 250); mb.textContent = muted ? 'Звук вимкнено' : 'Звук увімкнено'; pc.textContent = (muted ? 0 : vol) + '%'; }
@@ -2170,6 +2216,8 @@ var VP = (function () {
     build(); var sig = st.room + st.vid + st.t; shown = sig; var f = vtv.querySelector('#vpf');
     box.querySelector('#vpt').textContent = st.ti + ' · показує ' + String(st.by || '').slice(0, 30);
     var fx = fbx(); ctl = !!(fx && st.u === fx.uid); controls(st); box.style.display = 'block'; vtv.style.display = 'block'; reopen(false); layout();
+    vw = st.k === 'lp' ? 1280 : 640; vh = st.k === 'lp' ? 720 : 360;
+    if (st.k === 'lp') { mountLp(st, f, sig); return; }
     if (st.k === 'gd') {
       if (!/^https:\/\/(drive|docs)\.google\.com\//.test(st.vid)) return;
       var ifr = document.createElement('iframe'); ifr.src = st.vid; ifr.setAttribute('allow', 'autoplay; fullscreen'); ifr.setAttribute('allowfullscreen', ''); ifr.style.cssText = 'width:100%;height:100%;border:0'; f.appendChild(ifr); return;
@@ -2358,6 +2406,34 @@ window.__vp = VP;
     if (!f) return; var r = f.db.ref('tv/' + KEY); r.onDisconnect().remove().catch(function () {}); r.set(rec).catch(function (e) { toast('Телевізор: ' + (e && e.code || 'помилка'), 4500); });
   }
   var lecSeen = 0;
+
+  function tvLecPart(lid, part, ttl) {
+    var f = fb(), who = NET && NET.who ? NET.who().name : 'Викладач', rec = { d: 'l', k: 'lp', lid: String(lid), vid: lid + '|' + part, ti: String(ttl).slice(0, 120), by: who, u: f ? f.uid : 'local', t: Date.now() };
+    myPages = null; myPdf = null; tvState = rec; lecSeen = rec.t; showTv(); VP.set(KEY, tvState);
+    if (!f) return; var r = f.db.ref('tv/' + KEY); r.onDisconnect().remove().catch(function () {}); r.set(rec).catch(function (e) { toast('Телевізор: ' + (e && e.code || 'помилка'), 4500); });
+  }
+  function partPicker(lid, ttl) {
+    var esc = function (t) { return String(t).replace(/[&<>"]/g, function (ch) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]; }); };
+    var bd = modal('<h3>' + esc(ttl) + '</h3><p class="muted">Завантажуємо частини теми…</p>');
+    NET.lectureParts(lid).then(function (p) {
+      if (!modalOpen) return;
+      var h = '<h3>' + esc(ttl) + '</h3><p class="muted">Що вивести на телевізор:</p>';
+      if (p.notes) h += '<button type="button" data-p="notes" style="display:block;width:100%;text-align:left;margin:4px 0">Конспект</button>';
+      if (p.deck) h += '<button type="button" data-p="deck" style="display:block;width:100%;text-align:left;margin:4px 0">Презентація</button>';
+      if (p.pdf) h += '<button type="button" data-p="pdf" style="display:block;width:100%;text-align:left;margin:4px 0">PDF</button>';
+      h += '<button type="button" data-p="all" style="display:block;width:100%;text-align:left;margin:10px 0 4px">Відкрити в усіх окремим вікном</button>';
+      var b2 = modal(h);
+      b2.addEventListener('click', function (e) {
+        var t = e.target.closest('button[data-p]'); if (!t) return; var k = t.getAttribute('data-p'); closeModal();
+        if (k === 'notes' || k === 'deck') tvLecPart(lid, k, ttl);
+        else if (k === 'pdf') {
+          toast('Готуємо PDF…', 4000);
+          try { var bin = atob(p.pdf), by = new Uint8Array(bin.length); for (var i = 0; i < bin.length; i++) by[i] = bin.charCodeAt(i); } catch (er) { toast('Не вдалося прочитати PDF.'); return; }
+          loadPdfJs().then(function () { return window.pdfjsLib.getDocument({ data: by }).promise; }).then(function (doc) { myPdf = doc; myPages = new Array(Math.min(doc.numPages, 60)); gotoPage(0); }).catch(function () { toast('Не вдалося відкрити PDF.', 4500); });
+        } else { tvLecture(lid, ttl); if (NET.openLecture) NET.openLecture(lid); }
+      });
+    }, function () { if (modalOpen) modal('<h3>' + esc(ttl) + '</h3><p class="muted">Тема недоступна для вашої групи.</p>'); });
+  }
   function lecPicker() {
     if (!(NET && NET.lectures)) { toast('Теми доступні, коли хол відкрито з кабінету.', 4200); return; }
     modal('<h3>Тема на телевізор</h3><p class="muted">Завантажуємо список…</p>');
@@ -2369,7 +2445,7 @@ window.__vp = VP;
         ['lec', 'prac', 'extra'].forEach(function (sec) { var ls = list.filter(function (i) { return i.section === sec && (!fl || i.title.toLowerCase().indexOf(fl) >= 0); }); if (!ls.length) return; any = true; out += '<p class="muted" style="margin:10px 0 4px">' + NM[sec] + '</p>'; ls.forEach(function (i) { out += '<button type="button" data-id="' + esc(i.id) + '" data-t="' + esc(i.title) + '" style="display:block;width:100%;text-align:left;margin:3px 0">' + esc(i.title) + '</button>'; }); });
         box.innerHTML = any ? out : '<p class="muted">' + (list.length ? 'Нічого не знайдено.' : 'Тем поки немає.') + '</p>'; }
       draw(); q.addEventListener('input', draw);
-      box.addEventListener('click', function (e) { var t = e.target.closest('button[data-id]'); if (!t) return; closeModal(); tvLecture(t.getAttribute('data-id'), t.getAttribute('data-t')); if (NET.openLecture) NET.openLecture(t.getAttribute('data-id')); });
+      box.addEventListener('click', function (e) { var t = e.target.closest('button[data-id]'); if (!t) return; var lid = t.getAttribute('data-id'), ttl = t.getAttribute('data-t'); partPicker(lid, ttl); });
     }, function () { if (modalOpen) modal('<h3>Тема на телевізор</h3><p class="muted">Не вдалося завантажити список.</p>'); });
   }
   function tvOff() { tvState = null; myPages = null; myPdf = null; showTv(); VP.set(KEY, null); var f = fb(); if (f) f.db.ref('tv/' + KEY).remove().catch(function () {}); }
@@ -2425,10 +2501,11 @@ window.__vp = VP;
     var f = fb(), me = f ? f.uid : 'local', own = tvState && tvState.u === me, tch = isTeacher();
     var h = '<h3>' + (SEP ? 'Телевізор' : 'Дошка і телевізор') + '</h3>';
     if (tvState) {
-      if (tvState.d === 'l') h += '<p class="muted">Показує тему: ' + String(tvState.ti || '').replace(/</g, '') + ' · ' + String(tvState.by).replace(/</g, '') + '.</p><button type="button" id="lpo">Відкрити тему</button> ';
+      if (tvState.k === 'lp') h += '<p class="muted">На екрані: ' + String(tvState.ti || '').replace(/</g, '') + ' (' + (/\|notes$/.test(tvState.vid || '') ? 'конспект' : 'презентація') + ') · ' + String(tvState.by).replace(/</g, '') + '.</p>';
+      else if (tvState.d === 'l') h += '<p class="muted">Показує тему: ' + String(tvState.ti || '').replace(/</g, '') + ' · ' + String(tvState.by).replace(/</g, '') + '.</p><button type="button" id="lpo">Відкрити тему</button> ';
       else if (!tvState.k) h += '<img id="tvimg" alt="" style="width:100%;border:1px solid #6d5a3c;background:#000">' +
         '<p class="muted">Показує: ' + String(tvState.by).replace(/</g, '') + (tvState.n > 1 ? ' · сторінка ' + tvState.i + ' із ' + tvState.n : '') + '</p>';
-      if (tvState.k) h += '<p class="muted">Показує відео: ' + String(tvState.ti || '').replace(/</g, '') + ' · ' + String(tvState.by).replace(/</g, '') + '. Воно відкрито у вікні відео.</p>';
+      if (tvState.k && tvState.k !== 'lp') h += '<p class="muted">Показує відео: ' + String(tvState.ti || '').replace(/</g, '') + ' · ' + String(tvState.by).replace(/</g, '') + '. Воно відкрито у вікні відео.</p>';
       if (own && tvState.n > 1) h += '<button id="tvp" type="button">← Назад</button><button id="tvn" type="button">Далі →</button> ';
       if (own || tch) h += '<button id="tvoff" type="button">Вимкнути телевізор</button> ';
       h += '<button id="pf" type="button">Показати інший файл</button>';
@@ -2461,7 +2538,7 @@ window.__vp = VP;
   function wire() {
     var f = fb(); if (!f || wired) return; wired = true;
     f.db.ref('board/' + KEY + '/' + f.uid).onDisconnect().remove().catch(function () {});
-    f.db.ref('tv/' + KEY).on('value', function (s) { var v = s.val(); tvState = v && v.d ? v : null; VP.set(KEY, tvState); if (tvState && tvState.d === 'l' && tvState.t !== lecSeen) { lecSeen = tvState.t; if (tvState.u !== f.uid && cur === MEET && Date.now() + (window.__srvOff || 0) - tvState.t < 45000 && NET && NET.openLecture) { toast('На телевізорі тема: ' + String(tvState.ti || ''), 3500); NET.openLecture(tvState.lid); } } if (!(tvState && myPages && tvState.u === f.uid)) { if (!tvState) { myPages = null; myPdf = null; } } showTv(); }, function () {});
+    f.db.ref('tv/' + KEY).on('value', function (s) { var v = s.val(); tvState = v && v.d ? v : null; VP.set(KEY, tvState); if (tvState && tvState.d === 'l' && !tvState.k && tvState.t !== lecSeen) { lecSeen = tvState.t; if (tvState.u !== f.uid && cur === MEET && Date.now() + (window.__srvOff || 0) - tvState.t < 45000 && NET && NET.openLecture) { toast('На телевізорі тема: ' + String(tvState.ti || ''), 3500); NET.openLecture(tvState.lid); } } if (!(tvState && myPages && tvState.u === f.uid)) { if (!tvState) { myPages = null; myPdf = null; } } showTv(); }, function () {});
     f.db.ref('board/' + KEY).on('value', function (snap) {
       var r = []; snap.forEach(function (u) { if (u.key === f.uid) return; u.forEach(function (st) { var v = st.val(); if (v && v.c && v.p) r.push({ c: String(v.c).slice(0, 9), w: +v.w || 4, p: dec(v.p) }); }); });
       remote = r; renderAll();

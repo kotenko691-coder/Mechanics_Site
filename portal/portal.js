@@ -958,6 +958,15 @@
       if (items && items.length) return Promise.resolve(strip(items));
       return api('lectures', { group: viewGroup }, true).then(function (r) { items = r.items || []; return strip(items); });
     },
+    // частини теми для телевізора: {notes, deck, pdf(base64)}
+    lectureParts: function (id) {
+      var it = null; items.forEach(function (i) { if (i.id === id) it = i; });
+      if (!it) return Promise.reject(new Error('no'));
+      return getLecture(it, true).then(function (r) {
+        if (r.kind === 'html') { var parts = comboParts(r.html); return parts ? { notes: parts.notes, deck: parts.deck, pdf: parts.pdf } : { notes: r.html, deck: '', pdf: '' }; }
+        return { notes: '', deck: '', pdf: r.base64 || '' };
+      });
+    },
     // відкрити конспект/презентацію/PDF теми поверх хола
     openLecture: function (id) {
       var it = null; items.forEach(function (i) { if (i.id === id) it = i; });
@@ -998,7 +1007,7 @@
       document.body.appendChild(ov);
     }
     ov.hidden = false; ov.style.display = 'block';
-    document.getElementById('hall-frame').src = 'hall/?v=19';
+    document.getElementById('hall-frame').src = 'hall/?v=20';
     // повний екран: запит іде з кліку студента; там, де браузер не дозволяє (iPhone), хол і так займає весь екран
     try { var rq = ov.requestFullscreen || ov.webkitRequestFullscreen; if (rq) { var pr = rq.call(ov); if (pr && pr.catch) pr.catch(function () {}); } } catch (e) { /* ігноруємо */ }
   }
