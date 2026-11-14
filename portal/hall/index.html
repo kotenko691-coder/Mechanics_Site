@@ -1452,7 +1452,7 @@ if (window.__hall) { window.__hall.sit = sitDown; window.__hall.meetCheck = meet
   function makeGhost(id, d) {
     var g = makeFigure({ s: d.s, c: d.c == null ? (id.charCodeAt(0) + id.charCodeAt(id.length - 1)) % SHIRTS.length : d.c, h: d.h == null ? id.charCodeAt(1) % HAIRS.length : d.h });
     var sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: labelTex(d.n, d.g || ''), transparent: true, depthTest: false })); sp.scale.set(0.75, 0.1875, 1); sp.position.y = 2.05; sp.renderOrder = 10; g.add(sp);
-    Object.assign(g.userData, { e: d.e | 0, tx: d.x, tz: d.z, ty: d.y, name: d.n, sub: d.g || '', key: [d.s, d.c, d.h, d.l].join(), ph: 0, amp: 0 });
+    Object.assign(g.userData, { loc: d.l || 'hall', e: d.e | 0, tx: d.x, tz: d.z, ty: d.y, name: d.n, sub: d.g || '', key: [d.s, d.c, d.h, d.l].join(), ph: 0, amp: 0 });
     g.position.set(d.x, 0, d.z); g.rotation.y = d.y; (LOC[d.l] || HALL).group.add(g); return g;
   }
   function logMsg(who, text, mine) {
@@ -1468,14 +1468,14 @@ if (window.__hall) { window.__hall.sit = sitDown; window.__hall.meetCheck = meet
       if (!d || now - d.t > 25000) return; seen[id] = 1;
       var g = ghosts[id];
       if (!g || g.userData.name !== d.n || g.userData.sub !== (d.g || '') || g.userData.key !== [d.s, d.c, d.h, d.l].join()) { if (g && g.parent) g.parent.remove(g); if (Object.keys(ghosts).length > 40) return; g = ghosts[id] = makeGhost(id, d); }
-      g.userData.tx = d.x; g.userData.tz = d.z; g.userData.ty = d.y; g.userData.e = d.e | 0;
+      g.userData.tx = d.x; g.userData.tz = d.z; g.userData.ty = d.y; g.userData.e = d.e | 0; g.userData.mic = d.v | 0;
       if (d.m && d.mt && d.mt > (seenMt[id] || 0)) { if (seenMt[id] !== undefined || now - d.mt < 20000) { say(g, String(d.m)); logMsg(d.n, String(d.m)); } seenMt[id] = d.mt; } else if (seenMt[id] === undefined) seenMt[id] = d.mt || 0;
     });
     Object.keys(ghosts).forEach(function (id) { if (!seen[id]) { if (ghosts[id].parent) ghosts[id].parent.remove(ghosts[id]); delete ghosts[id]; } });
   }
   function angDiff(a, b) { var d = (b - a) % (2 * Math.PI); if (d > Math.PI) d -= 2 * Math.PI; if (d < -Math.PI) d += 2 * Math.PI; return d; }
 
-  window.__pres = { onData: onData };
+  window.__pres = { onData: onData, ghosts: ghosts };
   window.__seatTaken = function (x, z) { return Object.keys(ghosts).some(function (id) { var u = ghosts[id].userData; return u.e === 4 && Math.hypot(ghosts[id].position.x - x, ghosts[id].position.z - z) < 0.5; }); };
   Promise.all([load(V + 'firebase-app-compat.js'), load(V + 'firebase-auth-compat.js'), load(V + 'firebase-database-compat.js')]).then(function () {
     firebase.initializeApp(FB);
@@ -1494,7 +1494,7 @@ if (window.__hall) { window.__hall.sit = sitDown; window.__hall.meetCheck = meet
       var p = camera.position, nowMs = Date.now(), moved = Math.abs(p.x - last.x) > 0.05 || Math.abs(p.z - last.z) > 0.05 || Math.abs(yaw - last.y) > 0.08;
       if (!force && !moved && nowMs - lastSent < 8000) return;
       lastSent = nowMs; last = { x: p.x, z: p.z, y: yaw };
-      var rec = { n: w.name, g: w.group, s: AV.s, c: AV.c, h: AV.h, e: EMO, l: cur.id, x: Math.round(p.x * 100) / 100, z: Math.round(p.z * 100) / 100, y: Math.round(yaw * 100) / 100, t: firebase.database.ServerValue.TIMESTAMP };
+      var rec = { n: w.name, g: w.group, s: AV.s, c: AV.c, h: AV.h, e: EMO, l: cur.id, v: (window.__micOn ? 1 : 0), x: Math.round(p.x * 100) / 100, z: Math.round(p.z * 100) / 100, y: Math.round(yaw * 100) / 100, t: firebase.database.ServerValue.TIMESTAMP };
       if (me.m && Date.now() + offset - me.mt < 30000) { rec.m = me.m; rec.mt = me.mt; }
       myRef.set(rec).catch(function (e) { if (!window.__perr) { window.__perr = 1; toast('Присутність: ' + (e && e.code || e), 6000); } });
     }
@@ -1531,6 +1531,193 @@ if (window.__hall) { window.__hall.sit = sitDown; window.__hall.meetCheck = meet
       });
     });
   }).catch(function (e) { toast('Присутність недоступна: ' + (e && (e.code || e.message) || e), 7000); });
+})();
+
+
+/* ====== ДОШКА ПЕРЕГОВОРНОЇ І ГОЛОСОВИЙ ЧАТ ====== */
+/* Дошка: малюнки бачать усі в переговорній. Малюнок живе в базі, поки автор у грі; потім зникає.
+   Голос: прямий зв'язок між учасниками одного кабінету (WebRTC), база лише передає службові повідомлення. */
+(function () {
+  var BW = 1500, BH = 600, BG = '#f4f1e8';
+  var master = document.createElement('canvas'); master.width = BW; master.height = BH; var mx = master.getContext('2d');
+  var btex = new THREE.CanvasTexture(master); btex.anisotropy = 4;
+  var mine = [], remote = [], cur_ = null, ovCtx = null, ovCanvas = null;
+  function fb() { return window.__fb || null; }
+
+  function enc(pts) { return pts.map(function (q) { return Math.round(q[0] * 10000) + ',' + Math.round(q[1] * 10000); }).join(';'); }
+  function dec(s) { return String(s || '').split(';').map(function (t) { var a = t.split(','); return [(+a[0]) / 10000, (+a[1]) / 10000]; }).filter(function (q) { return isFinite(q[0]) && isFinite(q[1]); }); }
+  function drawStroke(x, s) {
+    var p = s.p; if (!p.length) return;
+    x.strokeStyle = s.c; x.fillStyle = s.c; x.lineWidth = Math.max(1, s.w * BW / 1000); x.lineCap = 'round'; x.lineJoin = 'round';
+    if (p.length === 1) { x.beginPath(); x.arc(p[0][0] * BW, p[0][1] * BH, x.lineWidth / 2, 0, 6.2832); x.fill(); return; }
+    x.beginPath(); x.moveTo(p[0][0] * BW, p[0][1] * BH);
+    for (var i = 1; i < p.length; i++) x.lineTo(p[i][0] * BW, p[i][1] * BH);
+    x.stroke();
+  }
+  function renderAll() {
+    mx.fillStyle = BG; mx.fillRect(0, 0, BW, BH);
+    mx.fillStyle = '#c8c3b4'; mx.font = '28px Georgia'; mx.textAlign = 'left'; if (!mine.length && !remote.length) mx.fillText('Дошка. Торкніться, щоб малювати.', 40, 60);
+    remote.forEach(function (s) { drawStroke(mx, s); }); mine.forEach(function (s) { drawStroke(mx, s); });
+    btex.needsUpdate = true; if (ovCtx) { ovCtx.drawImage(master, 0, 0); if (cur_) drawStroke(ovCtx, cur_); }
+  }
+  renderAll();
+
+  /* дошка у 3D */
+  var bg = wallAt(MEET, 0, 0, 1.95);
+  box(6.5, 2.7, 0.08, M.darkwood, 0, 0, 0.04, bg); box(6.3, 2.5, 0.03, M.steel, 0, 0, 0.07, bg);
+  var plane = new THREE.Mesh(new THREE.PlaneGeometry(6.0, 2.4), new THREE.MeshBasicMaterial({ map: btex, color: 0xe6e2d6 })); plane.position.z = 0.09; bg.add(plane);
+  box(6.2, 0.06, 0.12, M.steel, 0, -1.3, 0.12, bg);
+  act(plane, 'Дошка: малювати', openBoard, { reach: 6.5 });
+
+  /* повноекранне вікно малювання: усе поза дошкою заблоковано */
+  var COLS = ['#111111', '#1f4fd8', '#c62828', '#2e7d32', '#e08a00'], color = COLS[0], width = 4, eraser = false, penSeen = false, drawing = null;
+  var ov = document.createElement('div'); ov.id = 'wb';
+  ov.style.cssText = 'position:fixed;inset:0;z-index:60;background:#0c0a08;display:none;flex-direction:column;align-items:center;touch-action:none;-webkit-user-select:none;user-select:none';
+  ov.innerHTML = '<div id="wbbar" style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;justify-content:center;padding:8px;width:100%"></div><div style="flex:1;display:flex;align-items:center;justify-content:center;width:100%;overflow:hidden"><canvas id="wbc" width="' + BW + '" height="' + BH + '" style="background:' + BG + ';touch-action:none;box-shadow:0 0 0 3px #8a7347"></canvas></div><div style="color:#a89468;font-size:13px;padding:6px 10px;text-align:center">Малюйте пальцем або стилусом. Решта екрана зараз не реагує на дотики.</div>';
+  document.body.appendChild(ov);
+  ovCanvas = ov.querySelector('#wbc');
+  var bar = ov.querySelector('#wbbar');
+  function btn(label, fn, sel) { var b = document.createElement('button'); b.type = 'button'; b.textContent = label; b.style.cssText = 'padding:9px 12px;font-family:inherit;font-size:15px;background:#241a10;color:#e8d8b8;border:2px solid ' + (sel ? '#fff' : '#8a7347') + ';cursor:pointer'; b.addEventListener('click', fn); bar.appendChild(b); return b; }
+  function drawBar() {
+    bar.innerHTML = '';
+    COLS.forEach(function (c) { var b = btn('', function () { color = c; eraser = false; drawBar(); }, !eraser && color === c); b.style.background = c; b.style.width = '40px'; b.style.height = '40px'; });
+    btn('Тонко', function () { width = 3; drawBar(); }, width === 3); btn('Товсто', function () { width = 9; drawBar(); }, width === 9);
+    btn('Гумка', function () { eraser = !eraser; drawBar(); }, eraser);
+    btn('Стерти моє', clearMine);
+    if (isTeacher()) btn('Стерти все', clearAll);
+    btn('Закрити', closeBoard);
+  }
+  function layout() { var w = Math.min(innerWidth - 16, (innerHeight - 120) * BW / BH), h = w * BH / BW; ovCanvas.style.width = w + 'px'; ovCanvas.style.height = h + 'px'; }
+  function openBoard() {
+    if (busy || modalOpen) return;
+    if (!ovCtx) ovCtx = ovCanvas.getContext('2d');
+    modalOpen = true; modal.onClose = closeBoard; ov.style.display = 'flex'; drawBar(); layout(); renderAll();
+  }
+  function closeBoard() { ov.style.display = 'none'; modalOpen = false; modal.onClose = null; drawing = null; cur_ = null; }
+  addEventListener('resize', function () { if (ov.style.display !== 'none') layout(); });
+  function pt(e) { var r = ovCanvas.getBoundingClientRect(); return [Math.max(0, Math.min(1, (e.clientX - r.left) / r.width)), Math.max(0, Math.min(1, (e.clientY - r.top) / r.height))]; }
+  ovCanvas.addEventListener('pointerdown', function (e) {
+    if (e.pointerType === 'pen') penSeen = true; if (penSeen && e.pointerType === 'touch') return; // долоня не малює
+    e.preventDefault(); drawing = e.pointerId; ovCanvas.setPointerCapture(e.pointerId);
+    cur_ = { c: eraser ? BG : color, w: eraser ? 24 : width, p: [pt(e)] }; renderAll();
+  });
+  ovCanvas.addEventListener('pointermove', function (e) {
+    if (drawing !== e.pointerId || !cur_) return; e.preventDefault();
+    var evs = e.getCoalescedEvents ? e.getCoalescedEvents() : [e]; if (!evs.length) evs = [e];
+    evs.forEach(function (ev) { var q = pt(ev), l = cur_.p[cur_.p.length - 1]; if (Math.abs(q[0] - l[0]) + Math.abs(q[1] - l[1]) > 0.0015) cur_.p.push(q); });
+    renderAll();
+  });
+  function endStroke(e) {
+    if (drawing !== e.pointerId || !cur_) return; drawing = null;
+    var s = cur_; cur_ = null;
+    if (s.p.length > 400) { var k = Math.ceil(s.p.length / 400), r = []; s.p.forEach(function (q, i) { if (i % k === 0 || i === s.p.length - 1) r.push(q); }); s.p = r; }
+    mine.push(s); if (mine.length > 150) mine.shift(); renderAll(); push(s);
+  }
+  ovCanvas.addEventListener('pointerup', endStroke); ovCanvas.addEventListener('pointercancel', endStroke);
+  ov.addEventListener('pointerdown', function (e) { if (e.target === ov) e.preventDefault(); });
+  ov.addEventListener('touchmove', function (e) { e.preventDefault(); }, { passive: false });
+
+  var warned = false;
+  function fail(e) { if (!warned) { warned = true; toast('Дошка поки видна лише вам: ' + (e && e.code || 'немає доступу до бази'), 5000); } }
+  function push(s) { var f = fb(); if (!f) { fail(); return; } try { f.db.ref('board/meet/' + f.uid).push({ c: s.c, w: s.w, p: enc(s.p), t: Date.now() }).catch(fail); } catch (e) { fail(e); } }
+  function clearMine() { mine = []; renderAll(); var f = fb(); if (f) f.db.ref('board/meet/' + f.uid).remove().catch(fail); }
+  function clearAll() { mine = []; remote = []; renderAll(); var f = fb(); if (f) f.db.ref('board/meet').remove().catch(fail); }
+
+  var wired = false;
+  function wire() {
+    var f = fb(); if (!f || wired) return; wired = true;
+    f.db.ref('board/meet/' + f.uid).onDisconnect().remove().catch(function () {});
+    f.db.ref('board/meet').on('value', function (snap) {
+      var r = []; snap.forEach(function (u) { if (u.key === f.uid) return; u.forEach(function (st) { var v = st.val(); if (v && v.c && v.p) r.push({ c: String(v.c).slice(0, 9), w: +v.w || 4, p: dec(v.p) }); }); });
+      remote = r; renderAll();
+    }, function () {});
+  }
+  window.__wb = { mine: function () { return mine; }, openBoard: openBoard, renderAll: renderAll, setRemote: function (r) { remote = r; renderAll(); } };
+
+  /* ====== ГОЛОС ====== */
+  var VOICE = { meet: 1, prak: 1, arch: 1, build: 1, road: 1 };
+  var peers = {}, localStream = null, micOn = false, sigOn = false, ICE = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }, { urls: 'stun:stun1.l.google.com:19302' }] };
+  window.__micOn = false;
+  var micBtn = document.createElement('button'); micBtn.id = 'mic'; micBtn.type = 'button';
+  micBtn.style.cssText = 'position:fixed;right:12px;top:64px;z-index:6;display:none;padding:9px 12px;font-family:inherit;font-size:14px;background:rgba(36,26,16,.92);color:#f2e2c0;border:1px solid #8a7347;cursor:pointer';
+  document.body.appendChild(micBtn);
+  function micLabel() { micBtn.textContent = micOn ? 'Мікрофон: увімкнено' : 'Мікрофон: вимкнено'; micBtn.style.borderColor = micOn ? '#7ee08b' : '#8a7347'; }
+  micLabel();
+  function vloc() { return cur && VOICE[cur.id] ? cur.id : null; }
+  function send(to, type, data) { var f = fb(); if (!f) return; f.db.ref('rtc/' + to).push({ f: f.uid, t: type, d: JSON.stringify(data), ts: Date.now() }).catch(function () {}); }
+  function track() { return localStream && localStream.getAudioTracks()[0]; }
+  function attachMic(p) { var t = track(); if (t && p.tr && p.tr.sender) p.tr.sender.replaceTrack(t).catch(function () {}); }
+  function closePeer(id) {
+    var p = peers[id]; if (!p) return; delete peers[id];
+    try { p.pc.close(); } catch (e) {} if (p.el && p.el.parentNode) p.el.parentNode.removeChild(p.el);
+  }
+  function makePeer(id, initiator) {
+    if (peers[id]) return peers[id];
+    var pc = new RTCPeerConnection(ICE), p = peers[id] = { pc: pc, el: null, tr: null, pend: [], born: Date.now() };
+    pc.onicecandidate = function (e) { if (e.candidate) send(id, 'c', e.candidate); };
+    pc.ontrack = function (e) {
+      if (!p.el) { p.el = document.createElement('audio'); p.el.autoplay = true; p.el.style.display = 'none'; document.body.appendChild(p.el); }
+      p.el.srcObject = e.streams && e.streams[0] ? e.streams[0] : new MediaStream([e.track]); var pr = p.el.play(); if (pr && pr.catch) pr.catch(function () {});
+    };
+    pc.onconnectionstatechange = function () { if (pc.connectionState === 'failed' || pc.connectionState === 'closed') setTimeout(function () { if (peers[id] === p) closePeer(id); }, 2000); };
+    if (initiator) {
+      p.tr = pc.addTransceiver('audio', { direction: 'sendrecv' }); attachMic(p);
+      pc.createOffer().then(function (o) { return pc.setLocalDescription(o).then(function () { send(id, 'o', pc.localDescription); }); }).catch(function () {});
+    }
+    return p;
+  }
+  function flush(p) { while (p.pend.length) { p.pc.addIceCandidate(p.pend.shift()).catch(function () {}); } }
+  function onSignal(m) {
+    if (!m || !m.f || !vloc() || Date.now() - (m.ts || 0) > 60000) return;
+    var d; try { d = JSON.parse(m.d); } catch (e) { return; }
+    var p = peers[m.f];
+    if (m.t === 'o') {
+      if (p && p.pc.signalingState !== 'stable') return;
+      if (p) closePeer(m.f); p = makePeer(m.f, false);
+      p.pc.setRemoteDescription(d).then(function () {
+        var t = p.pc.getTransceivers()[0]; if (t) { t.direction = 'sendrecv'; p.tr = t; attachMic(p); }
+        return p.pc.createAnswer();
+      }).then(function (a) { return p.pc.setLocalDescription(a).then(function () { send(m.f, 'a', p.pc.localDescription); flush(p); }); }).catch(function () {});
+    } else if (m.t === 'a' && p) {
+      p.pc.setRemoteDescription(d).then(function () { flush(p); }).catch(function () {});
+    } else if (m.t === 'c' && p) {
+      if (p.pc.remoteDescription) p.pc.addIceCandidate(d).catch(function () {}); else p.pend.push(d);
+    }
+  }
+  function startSignals() {
+    var f = fb(); if (!f || sigOn || !window.RTCPeerConnection) return; sigOn = true;
+    f.db.ref('rtc/' + f.uid).on('child_added', function (s) { var m = s.val(); s.ref.remove().catch(function () {}); onSignal(m); }, function () {});
+    f.db.ref('rtc/' + f.uid).onDisconnect().remove().catch(function () {});
+  }
+  function setMic(on) {
+    if (on && !localStream) {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) { toast('Цей браузер не дає доступу до мікрофона.', 4500); return; }
+      navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } }).then(function (st) {
+        localStream = st; Object.keys(peers).forEach(function (id) { attachMic(peers[id]); }); setMic(true);
+      }, function () { toast('Мікрофон не дозволено. Дозвольте доступ у браузері й спробуйте ще раз.', 5500); });
+      return;
+    }
+    micOn = !!on; window.__micOn = micOn; var t = track(); if (t) t.enabled = micOn; micLabel(); if (window.__avChanged) window.__avChanged();
+  }
+  micBtn.addEventListener('click', function () { setMic(!micOn); });
+
+  setInterval(function () {
+    wire();
+    var l = vloc(), f = fb(); micBtn.style.display = (l && !modalOpen) ? 'block' : 'none';
+    if (!f || !window.RTCPeerConnection) return; startSignals();
+    if (!l) { Object.keys(peers).forEach(closePeer); if (micOn) setMic(false); return; }
+    var gh = (window.__pres && window.__pres.ghosts) || {}, want = {};
+    Object.keys(gh).forEach(function (id) { if (gh[id].userData.loc === l) want[id] = 1; });
+    Object.keys(peers).forEach(function (id) { if (!want[id]) closePeer(id); else if (peers[id].pc.connectionState === 'failed') closePeer(id); });
+    Object.keys(want).forEach(function (id) { if (!peers[id] && f.uid < id) makePeer(id, true); });
+  }, 1000);
+  updaters.push(function () {
+    var gh = (window.__pres && window.__pres.ghosts) || {}, p = camera.position;
+    Object.keys(peers).forEach(function (id) {
+      var el = peers[id].el, g = gh[id]; if (!el || !g) return;
+      var d = Math.hypot(g.position.x - p.x, g.position.z - p.z); el.volume = Math.max(0.15, Math.min(1, 1.25 - d / 12));
+    });
+  });
 })();
 
 })();
