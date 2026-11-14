@@ -951,6 +951,42 @@
     who: function () {
       var st = me && me.student;
       return { name: String((st && st.name) || 'Викладач').slice(0, 40), group: String((st && st.group) || '').slice(0, 12), owner: !!(me && me.isOwner) };
+    },
+    // теми для парт у кабінетах: назви лекцій і практичних групи поточного користувача
+    lectures: function () {
+      var strip = function (a) { return a.map(function (i) { return { id: i.id, title: String(i.title || ''), section: i.section || 'lec' }; }); };
+      if (items && items.length) return Promise.resolve(strip(items));
+      return api('lectures', { group: viewGroup }, true).then(function (r) { items = r.items || []; return strip(items); });
+    },
+    // відкрити конспект/презентацію/PDF теми поверх хола
+    openLecture: function (id) {
+      var it = null; items.forEach(function (i) { if (i.id === id) it = i; });
+      if (!it) return;
+      var ov = document.getElementById('hall-lec');
+      if (!ov) {
+        ov = document.createElement('div'); ov.id = 'hall-lec';
+        ov.style.cssText = 'position:fixed;inset:0;z-index:10000;background:#fff;overflow:auto;-webkit-overflow-scrolling:touch';
+        ov.innerHTML = '<div style="position:sticky;top:0;z-index:2;display:flex;gap:10px;align-items:center;justify-content:space-between;padding:8px 12px;background:#111;color:#fff"><b id="hall-lec-t" style="font:600 15px/1.3 Georgia,serif"></b><button type="button" id="hall-lec-x" style="padding:8px 14px;font:15px Georgia,serif;background:#fff;color:#111;border:0;cursor:pointer">Закрити</button></div><div id="hall-lec-b" style="padding:10px 14px"></div>';
+        document.body.appendChild(ov);
+        ov.querySelector('#hall-lec-x').addEventListener('click', function () { ov.style.display = 'none'; ov.querySelector('#hall-lec-b').innerHTML = ''; });
+      }
+      ov.style.display = 'block'; ov.scrollTop = 0;
+      ov.querySelector('#hall-lec-t').textContent = it.title;
+      var box = ov.querySelector('#hall-lec-b'); box.innerHTML = '<p class="muted">Завантаження…</p>'; autoFrames = [];
+      getLecture(it, true).then(function (r) {
+        box.innerHTML = '';
+        if (r.kind === 'html') {
+          var parts = comboParts(r.html);
+          if (parts) buildCombo(box, r.title, parts);
+          else { var auto = /name=["']portal-height["']/.test(r.html); box.appendChild(makeFrame(r.title, auto ? withReporter(r.html) : r.html, auto)); }
+        } else {
+          if (blobUrl) URL.revokeObjectURL(blobUrl);
+          var bin = atob(r.base64), bytes = new Uint8Array(bin.length);
+          for (var k = 0; k < bin.length; k++) bytes[k] = bin.charCodeAt(k);
+          blobUrl = URL.createObjectURL(new Blob([bytes], { type: 'application/pdf' }));
+          var pf = document.createElement('iframe'); pf.className = 'lec-frame'; pf.title = r.title; pf.src = blobUrl; box.appendChild(pf);
+        }
+      }).catch(function () { box.innerHTML = '<p class="muted">Не вдалося відкрити. Спробуйте ще раз.</p>'; });
     }
   };
   function openHall() {
@@ -962,7 +998,7 @@
       document.body.appendChild(ov);
     }
     ov.hidden = false; ov.style.display = 'block';
-    document.getElementById('hall-frame').src = 'hall/?v=7';
+    document.getElementById('hall-frame').src = 'hall/?v=8';
   }
   function closeHall() {
     var ov = document.getElementById('hall-ov');

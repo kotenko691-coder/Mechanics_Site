@@ -1117,6 +1117,31 @@ function meetDoor(d) {
   [[-4.2, -3.2], [4.2, -3.2]].forEach(function (p) { var br = cyl(0.3, 0.3, 0.8, mat(0x3a4a5a, { rough: .5, metal: .4 }), p[0], 0.4, p[1], G, 14); act(br, 'Бочка з розчином', say('Розчин. Не чіпати без дозволу майстра.'), { reach: 4 }); obs(loc, p[0], p[1], 0.35, 0.35); });
 })();
 
+/* парта: теми з кабінету студента (конспект, презентація, PDF) з пошуком */
+function deskTopics() {
+  if (busy || modalOpen) return;
+  if (!(NET && NET.lectures)) { toast('Теми доступні, коли хол відкрито з кабінету студента.', 4200); return; }
+  var b = modal('<h3>Теми на парті</h3><p class="muted">Завантажуємо список…</p>');
+  NET.lectures().then(function (list) {
+    if (!modalOpen) return;
+    var esc = function (t) { return String(t).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); };
+    var h = '<h3>Теми на парті</h3><p class="muted">Оберіть тему: відкриється конспект, презентація і PDF.</p><input id="dsq" placeholder="Пошук за назвою…" autocomplete="off" style="width:100%;box-sizing:border-box;padding:10px;font-size:16px;font-family:inherit;background:#0f0b07;color:#f2e2c0;border:1px solid #8a7347;margin-bottom:8px"><div id="dsl"></div>';
+    var bd = modal(h), box = bd.querySelector('#dsl'), q = bd.querySelector('#dsq');
+    var NM = { lec: 'Лекції', prac: 'Практичні роботи', extra: 'Додатково' };
+    function draw() {
+      var f = q.value.trim().toLowerCase(), out = '', any = false;
+      ['lec', 'prac', 'extra'].forEach(function (sec) {
+        var ls = list.filter(function (i) { return i.section === sec && (!f || i.title.toLowerCase().indexOf(f) >= 0); }); if (!ls.length) return;
+        any = true; out += '<p class="muted" style="margin:10px 0 4px">' + NM[sec] + '</p>';
+        ls.forEach(function (i) { out += '<button type="button" data-id="' + esc(i.id) + '" style="display:block;width:100%;text-align:left;margin:3px 0">' + esc(i.title) + '</button>'; });
+      });
+      box.innerHTML = any ? out : '<p class="muted">' + (list.length ? 'Нічого не знайдено.' : 'Тем для вашої групи поки немає.') + '</p>';
+    }
+    draw(); q.addEventListener('input', draw);
+    box.addEventListener('click', function (e) { var t = e.target.closest('button[data-id]'); if (!t) return; var id = t.getAttribute('data-id'); closeModal(); NET.openLecture(id); });
+  }, function () { if (modalOpen) modal('<h3>Теми на парті</h3><p class="muted">Не вдалося завантажити список. Спробуйте ще раз.</p>'); });
+}
+
 /* ---------- Навчальні кабінети: 22 місця за партами, дошка, стенд ліворуч, телевізор праворуч ---------- */
 function classroom(id, o, decor) {
   var loc = cabinet(id, 14, 12, o), G = loc.group, W = 14;
@@ -1125,7 +1150,9 @@ function classroom(id, o, decor) {
   rows.forEach(function (zd, r) {
     cols.forEach(function (cx, c) {
       if (r === 3 && c === 2) return; // 22 місця
-      tbl(G, cx, zd, 1.5, 0.6, 0.76, mat(0x8a6a44, { rough: .6 })); obs(loc, cx, zd, 0.8, 0.35);
+      var dk = tbl(G, cx, zd, 1.5, 0.6, 0.76, mat(0x8a6a44, { rough: .6 })); obs(loc, cx, zd, 0.8, 0.35);
+      act(dk.children[0], 'Парта: теми, конспекти, презентації', deskTopics, { reach: 4.5 });
+      [-0.38, 0.38].forEach(function (dx) { var bk = box(0.22, 0.03, 0.3, mat(0xe8e2d2), cx + dx, 0.795, zd + 0.05, G); bk.rotation.y = dx * 0.3; act(bk, 'Парта: теми, конспекти, презентації', deskTopics, { reach: 4.5 }); });
       [-0.38, 0.38].forEach(function (dx) {
         var x = cx + dx, zc = zd + 0.68, ch = chair(G, x, zc, Math.PI, 0x2a3a4a), seat = { x: loc.X + x, z: zc, yaw: 0 };
         loc.seats.push(seat); n++;
