@@ -2293,7 +2293,9 @@ var RB = (function () {
   var aud = null, audRun = 0;
   function stopAud() { audRun++; if (aud) { try { aud.pause(); } catch (e) { /* ігноруємо */ } aud = null; } }
   function chunks(t) { var out = [], w = t.split(/\s+/), c = ''; w.forEach(function (x) { if ((c + ' ' + x).length > 170 && c) { out.push(c); c = x; } else c = c ? c + ' ' + x : x; }); if (c) out.push(c); return out; }
+  var refSet = false;
   function sayRemote(text, onend, onerr) {
+    if (!refSet) { refSet = true; try { var mt = document.createElement('meta'); mt.name = 'referrer'; mt.content = 'no-referrer'; document.head.appendChild(mt); } catch (e) { /* ігноруємо */ } }
     stopAud(); var run = audRun, parts = chunks(text), k = 0;
     function next() {
       if (run !== audRun) return; if (k >= parts.length) { aud = null; if (onend) onend(); return; }
