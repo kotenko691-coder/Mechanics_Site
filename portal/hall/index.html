@@ -1190,17 +1190,20 @@ if (window.__hall) { window.__hall.makeFigure = makeFigure; window.__hall.openWa
     if (sub) { x.fillStyle = '#c9b88a'; x.font = '30px Georgia,serif'; x.fillText(sub, 256, 90); }
     var t = new THREE.CanvasTexture(c); t.anisotropy = 4; return t;
   }
-  function bubbleTex(text) {
-    var c = document.createElement('canvas'), x = c.getContext('2d'); c.width = 512; c.height = 160;
-    x.font = '34px Georgia,serif'; var words = text.split(' '), lines = [], cur = '';
-    words.forEach(function (w) { var t = cur ? cur + ' ' + w : w; if (x.measureText(t).width > 470 && cur) { lines.push(cur); cur = w; } else cur = t; }); lines.push(cur); lines = lines.slice(0, 3);
-    var h = 30 + lines.length * 42; x.fillStyle = 'rgba(245,238,220,.95)'; x.fillRect(4, 160 - h, 504, h - 4); x.strokeStyle = '#8a7347'; x.lineWidth = 4; x.strokeRect(4, 160 - h, 504, h - 4);
-    x.fillStyle = '#2a1d10'; x.textAlign = 'center'; x.textBaseline = 'middle'; lines.forEach(function (l, i) { x.fillText(l, 256, 160 - h + 34 + i * 42); });
-    var t = new THREE.CanvasTexture(c); return t;
+  function mkBubble(text) {
+    var c = document.createElement('canvas'), x = c.getContext('2d'); x.font = '34px Georgia,serif';
+    var words = text.split(' '), lines = [], cur = '';
+    words.forEach(function (w) { var t = cur ? cur + ' ' + w : w; if (x.measureText(t).width > 400 && cur) { lines.push(cur); cur = w; } else cur = t; }); lines.push(cur); lines = lines.slice(0, 3);
+    var tw = 0; lines.forEach(function (l) { tw = Math.max(tw, x.measureText(l).width); });
+    var W = Math.ceil(tw) + 36, H = lines.length * 42 + 22; c.width = W; c.height = H;
+    x.fillStyle = 'rgba(245,238,220,.95)'; x.fillRect(2, 2, W - 4, H - 4); x.strokeStyle = '#8a7347'; x.lineWidth = 4; x.strokeRect(2, 2, W - 4, H - 4);
+    x.font = '34px Georgia,serif'; x.fillStyle = '#2a1d10'; x.textAlign = 'center'; x.textBaseline = 'middle'; lines.forEach(function (l, i) { x.fillText(l, W / 2, 11 + 21 + i * 42 + 1); });
+    return { t: new THREE.CanvasTexture(c), w: W, h: H };
   }
   function say(g, text) {
     if (g.userData.bub) { g.remove(g.userData.bub); }
-    var sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: bubbleTex(text), transparent: true, depthTest: false })); sp.scale.set(1.9, 0.6, 1); sp.position.y = 2.75; sp.renderOrder = 11; g.add(sp);
+    var bb = mkBubble(text), k = 0.0034, sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: bb.t, transparent: true, depthTest: false }));
+    sp.scale.set(bb.w * k, bb.h * k, 1); sp.position.y = 2.28 + bb.h * k / 2; sp.renderOrder = 11; g.add(sp);
     g.userData.bub = sp; g.userData.bubUntil = Date.now() + 9000;
   }
   function makeGhost(id, d) {
