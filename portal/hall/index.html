@@ -2701,13 +2701,14 @@ var RB = (function () {
     }, function () { closeModal(); toast('Не вдалося отримати список тем.', 3500); });
   }
   function robotStart(lid, ttl) {
-    modal('<h3>' + String(ttl).replace(/</g, '') + '</h3><p class="muted">Готуємо текст для озвучення…</p>');
+    modal('<h3>' + String(ttl).replace(/</g, '') + '</h3><p class="muted" id="rbw">Готуємо текст для озвучення…</p>');
+    var w0 = Date.now(), wi = setInterval(function () { var e = document.getElementById('rbw'); if (!e) { clearInterval(wi); return; } var sec = Math.round((Date.now() - w0) / 1000); e.textContent = 'Завантажуємо тему з сервера… ' + sec + ' с' + (sec > 20 ? ' (повільний інтернет, зачекайте до 1,5 хв)' : ''); }, 1000);
     NET.lectureParts(lid).then(function (p) {
-      closeModal(); var sn = RB.toSentences(p.notes || p.deck || '');
+      clearInterval(wi); closeModal(); var sn = RB.toSentences(p.notes || p.deck || '');
       if (!sn.length) { toast('У цієї теми немає тексту для озвучення (лише PDF).', 4500); return; }
       var mp = p.deck ? RB.mapSlides(sn, p.deck) : null, sec = !mp && p.notes ? RB.sections(p.notes, sn) : null;
       if (RB.start(KEY, ttl, sn, { lid: lid, m: mp, sx: sec && sec.sx, sc: sec && sec.sc }) !== false) { toast('Викладач-робот починає. Речень: ' + sn.length + (mp || sec ? ' · текст на телевізорі і дошці' : ''), 3800); if (mp) tvLecPart(lid, 'deck', ttl); else if (sec) tvLecPart(lid, 'notes', ttl); }
-    }, function () { closeModal(); toast('Тема недоступна.', 3500); });
+    }, function () { clearInterval(wi); closeModal(); toast('Не вдалося завантажити тему (слабкий інтернет або сервер). Спробуйте ще раз.', 5500); });
   }
   function partPicker(lid, ttl) {
     var esc = function (t) { return String(t).replace(/[&<>"]/g, function (ch) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]; }); };

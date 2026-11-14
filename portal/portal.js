@@ -94,13 +94,16 @@
   function api(action, data, quiet) {
     var body = JSON.stringify(Object.assign({ token: token, action: action }, data || {}));
     if (!quiet) loaderOn(action);
+    var ac = null, tm = 0;
+    if (action === 'lecture' && window.AbortController) { ac = new AbortController(); tm = setTimeout(function () { try { ac.abort(); } catch (e) {} }, 90000); }
     var p = fetch(CFG.API_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: body
+      body: body,
+      signal: ac ? ac.signal : undefined
     }).then(function (r) { return r.json(); }, function () {
       throw new Error('NETWORK');
-    }).then(function (j) {
+    }).then(function (j) { clearTimeout(tm); return j; }, function (e) { clearTimeout(tm); throw e; }).then(function (j) {
       if (!j.ok) throw new Error(j.error || 'NETWORK');
       return j;
     });
@@ -1007,7 +1010,7 @@
       document.body.appendChild(ov);
     }
     ov.hidden = false; ov.style.display = 'block';
-    document.getElementById('hall-frame').src = 'hall/?v=40';
+    document.getElementById('hall-frame').src = 'hall/?v=41';
     // повний екран: запит іде з кліку студента; там, де браузер не дозволяє (iPhone), хол і так займає весь екран
     try { var rq = ov.requestFullscreen || ov.webkitRequestFullscreen; if (rq) { var pr = rq.call(ov); if (pr && pr.catch) pr.catch(function () {}); } } catch (e) { /* ігноруємо */ }
   }
