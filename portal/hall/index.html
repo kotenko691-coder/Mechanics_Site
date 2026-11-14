@@ -2850,9 +2850,55 @@ var RB = (function () {
     return p;
   }
   function flush(p) { while (p.pend.length) { p.pc.addIceCandidate(p.pend.shift()).catch(function () {}); } }
+  /* запасний канал: голос короткими кліпами через Firebase, коли пряме з'єднання не піднялось */
+  var relayTo = {}, relayUsed = {}, rec = null, AC = null, vadAn = null, vadSrc = null, rxQ = {};
+  function actx() { if (!AC) { try { AC = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) {} } if (AC && AC.state === 'suspended') AC.resume().catch(function () {}); return AC; }
+  function recMime() { var c = ['audio/webm;codecs=opus', 'audio/ogg;codecs=opus', 'audio/mp4'], i; if (!window.MediaRecorder) return null; for (i = 0; i < c.length; i++) { try { if (MediaRecorder.isTypeSupported(c[i])) return c[i]; } catch (e) {} } return ''; }
+  function b64(buf) { var u = new Uint8Array(buf), s = '', i; for (i = 0; i < u.length; i += 8192) s += String.fromCharCode.apply(null, u.subarray(i, i + 8192)); return btoa(s); }
+  function vadLevel() {
+    var ac = actx(); if (!ac || !localStream) return 1;
+    try {
+      if (!vadAn || vadSrc !== localStream) { vadSrc = localStream; vadAn = ac.createAnalyser(); vadAn.fftSize = 512; ac.createMediaStreamSource(localStream).connect(vadAn); }
+      if (ac.state !== 'running') return 1;
+      var a = new Uint8Array(vadAn.fftSize), i, m = 0; vadAn.getByteTimeDomainData(a); for (i = 0; i < a.length; i++) m = Math.max(m, Math.abs(a[i] - 128) / 128); return m;
+    } catch (e) { return 1; }
+  }
+  function relayTick() {
+    var ids = Object.keys(relayTo), t = track(), mt = recMime();
+    if (!micOn || !t || !ids.length || mt === null) return;
+    if (rec) return;
+    var r, chunks = [], lvl = 0, iv, tm;
+    try { r = new MediaRecorder(new MediaStream([t]), mt ? { mimeType: mt, audioBitsPerSecond: 20000 } : { audioBitsPerSecond: 20000 }); } catch (e) { return; }
+    rec = r;
+    r.ondataavailable = function (e) { if (e.data && e.data.size) chunks.push(e.data); };
+    r.onstop = function () {
+      clearInterval(iv); clearTimeout(tm); if (rec === r) rec = null;
+      var to = Object.keys(relayTo);
+      if (micOn && to.length && lvl > 0.035 && chunks.length) {
+        var bl = new Blob(chunks, { type: r.mimeType || mt || '' }), go = function (buf) { var d = b64(buf); to.forEach(function (id) { send(id, 'v', d); }); };
+        if (bl.arrayBuffer) bl.arrayBuffer().then(go).catch(function () {}); else { var fr = new FileReader(); fr.onload = function () { go(fr.result); }; fr.readAsArrayBuffer(bl); }
+      }
+      setTimeout(relayTick, 0);
+    };
+    try { r.start(); } catch (e) { rec = null; return; }
+    iv = setInterval(function () { lvl = Math.max(lvl, vadLevel()); }, 80);
+    tm = setTimeout(function () { try { if (r.state === 'recording') r.stop(); } catch (e) {} }, 1200);
+  }
+  function playClip(id, d, ts) {
+    var ac = actx(); if (!ac || ac.state !== 'running' || typeof d !== 'string') return;
+    var bin; try { bin = atob(d); } catch (e) { return; }
+    var u = new Uint8Array(bin.length), i; for (i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i);
+    ac.decodeAudioData(u.buffer, function (buf) {
+      var q = rxQ[id]; if (!q) { q = rxQ[id] = { g: ac.createGain(), t: 0 }; q.g.connect(ac.destination); }
+      var src = ac.createBufferSource(); src.buffer = buf; src.connect(q.g);
+      var now = ac.currentTime; if (q.t < now + 0.05 || q.t > now + 3) q.t = now + 0.1;
+      src.start(q.t); q.t += buf.duration; relayUsed[id] = Date.now();
+    }, function () {});
+  }
   function onSignal(m) {
     if (!m || !m.f || !vloc() || Date.now() + (window.__srvOff || 0) - (m.ts || 0) > 90000) return;
     var d; try { d = JSON.parse(m.d); } catch (e) { return; }
+    if (m.t === 'v') { if (Date.now() + (window.__srvOff || 0) - (m.ts || 0) < 8000) playClip(m.f, d, m.ts); return; }
     var p = peers[m.f];
     if (m.t === 'o') {
       var fu = fb(); if (p && p.pc.signalingState !== 'stable' && fu && fu.uid < m.f) return;
@@ -2883,13 +2929,13 @@ var RB = (function () {
     micOn = !!on; window.__micOn = micOn; var t = track(); if (t) t.enabled = micOn; micLabel(); if (window.__avChanged) window.__avChanged();
   }
   micBtn.addEventListener('click', function () { setMic(!micOn); });
-  ['pointerdown', 'touchend', 'keydown'].forEach(function (ev) { document.addEventListener(ev, function () { Object.keys(peers).forEach(function (id) { var el = peers[id].el; if (el && el.paused) { var pr = el.play(); if (pr && pr.catch) pr.catch(function () {}); } }); }, true); });
+  ['pointerdown', 'touchend', 'keydown'].forEach(function (ev) { document.addEventListener(ev, function () { actx(); Object.keys(peers).forEach(function (id) { var el = peers[id].el; if (el && el.paused) { var pr = el.play(); if (pr && pr.catch) pr.catch(function () {}); } }); }, true); });
 
   setInterval(function () {
     BOARDS.forEach(function (b) { b.wire(); });
     var l = vloc(), f = fb(); micBtn.style.display = (l && !modalOpen) ? 'block' : 'none';
     if (!f || !window.RTCPeerConnection) return; startSignals();
-    if (!l) { Object.keys(peers).forEach(closePeer); if (micOn) setMic(false); return; }
+    if (!l) { Object.keys(peers).forEach(closePeer); relayTo = {}; if (micOn) setMic(false); return; }
     var gh = (window.__pres && window.__pres.ghosts) || {}, want = {};
     if (OPENV[l]) { // хол і коридор: говоримо з тими, хто поруч (до 6 найближчих у межах 8 м; вже підключених тримаємо до 12 м)
       var me = camera.position, cand = [];
@@ -2902,10 +2948,17 @@ var RB = (function () {
     Object.keys(peers).forEach(function (id) { var pe = peers[id]; if (!want[id]) closePeer(id); else if (pe.pc.connectionState === 'failed' || pe.pc.connectionState === 'disconnected' && Date.now() - (pe.dis || (pe.dis = Date.now())) > 5000 || (pe.pc.connectionState !== 'connected' && Date.now() - pe.born > 10000)) closePeer(id); else if (pe.pc.connectionState === 'connected') pe.dis = 0; });
     Object.keys(wantSince).forEach(function (id) { if (!want[id]) delete wantSince[id]; });
     Object.keys(want).forEach(function (id) { if (!wantSince[id]) wantSince[id] = Date.now(); if (!peers[id] && (f.uid < id || Date.now() - wantSince[id] > 8000)) makePeer(id, true); });
-    var nw = Object.keys(want).length, nc = Object.keys(peers).filter(function (id) { return peers[id].pc.connectionState === 'connected'; }).length; micInfo = nw ? (nc + '/' + nw) : ''; micLabel();
+    relayTo = {}; Object.keys(want).forEach(function (id) { var pe = peers[id]; if ((!pe || pe.pc.connectionState !== 'connected') && wantSince[id] && Date.now() - wantSince[id] > 7000) relayTo[id] = 1; });
+    relayTick();
+    var nw = Object.keys(want).length, nc = Object.keys(want).filter(function (id) { var pe = peers[id]; return (pe && pe.pc.connectionState === 'connected') || (Date.now() - (relayUsed[id] || 0) < 5000); }).length, rl = Object.keys(relayTo).length || Object.keys(want).some(function (id) { return Date.now() - (relayUsed[id] || 0) < 5000; });
+    micInfo = nw ? (nc + '/' + nw + (rl ? ' · запасний канал' : '')) : ''; micLabel();
   }, 1000);
   updaters.push(function () {
     var gh = (window.__pres && window.__pres.ghosts) || {}, p = camera.position;
+    Object.keys(rxQ).forEach(function (id) {
+      var g = gh[id]; if (!g) return;
+      var gx = g.position.x + (g.parent ? g.parent.position.x : 0), gz = g.position.z + (g.parent ? g.parent.position.z : 0), d = Math.hypot(gx - p.x, gz - p.z); rxQ[id].g.gain.value = Math.max(0.15, Math.min(1, 1.25 - d / 12));
+    });
     Object.keys(peers).forEach(function (id) {
       var el = peers[id].el, g = gh[id]; if (!el || !g) return;
       var gx = g.position.x + (g.parent ? g.parent.position.x : 0), gz = g.position.z + (g.parent ? g.parent.position.z : 0), d = Math.hypot(gx - p.x, gz - p.z); el.volume = Math.max(0.15, Math.min(1, 1.25 - d / 12));
