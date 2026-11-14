@@ -2366,10 +2366,11 @@ var RB = (function () {
     });
   }
   function start(key, title, sentences) {
-    var f = window.__fb, q = ref(key); if (!f || !q) { toast('Без зв’язку з сервером лекцію не запустити.', 3600); return; }
-    var s = JSON.stringify(sentences); if (s.length > 200000) { toast('Тема надто велика для озвучення.', 3600); return; }
+    var f = window.__fb, q = ref(key); if (!f || !q) { toast('Немає зв’язку з сервером (вхід у гру не завершено). Оновіть сторінку й спробуйте ще раз.', 5200); return false; }
+    var s = JSON.stringify(sentences); if (s.length > 200000) { toast('Тема надто велика для озвучення.', 3600); return false; }
     q.onDisconnect().remove().catch(function () {});
-    q.set({ d: 'r', u: f.uid, by: NET && NET.who ? NET.who().name : 'Викладач', ti: String(title).slice(0, 120), s: s, i: 0, st: 'play', t: Date.now() + (window.__srvOff || 0) }).catch(function (e) { toast('Робот: ' + (e && e.code || 'помилка'), 4500); });
+    q.set({ d: 'r', u: f.uid, by: NET && NET.who ? NET.who().name : 'Викладач', ti: String(title).slice(0, 120), s: s, i: 0, st: 'play', t: Date.now() + (window.__srvOff || 0) }).catch(function (e) { toast('Робот не запустився: ' + (e && e.code || 'помилка'), 6000); });
+    return true;
   }
   function toSentences(html) {
     var txt = ''; try { var d = new DOMParser().parseFromString(html, 'text/html'); Array.prototype.forEach.call(d.querySelectorAll('script,style,noscript,svg,img'), function (n) { n.remove(); }); Array.prototype.forEach.call(d.querySelectorAll('p,li,h1,h2,h3,h4,tr,div,br'), function (n) { n.appendChild(d.createTextNode(' \n')); }); txt = d.body ? d.body.textContent : ''; } catch (e) { txt = ''; }
@@ -2555,7 +2556,7 @@ var RB = (function () {
     NET.lectureParts(lid).then(function (p) {
       closeModal(); var sn = RB.toSentences(p.notes || p.deck || '');
       if (!sn.length) { toast('У цієї теми немає тексту для озвучення (лише PDF).', 4500); return; }
-      RB.start(KEY, ttl, sn); toast('Викладач-робот починає лекцію. Речень: ' + sn.length, 3800);
+      if (RB.start(KEY, ttl, sn) !== false) toast('Викладач-робот починає лекцію. Речень: ' + sn.length, 3800);
     }, function () { closeModal(); toast('Тема недоступна.', 3500); });
   }
   function partPicker(lid, ttl) {
