@@ -998,11 +998,14 @@
       document.body.appendChild(ov);
     }
     ov.hidden = false; ov.style.display = 'block';
-    document.getElementById('hall-frame').src = 'hall/?v=9';
+    document.getElementById('hall-frame').src = 'hall/?v=10';
+    // повний екран: запит іде з кліку студента; там, де браузер не дозволяє (iPhone), хол і так займає весь екран
+    try { var rq = ov.requestFullscreen || ov.webkitRequestFullscreen; if (rq) { var pr = rq.call(ov); if (pr && pr.catch) pr.catch(function () {}); } } catch (e) { /* ігноруємо */ }
   }
   function closeHall() {
     var ov = document.getElementById('hall-ov');
     if (ov) { ov.style.display = 'none'; document.getElementById('hall-frame').src = 'about:blank'; }
+    try { var fe = document.fullscreenElement || document.webkitFullscreenElement; if (fe) { (document.exitFullscreen || document.webkitExitFullscreen).call(document); } } catch (e) { /* ігноруємо */ }
     showTasks();
   }
   $('#tk-list').addEventListener('click', function (e) {
