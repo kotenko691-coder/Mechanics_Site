@@ -1928,7 +1928,7 @@ if (window.__hall) { window.__hall.sit = sitDown; window.__hall.meetCheck = meet
       if (!d || now - d.t > 25000) return; seen[id] = 1;
       var g = ghosts[id];
       if (!g || g.userData.name !== d.n || g.userData.sub !== (d.g || '') || g.userData.key !== [d.s, d.c, d.h, d.l, d.r | 0].join()) { if (g && g.parent) g.parent.remove(g); if (Object.keys(ghosts).length > 40) return; g = ghosts[id] = makeGhost(id, d); }
-      g.userData.tx = d.x; g.userData.tz = d.z; g.userData.ty = d.y; g.userData.e = d.e | 0; g.userData.mic = d.v | 0; g.userData.pt = typeof d.pt === 'string' ? d.pt.slice(0, 40) : '';
+      g.userData.tx = d.x; g.userData.tz = d.z; g.userData.ty = d.y; g.userData.e = d.e | 0; g.userData.mic = d.v | 0; g.userData.hd = d.hd | 0; g.userData.pt = typeof d.pt === 'string' ? d.pt.slice(0, 40) : '';
       if (d.m && d.mt && d.mt > (seenMt[id] || 0)) { if (seenMt[id] !== undefined || now - d.mt < 20000) { say(g, String(d.m)); logMsg(d.n, String(d.m)); } seenMt[id] = d.mt; } else if (seenMt[id] === undefined) seenMt[id] = d.mt || 0;
     });
     Object.keys(ghosts).forEach(function (id) { if (!seen[id]) { if (ghosts[id].parent) ghosts[id].parent.remove(ghosts[id]); delete ghosts[id]; } });
@@ -1951,11 +1951,12 @@ if (window.__hall) { window.__hall.sit = sitDown; window.__hall.meetCheck = meet
     function send(force) {
       var inHall = !inRoom();
       if (!inHall) { if (last.x !== 1e9) { myRef.remove(); last.x = 1e9; } return; }
-      var p = camera.position, nowMs = Date.now(), moved = Math.abs(p.x - last.x) > 0.05 || Math.abs(p.z - last.z) > 0.05 || Math.abs(yaw - last.y) > 0.08 || (window.__ptStr || '') !== (last.pt || '');
+      var p = camera.position, nowMs = Date.now(), moved = Math.abs(p.x - last.x) > 0.05 || Math.abs(p.z - last.z) > 0.05 || Math.abs(yaw - last.y) > 0.08 || (window.__ptStr || '') !== (last.pt || '') || (window.__hand | 0) !== (last.hd | 0);
       if (!force && !moved && nowMs - lastSent < 8000) return;
-      lastSent = nowMs; last = { x: p.x, z: p.z, y: yaw, pt: window.__ptStr || '' };
+      lastSent = nowMs; last = { x: p.x, z: p.z, y: yaw, pt: window.__ptStr || '', hd: window.__hand | 0 };
       var rec = { n: w.name, g: w.group, s: AV.s, c: AV.c, h: AV.h, e: EMO, r: isTeacher() ? 1 : 0, l: cur.id, v: (window.__micOn ? 1 : 0), x: Math.round(p.x * 100) / 100, z: Math.round(p.z * 100) / 100, y: Math.round(yaw * 100) / 100, t: firebase.database.ServerValue.TIMESTAMP };
       if (window.__ptStr) rec.pt = window.__ptStr;
+      if (window.__hand && EMO === 4) rec.hd = 1;
       if (me.m && Date.now() + offset - me.mt < 30000) { rec.m = me.m; rec.mt = me.mt; }
       myRef.set(rec).catch(function (e) { if (!window.__perr) { window.__perr = 1; toast('Присутність: ' + (e && e.code || e), 6000); } });
     }
@@ -1982,7 +1983,7 @@ if (window.__hall) { window.__hall.sit = sitDown; window.__hall.meetCheck = meet
         var ts = nowMs / 1000, ee = u.e | 0; if (u.amp > 0.1) ee = 0;
         var ty0 = 0;
         if (ee === 1) { ty0 = -0.7; u.legs[0].rotation.x = u.legs[1].rotation.x = 1.5; u.arms[0].rotation.x = u.arms[1].rotation.x = 0.7; }
-        else if (ee === 4) { ty0 = -0.32; u.legs[0].rotation.x = u.legs[1].rotation.x = 1.4; u.arms[0].rotation.x = u.arms[1].rotation.x = 0.6; }
+        else if (ee === 4) { ty0 = -0.32; u.legs[0].rotation.x = u.legs[1].rotation.x = 1.4; u.arms[0].rotation.x = u.arms[1].rotation.x = 0.6; if (u.hd) { u.arms[1].rotation.x = 3.05; u.arms[1].rotation.z = -0.08 + Math.sin(ts * 4) * 0.05; } }
         else if (ee === 2) { var dd = Math.sin(ts * 7); ty0 = Math.abs(dd) * 0.07; u.legs[0].rotation.x = dd * 0.55; u.legs[1].rotation.x = -dd * 0.55; u.arms[0].rotation.x = 2.6 + Math.sin(ts * 7) * 0.5; u.arms[1].rotation.x = 2.6 - Math.sin(ts * 7) * 0.5; u.arms[0].rotation.z = 0.35; u.arms[1].rotation.z = -0.35; g.rotation.z = Math.sin(ts * 3.5) * 0.06; }
         else if (ee === 3) { ty0 = Math.abs(Math.sin(ts * 6)) * 0.1; u.arms[0].rotation.x = u.arms[1].rotation.x = 3.0; u.arms[0].rotation.z = 0.28 + Math.sin(ts * 6) * 0.1; u.arms[1].rotation.z = -0.28 - Math.sin(ts * 6) * 0.1; }
         if (ee !== 2) g.rotation.z = 0;
@@ -2469,7 +2470,7 @@ window.__vp = VP;
     u.legs[0].rotation.x = w; u.legs[1].rotation.x = -w; u.arms[0].rotation.x = -w; u.arms[1].rotation.x = w; u.arms[0].rotation.z = 0.04; u.arms[1].rotation.z = -0.04; self.rotation.z = 0;
     var ts = nowMs / 1000, y0 = 0, e = EMO | 0;
     if (e === 1) { y0 = -0.7; u.legs[0].rotation.x = u.legs[1].rotation.x = 1.5; u.arms[0].rotation.x = u.arms[1].rotation.x = 0.7; }
-    else if (e === 4) { y0 = -0.32; u.legs[0].rotation.x = u.legs[1].rotation.x = 1.4; u.arms[0].rotation.x = u.arms[1].rotation.x = 0.6; }
+    else if (e === 4) { y0 = -0.32; u.legs[0].rotation.x = u.legs[1].rotation.x = 1.4; u.arms[0].rotation.x = u.arms[1].rotation.x = 0.6; if (window.__hand) { u.arms[1].rotation.x = 3.05; u.arms[1].rotation.z = -0.08 + Math.sin(ts * 4) * 0.05; } }
     else if (e === 2) { var d = Math.sin(ts * 7); y0 = Math.abs(d) * 0.07; u.legs[0].rotation.x = d * 0.55; u.legs[1].rotation.x = -d * 0.55; u.arms[0].rotation.x = 2.6 + d * 0.5; u.arms[1].rotation.x = 2.6 - d * 0.5; u.arms[0].rotation.z = 0.35; u.arms[1].rotation.z = -0.35; self.rotation.z = Math.sin(ts * 3.5) * 0.06; }
     else if (e === 3) { y0 = Math.abs(Math.sin(ts * 6)) * 0.1; u.arms[0].rotation.x = u.arms[1].rotation.x = 3.0; u.arms[0].rotation.z = 0.28 + Math.sin(ts * 6) * 0.1; u.arms[1].rotation.z = -0.28 - Math.sin(ts * 6) * 0.1; }
     self.position.set(camera.position.x - F2.group.position.x, y0, camera.position.z - F2.group.position.z); self.rotation.y = yaw;
@@ -2556,7 +2557,7 @@ window.__vp = VP;
     holding = true; window.__ptStr = 'h';
     if (!stickMine) { stickMine = mkStick(0.85); stickMine.position.set(0.26, -0.24, -0.45); stickMine.rotation.set(-0.08, -0.18, 0); scene.add(camera); camera.add(stickMine); }
     stickMine.visible = true;
-    if (!putBtn) { putBtn = document.createElement('button'); putBtn.type = 'button'; putBtn.textContent = 'Покласти указку'; putBtn.style.cssText = 'position:fixed;left:50%;transform:translateX(-50%);bottom:18px;z-index:6;display:none;padding:10px 16px;font:15px Georgia,serif;background:rgba(36,26,16,.92);color:#f2e2c0;border:1px solid #8a7347;cursor:pointer'; document.body.appendChild(putBtn); putBtn.addEventListener('click', function () { stop(); toast('Указку покладено.'); }); }
+    if (!putBtn) { putBtn = document.createElement('button'); putBtn.type = 'button'; putBtn.textContent = 'Покласти указку'; putBtn.style.cssText = 'position:fixed;left:50%;transform:translateX(-50%);bottom:70px;z-index:6;display:none;padding:10px 16px;font:15px Georgia,serif;background:rgba(36,26,16,.92);color:#f2e2c0;border:1px solid #8a7347;cursor:pointer'; document.body.appendChild(putBtn); putBtn.addEventListener('click', function () { stop(); toast('Указку покладено.'); }); }
     putBtn.style.display = 'block'; toast('Вмістіть центр екрана в потрібне місце на дошці чи телевізорі: усі побачать червону крапку.', 4200);
   }
   function planes() {
@@ -2595,6 +2596,29 @@ window.__vp = VP;
   });
   addEventListener('keydown', function (e) { if (holding && e.key === 'Escape') stop(); });
   window.__pointer = { take: take, stop: stop, holding: function () { return holding; } };
+})();
+
+/* ====== ПІДНЯТА РУКА: студент, який сидить, піднімає одну руку; її бачать усі, особливо викладач ====== */
+(function () {
+  window.__hand = 0;
+  var b = document.createElement('button'); b.type = 'button'; b.id = 'handb'; b.textContent = 'Підняти руку';
+  b.style.cssText = 'position:fixed;left:50%;transform:translateX(-50%);bottom:18px;z-index:6;display:none;padding:10px 18px;font:15px Georgia,serif;background:rgba(36,26,16,.92);color:#f2e2c0;border:1px solid #8a7347;cursor:pointer';
+  document.body.appendChild(b);
+  function paint() { b.textContent = window.__hand ? 'Опустити руку' : 'Підняти руку'; b.style.background = window.__hand ? '#6b4a1f' : 'rgba(36,26,16,.92)'; }
+  b.addEventListener('click', function () { window.__hand = window.__hand ? 0 : 1; paint(); if (window.__ptSend) window.__ptSend(true); if (window.__hand) toast('Рука піднята. Викладач бачить.', 2200); });
+  var mk = {};
+  updaters.push(function () {
+    var sit = EMO === 4 && !modalOpen;
+    if (EMO !== 4 && window.__hand) { window.__hand = 0; paint(); if (window.__ptSend) window.__ptSend(true); }
+    b.style.display = sit ? 'block' : 'none';
+    // позначка над головою тих, хто підняв руку
+    var gh = (window.__pres && window.__pres.ghosts) || {};
+    Object.keys(gh).forEach(function (k) {
+      var g = gh[k], u = g.userData, on = !!u.hd && (u.e | 0) === 4;
+      if (!u.hmark) { var c = document.createElement('canvas'); c.width = 256; c.height = 64; var x = c.getContext('2d'); x.fillStyle = '#e8a020'; x.fillRect(0, 8, 256, 48); x.fillStyle = '#1a120a'; x.font = 'bold 34px Georgia'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText('Є питання', 128, 33); var sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(c), transparent: true, depthTest: false })); sp.scale.set(0.6, 0.15, 1); sp.position.y = 2.3; sp.renderOrder = 12; sp.visible = false; g.add(sp); u.hmark = sp; }
+      u.hmark.visible = on;
+    });
+  });
 })();
 
 })();
