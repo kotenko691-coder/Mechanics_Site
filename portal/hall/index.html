@@ -1143,8 +1143,8 @@ function classroom(id, o, decor) {
 
 /* ---------- Кабінет архітекторів ---------- */
 classroom('arch', { floor: TX.planks, wall: TX.wallpaper, ceil: 0x2a2622, amb: 0xfff0d8, ambI: 0.7, bg: 0x0b0907 }, function (loc, G) {
-  ppaint(loc, 0, -5.4, 1.9, 1.6, 1.0, function (x, w, h) { blue(x, w, h); x.strokeStyle = '#cfe4ff'; x.lineWidth = 3; x.strokeRect(24, 40, w - 48, h - 70); for (var i = 0; i < 4; i++) for (var k = 0; k < 3; k++) x.strokeRect(46 + i * 62, 60 + k * 32, 36, 20); }, 'Фасад', 'Креслення фасаду: вікна, ритм, пропорції.');
-  ppaint(loc, 0, 5.4, 1.9, 1.6, 1.0, sysDraw('ГЕНПЛАН', 'Ділянка · будівля · благоустрій'), 'Генплан', 'Генеральний план ділянки.');
+  ppaint(loc, 1, -3.5, 1.9, 1.6, 1.0, function (x, w, h) { blue(x, w, h); x.strokeStyle = '#cfe4ff'; x.lineWidth = 3; x.strokeRect(24, 40, w - 48, h - 70); for (var i = 0; i < 4; i++) for (var k = 0; k < 3; k++) x.strokeRect(46 + i * 62, 60 + k * 32, 36, 20); }, 'Фасад', 'Креслення фасаду: вікна, ритм, пропорції.');
+  ppaint(loc, 1, 3.5, 1.9, 1.6, 1.0, sysDraw('ГЕНПЛАН', 'Ділянка · будівля · благоустрій'), 'Генплан', 'Генеральний план ділянки.');
   var mt = tbl(G, 5.6, 4.2, 1.5, 1.0, 0.8, mat(0x6a5238)); obs(loc, 5.6, 4.2, 0.8, 0.55);
   [[-0.35, 0.2], [0, 0.3], [0.35, 0.15]].forEach(function (b, i) { var m = box(0.3, b[1] * 2, 0.3, mat([0xd8cdb4, 0xc9bfa6, 0xb8ad94][i]), 5.6 + b[0], 0.84 + b[1], 4.2, G); act(m, 'Макет будинку', say('Макет мікрорайону. Будинки з картону й пінопласту.'), { reach: 4 }); });
 });
@@ -1155,9 +1155,9 @@ classroom('build', { floor: TX.concrete, wall: TX.brick, ceil: 0x2a2622, amb: 0x
   for (var r = 0; r < 5; r++) for (var c = 0; c < 4; c++) box(0.25, 0.07, 0.12, mat(0x9a4a32), -0.4 + c * 0.27, 0.04 + r * 0.075, ((r % 2) ? 0.07 : -0.07), bp).rotation.y = (r % 2) * 0.1;
   act(bp.children[0], 'Цегла', say('Повнотіла керамічна цегла. Розмір 250×120×65.'), { reach: 4 }); obs(loc, -5.6, 4.4, 0.7, 0.4);
   var sd = cyl(0.05, 0.8, 0.8, mat(0xc8b078, { rough: 1 }), 5.6, 0.4, 4.4, G, 16); act(sd, 'Пісок', say('Пісок для розчину. Просіяний.'), { reach: 4 }); obs(loc, 5.6, 4.4, 0.8, 0.8);
-  helmet(G, 4.2, 0.82, -4.8, 0xe8b020);
-  ppaint(loc, 0, -5.4, 1.9, 1.6, 1.0, sysDraw('ПЛАН ПОВЕРХУ', 'Стіни · прорізи · розміри'), 'План', 'Креслення плану поверху.');
-  ppaint(loc, 0, 5.4, 1.9, 1.6, 1.0, sysDraw('КЛАДКА', 'Перев’язка швів: ложки й тички'), 'Кладка', 'Схема перев’язки швів цегляної кладки.');
+  helmet(G, -2.0, 0.86, -4.9, 0xe8b020);
+  ppaint(loc, 1, -3.5, 1.9, 1.6, 1.0, sysDraw('ПЛАН ПОВЕРХУ', 'Стіни · прорізи · розміри'), 'План', 'Креслення плану поверху.');
+  ppaint(loc, 1, 3.5, 1.9, 1.6, 1.0, sysDraw('КЛАДКА', 'Перев’язка швів: ложки й тички'), 'Кладка', 'Схема перев’язки швів цегляної кладки.');
 });
 
 /* ---------- Кабінет дорожників ---------- */
@@ -1165,8 +1165,8 @@ classroom('road', { floor: TX.concrete, wall: TX.wall2, ceil: 0x2a2622, amb: 0xe
   for (var i = 0; i < 5; i++) { var cn = cyl(0.03, 0.17, 0.6, mat(0xe8742a, { rough: .6 }), 4.6 + i * 0.45, 0.3, 5.3, G, 12); cyl(0.12, 0.12, 0.06, M.white, 4.6 + i * 0.45, 0.38, 5.3, G, 12); act(cn, 'Конус', say('Дорожній конус огороджує місце робіт.'), { reach: 4 }); }
   var sg = grp(-5.8, 0, 4.9, G); cyl(0.03, 0.03, 2.0, M.steel, 0, 1.0, 0, sg, 8); var disc = cyl(0.3, 0.3, 0.03, mat(0xd8d8d0), 0, 2.1, 0, sg, 24); disc.rotation.x = Math.PI / 2; var ring = new THREE.Mesh(new THREE.TorusGeometry(0.27, 0.03, 8, 24), mat(0xc02a22)); ring.position.set(0, 2.1, 0.02); sg.add(ring);
   act(disc, 'Дорожній знак', say('Знак обмеження швидкості. Дорожники ставлять їх за ДБН.'), { reach: 4 }); obs(loc, -5.8, 4.9, 0.3, 0.3);
-  ppaint(loc, 0, -5.4, 1.9, 1.6, 1.0, function (x, w, h) { blue(x, w, h); x.fillStyle = '#2a2a2c'; x.fillRect(30, 50, w - 60, 20); x.fillStyle = '#b0a898'; x.fillRect(30, 70, w - 60, 28); x.fillStyle = '#8a8a86'; x.fillRect(30, 98, w - 60, 28); x.fillStyle = '#6b4a2a'; x.fillRect(30, 126, w - 60, 30); x.fillStyle = '#fff'; x.font = '14px Georgia'; x.textAlign = 'center'; x.fillText('Конструкція дорожнього одягу', w / 2, 36); }, 'Дорожній одяг', 'Шари зверху вниз: асфальт, щебінь, пісок, ґрунт.');
-  ppaint(loc, 0, 5.4, 1.9, 1.6, 1.0, sysDraw('ПОПЕРЕЧНИЙ ПРОФІЛЬ', 'Проїзна частина · узбіччя · кювет'), 'Профіль', 'Поперечний профіль дороги.');
+  ppaint(loc, 1, -3.5, 1.9, 1.6, 1.0, function (x, w, h) { blue(x, w, h); x.fillStyle = '#2a2a2c'; x.fillRect(30, 50, w - 60, 20); x.fillStyle = '#b0a898'; x.fillRect(30, 70, w - 60, 28); x.fillStyle = '#8a8a86'; x.fillRect(30, 98, w - 60, 28); x.fillStyle = '#6b4a2a'; x.fillRect(30, 126, w - 60, 30); x.fillStyle = '#fff'; x.font = '14px Georgia'; x.textAlign = 'center'; x.fillText('Конструкція дорожнього одягу', w / 2, 36); }, 'Дорожній одяг', 'Шари зверху вниз: асфальт, щебінь, пісок, ґрунт.');
+  ppaint(loc, 1, 3.5, 1.9, 1.6, 1.0, sysDraw('ПОПЕРЕЧНИЙ ПРОФІЛЬ', 'Проїзна частина · узбіччя · кювет'), 'Профіль', 'Поперечний профіль дороги.');
 });
 
 
@@ -1935,15 +1935,18 @@ if (window.__hall) { window.__hall.sit = sitDown; window.__hall.meetCheck = meet
   box(6.2, 0.06, 0.12, M.steel, 0, -1.3, 0.12, bg);
   if (SEP) {
     act(plane, 'Дошка', function () { openBoard(); }, { reach: 7 });
-    tvg = grp(CFG.tvx, 1.7, CFG.tvz, MEET.group, -Math.PI / 2);
-    box(3.5, 2.05, 0.1, M.darksteel, 0, 0, 0.05, tvg); box(3.36, 1.92, 0.03, basic(0x000000), 0, 0, 0.1, tvg);
-    tvPlane = new THREE.Mesh(new THREE.PlaneGeometry(3.2, 1.8), new THREE.MeshBasicMaterial({ color: 0xffffff })); tvPlane.position.z = 0.13; tvg.add(tvPlane);
-    box(0.6, 0.05, 0.25, M.darksteel, 0, -1.08, 0.1, tvg);
-    act(tvPlane, 'Телевізор', function () { openPanel(); }, { reach: 7 });
-    MEET.zoomT = MEET.zoomT || []; MEET.zoomT.push({ label: 'Дошка', obj: plane }, { label: 'Телевізор', obj: tvPlane });
+    var tvMat = new THREE.MeshBasicMaterial({ color: 0xffffff }), tvPlanes = [];
+    [-5.0, 5.0].forEach(function (lx) {
+      var t = wallAt(MEET, 0, lx, 1.9);
+      box(2.95, 1.75, 0.1, M.darksteel, 0, 0, 0.05, t); box(2.8, 1.62, 0.03, basic(0x000000), 0, 0, 0.1, t);
+      var pl = new THREE.Mesh(new THREE.PlaneGeometry(2.7, 1.52), tvMat); pl.position.z = 0.13; t.add(pl); tvPlanes.push(pl);
+      box(0.5, 0.05, 0.2, M.darksteel, 0, -0.95, 0.1, t); box(0.04, 0.04, 0.04, basic(0xd03030), 1.35, -0.84, 0.12, t);
+      act(pl, 'Телевізор', function () { openPanel(); }, { reach: 8 });
+    });
+    tvPlane = tvPlanes[0];
+    MEET.zoomT = MEET.zoomT || []; MEET.zoomT.push({ label: 'Дошка', obj: plane }, { label: 'Телевізор', obj: tvPlanes[1], objs: tvPlanes });
     var oc = document.createElement('canvas'); oc.width = 640; oc.height = 360; var ox2 = oc.getContext('2d'); ox2.fillStyle = '#05080c'; ox2.fillRect(0, 0, 640, 360); ox2.fillStyle = '#1d2a38'; ox2.font = '28px Georgia'; ox2.textAlign = 'center'; ox2.fillText('Телевізор вимкнено', 320, 190);
     var offTex = new THREE.CanvasTexture(oc); tvPlane.material.map = offTex; tvPlane.material.needsUpdate = true;
-    box(0.04, 0.04, 0.04, basic(0xd03030), 1.62, -0.97, 0.12, tvg);
   } else {
     act(plane, 'Дошка і телевізор', function () { openPanel(); }, { reach: 6.5 });
     MEET.zoomT = [{ label: 'Дошка', obj: plane }];
@@ -2202,7 +2205,7 @@ if (window.__hall) { window.__hall.sit = sitDown; window.__hall.meetCheck = meet
       var lab = zT === t && zLv ? (zLv === 1 ? t.label + ': ще ближче' : t.label + ': ближче не можна') : (list.length === 1 ? 'Наблизити ' + t.label.toLowerCase() : 'До ' + (t.label === 'Дошка' ? 'дошки' : t.label === 'Телевізор' ? 'телевізора' : 'стенда'));
       zBtnMake(lab, function () {
         if (zT === t && zLv) zLv = Math.min(ZL.length - 1, zLv + 1); else { zT = t; zLv = 1; }
-        if (!busy) lookAtPoint(worldPos(t.obj), 600); zDraw();
+        var tgt = t.obj; if (t.objs) { var bd = 1e9; t.objs.forEach(function (o2) { var d2 = worldPos(o2).distanceTo(camera.position); if (d2 < bd) { bd = d2; tgt = o2; } }); } if (!busy) lookAtPoint(worldPos(tgt), 600); zDraw();
       }, zT === t && zLv);
     });
     if (zLv) zBtnMake('Звичайний вигляд', function () { zLv = 0; zT = null; zDraw(); });
