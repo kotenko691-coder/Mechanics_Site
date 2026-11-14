@@ -2172,6 +2172,21 @@ var VP = (function () {
   function lpKey(key) { var o = { e: 'k', key: key, code: key === ' ' ? 'Space' : key, kc: KC[key] || 0 }; lpApply(o); if (lpSend) lpSend(o); }
   function lpScroll(dir) { var d = lpDoc(), w = lpIfr && lpIfr.contentWindow; if (!d || !w) return; var se = d.scrollingElement || d.documentElement; se.scrollTop += dir * w.innerHeight; lpSyncScroll(); }
   function lpSyncScroll() { var d = lpDoc(); if (!d || !lpSend) return; var se = d.scrollingElement || d.documentElement, mx = se.scrollHeight - se.clientHeight; lpSend({ e: 's', y: mx > 0 ? se.scrollTop / mx : 0 }); }
+  function lpCurIdx() { var d = lpDoc(); if (!d) return -1; var c = d.getElementById('count'), m = c && /(\d+)\s*\/\s*(\d+)/.exec(c.textContent); return m ? parseInt(m[1], 10) - 1 : -1; }
+  function lpGoto(k) {
+    var cur = lpCurIdx(); if (cur < 0) return false; if (cur === k) return true;
+    var key = k > cur ? 'ArrowRight' : 'ArrowLeft', n = Math.min(40, Math.abs(k - cur));
+    for (var j = 0; j < n; j++) lpApply({ e: 'k', key: key, code: key, kc: KC[key] });
+    return lpCurIdx() === k;
+  }
+  function lpInfo(k) {
+    var d = lpDoc(); if (!d) return null; var sl = d.querySelectorAll('.slide'), el = sl[k]; if (!el) return null;
+    var cl = function (t) { t = String(t || '').replace(/\s+/g, ' ').trim(); var m = /^(.{12,90}?)([.:;]\s|$)/.exec(t); return (m ? m[1] : t).slice(0, 90); };
+    var title = cl(el.getAttribute('data-title') || (el.querySelector('h1,h2,h3') || {}).textContent), pts = [];
+    Array.prototype.forEach.call(el.querySelectorAll('li'), function (n) { if (pts.length < 4) { var t = cl(n.textContent); if (t.length > 3 && t !== title) pts.push(t); } });
+    if (pts.length < 2) Array.prototype.forEach.call(el.querySelectorAll('strong,b'), function (n) { if (pts.length < 4) { var t = cl(n.textContent); if (t.length > 3 && t !== title && pts.indexOf(t) < 0) pts.push(t); } });
+    return { title: title, pts: pts };
+  }
   function lpGet(lid) {
     var NETx = window.parent && window.parent.PortalHall; if (!NETx || !NETx.lectureParts) return Promise.reject(new Error('no'));
     return NETx.lectureParts(lid);
@@ -2274,6 +2289,7 @@ var VP = (function () {
   return {
     parse: parse,
     screens: function (room, planes) { scrPl[room] = planes; },
+    lpGoto: lpGoto, lpInfo: lpInfo,
     set: function (room, st) { states[room] = st && st.k ? st : null; tick(); var s2 = states[room]; if (s2 && ytReady && !ctl && shown) { s2.room = room; follow(s2); } }
   };
 })();
@@ -2337,7 +2353,7 @@ var RB = (function () {
     if (bar) return;
     sub = document.createElement('div'); sub.style.cssText = 'position:fixed;left:50%;transform:translateX(-50%);bottom:70px;width:min(92vw,820px);z-index:6;background:rgba(10,7,4,.82);border:1px solid #8a7347;color:#f6e7c4;font:20px Georgia,serif;padding:10px 16px;text-align:center;display:none;pointer-events:none';
     document.body.appendChild(sub);
-    bar = document.createElement('div'); bar.style.cssText = 'position:fixed;left:50%;transform:translateX(-50%);top:62px;z-index:7;background:rgba(11,9,7,.92);border:1px solid #8a7347;color:#f2e2c0;font:13px Georgia,serif;padding:6px 10px;display:none;gap:8px;align-items:center;flex-wrap:wrap;max-width:92vw';
+    bar = document.createElement('div'); bar.style.cssText = 'position:fixed;left:50%;transform:translateX(-50%);top:158px;z-index:7;background:rgba(11,9,7,.92);border:1px solid #8a7347;color:#f2e2c0;font:13px Georgia,serif;padding:6px 10px;display:none;gap:8px;align-items:center;flex-wrap:wrap;max-width:92vw';
     document.body.appendChild(bar);
     speakBtn = document.createElement('button'); speakBtn.type = 'button'; speakBtn.textContent = 'Увімкнути голос викладача-робота';
     speakBtn.style.cssText = 'position:fixed;left:50%;transform:translateX(-50%);bottom:140px;z-index:8;padding:12px 16px;font:16px Georgia,serif;background:#7a5a1e;color:#fff4d8;border:2px solid #f2d9a0;cursor:pointer;display:none';
@@ -2379,13 +2395,18 @@ var RB = (function () {
       var u = fig.userData, talk = r.rec && r.rec.st === 'play' && cur === loc && curKey === key;
       if (u.arms) { var tt = s * 3.2; u.arms[0].rotation.x = talk ? 0.9 + Math.sin(tt) * 0.45 : 0.04; u.arms[1].rotation.x = talk ? 0.7 + Math.cos(tt * 0.8) * 0.4 : 0.04; u.arms[0].rotation.z = talk ? 0.2 : 0.04; u.arms[1].rotation.z = talk ? -0.2 : -0.04; }
       fig.rotation.z = 0;
+      if (r.rec && r.rec.m && r.rec.st !== 'stop' && cur === loc && curKey === key && typeof VP !== 'undefined' && s - (r.slT || 0) > 0.4) {
+        r.slT = s; if (r.mraw !== r.rec.m) { r.mraw = r.rec.m; try { r.mm = JSON.parse(r.rec.m); } catch (e) { r.mm = null; } }
+        var k = r.mm && r.mm[Math.min(r.rec.i | 0, r.mm.length - 1)];
+        if (typeof k === 'number' && VP.lpGoto(k) && r.bk !== k + ':' + r.rec.t0) { r.bk = k + ':' + r.rec.t0; var inf = VP.lpInfo(k); if (inf && window.__rbBoards && window.__rbBoards[key]) window.__rbBoards[key]([inf.title].concat(inf.pts)); }
+      }
     });
   }
-  function start(key, title, sentences) {
+  function start(key, title, sentences, extra) {
     var f = window.__fb, q = ref(key); if (!f || !q) { toast('Немає зв’язку з сервером (вхід у гру не завершено). Оновіть сторінку й спробуйте ще раз.', 5200); return false; }
     var s = JSON.stringify(sentences); if (s.length > 200000) { toast('Тема надто велика для озвучення.', 3600); return false; }
     q.onDisconnect().remove().catch(function () {});
-    q.set({ d: 'r', u: f.uid, by: NET && NET.who ? NET.who().name : 'Викладач', ti: String(title).slice(0, 120), s: s, i: 0, st: 'play', t: Date.now() + (window.__srvOff || 0) }).catch(function (e) { toast('Робот не запустився: ' + (e && e.code || 'помилка'), 6000); });
+    q.set({ d: 'r', u: f.uid, by: NET && NET.who ? NET.who().name : 'Викладач', ti: String(title).slice(0, 120), s: s, i: 0, st: 'play', t: Date.now() + (window.__srvOff || 0), t0: Date.now(), lid: extra && extra.lid || '', m: extra && extra.m ? JSON.stringify(extra.m) : '' }).catch(function (e) { toast('Робот не запустився: ' + (e && e.code || 'помилка'), 6000); });
     return true;
   }
   function toSentences(html) {
@@ -2396,7 +2417,19 @@ var RB = (function () {
     var res = []; out.forEach(function (sn) { while (sn.length > 260) { var k = sn.lastIndexOf(',', 240); if (k < 80) k = sn.lastIndexOf(' ', 240); if (k < 80) k = 240; res.push(sn.slice(0, k + 1).trim()); sn = sn.slice(k + 1).trim(); } if (sn) res.push(sn); });
     return res.slice(0, 160);
   }
-  return { attach: attach, start: start, loadMan: loadMan, toSentences: toSentences, available: function () { return true; } };
+  function mapSlides(sentences, deckHtml) {
+    try {
+      var d = new DOMParser().parseFromString(deckHtml, 'text/html'), sl = d.querySelectorAll('.slide'), N = sl.length, n = sentences.length; if (N < 2 || !n) return null;
+      var st = function (t) { var o = {}; String(t).toLowerCase().split(/[^a-zа-яіїєґ0-9]+/).forEach(function (w) { if (w.length >= 4) o[w.slice(0, 5)] = 1; }); return o; };
+      var sets = Array.prototype.map.call(sl, function (e) { return st((e.getAttribute('data-title') || '') + ' ' + (e.getAttribute('data-title') || '') + ' ' + e.textContent); });
+      var df = {}; sets.forEach(function (o) { Object.keys(o).forEach(function (w) { df[w] = (df[w] || 0) + 1; }); });
+      var sc = sentences.map(function (t, i) { var ws = Object.keys(st(t)), den = 1 + Math.sqrt(ws.length); return sets.map(function (o, k) { var v = 0; ws.forEach(function (w) { if (o[w]) v += Math.log(1 + N / df[w]); }); return v / den - Math.abs(k - i * (N - 1) / Math.max(1, n - 1)) / N * 1.2; }); });
+      var dp = [], bp = []; for (var i = 0; i < n; i++) { dp.push([]); bp.push([]); for (var k = 0; k < N; k++) { if (!i) { dp[i][k] = sc[i][k] - (k ? 0.4 * k : 0); bp[i][k] = 0; continue; } var best = -1e9, bj = 0; for (var j = 0; j <= k; j++) { var v = dp[i - 1][j] - Math.max(0, k - j - 1) * 0.35; if (v > best) { best = v; bj = j; } } dp[i][k] = best + sc[i][k]; bp[i][k] = bj; } }
+      var kk = 0; for (k = 1; k < N; k++) if (dp[n - 1][k] > dp[n - 1][kk]) kk = k;
+      var m = new Array(n); for (i = n - 1; i >= 0; i--) { m[i] = kk; kk = bp[i][kk]; } m[0] = 0; return m;
+    } catch (e) { return null; }
+  }
+  return { mapSlides: mapSlides, attach: attach, start: start, loadMan: loadMan, toSentences: toSentences, available: function () { return true; } };
 })();
 
 
@@ -2426,8 +2459,24 @@ var RB = (function () {
     mx.fillStyle = BG; mx.fillRect(0, 0, BW, BH);
     mx.fillStyle = '#c8c3b4'; mx.font = '28px Georgia'; mx.textAlign = 'left'; if (!mine.length && !remote.length) mx.fillText('Дошка. Торкніться, щоб малювати.', 40, 60);
     remote.forEach(function (s) { drawStroke(mx, s); }); mine.forEach(function (s) { drawStroke(mx, s); });
+    drawRb(mx);
     btex.needsUpdate = true; if (ovCtx) { ovCtx.drawImage(master, 0, 0); if (cur_) drawStroke(ovCtx, cur_); }
   }
+  /* текст, який «пише» робот-викладач: заголовок слайда і головні думки */
+  var rbl = null, rbDone = true;
+  function drawRb(x) {
+    if (!rbl) return; var now = performance.now(), all = true; x.save(); x.textAlign = 'left'; x.textBaseline = 'alphabetic'; x.lineCap = 'round';
+    rbl.lines.forEach(function (ln, i) {
+      var st0 = rbl.t0 + i * 1100, p = Math.max(0, Math.min(1, (now - st0) / 1500)); if (p < 1) all = false; if (p <= 0) return;
+      var sz = i ? 50 : 72, y = i ? 190 + i * 112 : 110; x.font = (i ? 'italic ' : 'bold italic ') + sz + 'px "Segoe Script","Comic Sans MS","Bradley Hand",cursive';
+      var w = Math.min(x.measureText(ln).width, BW - 110), pre = i ? '• ' : '';
+      x.save(); x.beginPath(); x.rect(50, y - sz, (w + 60) * p, sz * 1.5); x.clip(); x.fillStyle = i ? '#1c3f94' : '#0f2a6e'; x.fillText(pre + ln, 60, y, BW - 110); x.restore();
+      if (!i) { var uw = (w + 40) * Math.min(1, Math.max(0, (now - st0 - 800) / 700)); if (uw > 0) { x.strokeStyle = '#c0392b'; x.lineWidth = 5; x.beginPath(); x.moveTo(58, y + 20); x.quadraticCurveTo(58 + uw / 2, y + 30, 58 + uw, y + 18); x.stroke(); } }
+    });
+    x.restore(); rbDone = all;
+  }
+  (window.__rbBoards = window.__rbBoards || {})[KEY] = function (lines) { rbl = { lines: (lines || []).filter(Boolean).slice(0, 5), t0: performance.now() }; rbDone = false; renderAll(); };
+  updaters.push(function () { if (rbl && !rbDone) renderAll(); });
   renderAll();
 
   /* дошка у 3D */
@@ -2587,7 +2636,8 @@ var RB = (function () {
     NET.lectureParts(lid).then(function (p) {
       closeModal(); var sn = RB.toSentences(p.notes || p.deck || '');
       if (!sn.length) { toast('У цієї теми немає тексту для озвучення (лише PDF).', 4500); return; }
-      if (RB.start(KEY, ttl, sn) !== false) toast('Викладач-робот починає лекцію. Речень: ' + sn.length, 3800);
+      var mp = p.deck ? RB.mapSlides(sn, p.deck) : null;
+      if (RB.start(KEY, ttl, sn, { lid: lid, m: mp }) !== false) { toast('Викладач-робот починає лекцію. Речень: ' + sn.length + (mp ? ' · слайди на телевізорі' : ''), 3800); if (mp) tvLecPart(lid, 'deck', ttl); }
     }, function () { closeModal(); toast('Тема недоступна.', 3500); });
   }
   function partPicker(lid, ttl) {
@@ -2713,7 +2763,7 @@ var RB = (function () {
   function fail(e) { if (!warned) { warned = true; toast('Дошка поки видна лише вам: ' + (e && e.code || 'немає доступу до бази'), 5000); } }
   function push(s) { var f = fb(); if (!f) { fail(); return; } try { f.db.ref('board/' + KEY + '/' + f.uid).push({ c: s.c, w: s.w, p: enc(s.p), t: Date.now() }).catch(fail); } catch (e) { fail(e); } }
   function clearMine() { mine = []; renderAll(); var f = fb(); if (f) f.db.ref('board/' + KEY + '/' + f.uid).remove().catch(fail); }
-  function clearAll() { mine = []; remote = []; renderAll(); var f = fb(); if (f) f.db.ref('board/' + KEY).remove().catch(fail); }
+  function clearAll() { mine = []; remote = []; rbl = null; renderAll(); var f = fb(); if (f) f.db.ref('board/' + KEY).remove().catch(fail); }
 
   var wired = false;
   function wire() {
