@@ -2787,11 +2787,24 @@ window.__vp = VP;
     if (!putBtn) { putBtn = document.createElement('button'); putBtn.type = 'button'; putBtn.textContent = 'Покласти указку'; putBtn.style.cssText = 'position:fixed;left:50%;transform:translateX(-50%);bottom:70px;z-index:6;display:none;padding:10px 16px;font:15px Georgia,serif;background:rgba(36,26,16,.92);color:#f2e2c0;border:1px solid #8a7347;cursor:pointer'; document.body.appendChild(putBtn); putBtn.addEventListener('click', function () { stop(); toast('Указку покладено.'); }); }
     putBtn.style.display = 'block'; toast('Вмістіть центр екрана в потрібне місце на дошці чи телевізорі: усі побачать червону крапку.', 4200);
   }
+  /* крапка повторюється на інших телевізорах кабінету в тому самому місці екрана */
+  var xd = [], mv = new THREE.Vector3();
+  function mirror(wp, used) {
+    var tv = null; (cur.zoomT || []).forEach(function (t) { if (t.objs) tv = t.objs; }); if (!tv || tv.length < 2) return;
+    var src = null, lx = 0, ly = 0, i;
+    for (i = 0; i < tv.length; i++) { tv[i].updateWorldMatrix(true, false); mv.copy(wp); tv[i].worldToLocal(mv); if (Math.abs(mv.x) <= 1.45 && Math.abs(mv.y) <= 0.85 && Math.abs(mv.z) < 0.25) { src = tv[i]; lx = mv.x; ly = mv.y; break; } }
+    if (!src) return; var k = 0;
+    tv.forEach(function (q) {
+      if (q === src) return; q.updateWorldMatrix(true, false); if (!xd[k]) { xd[k] = mkDot(); scene.add(xd[k]); }
+      mv.set(lx, ly, 0.03); q.localToWorld(mv); xd[k].position.copy(mv); xd[k].visible = true; k++;
+    });
+  }
   function planes() {
     var out = []; (cur.zoomT || []).forEach(function (t) { if (t.objs) out.push.apply(out, t.objs); else if (t.obj) out.push(t.obj); }); return out;
   }
   updaters.push(function (s) {
     var gh = (window.__pres && window.__pres.ghosts) || {}, other = false, id = cur.id;
+    xd.forEach(function (d) { d.visible = false; });
     // чужі указки: паличка в руці й крапка на екрані
     var shownDot = false;
     Object.keys(gh).forEach(function (k) {
@@ -2802,7 +2815,7 @@ window.__vp = VP;
       if (on && u.pt !== 'h') {
         var a = u.pt.split(',').map(Number); if (a.length === 3 && a.every(isFinite)) {
           tmpV.set(a[0], a[1], a[2]); cur.group.localToWorld(tmpV);
-          dot.position.copy(tmpV); dot.visible = true; shownDot = true;
+          dot.position.copy(tmpV); dot.visible = true; shownDot = true; mirror(tmpV);
           var wp = new THREE.Vector3(); u.stick.getWorldPosition(wp); u.stick.lookAt(tmpV);
         }
       }
@@ -2814,7 +2827,7 @@ window.__vp = VP;
       ray.setFromCamera({ x: 0, y: 0 }, camera); var hits = ray.intersectObjects(planes(), false), nw = null;
       if (hits.length && hits[0].distance < 16) {
         var h = hits[0], n = h.face.normal.clone().transformDirection(h.object.matrixWorld); nw = h.point.clone().addScaledVector(n, 0.025);
-        dot.position.copy(nw); dot.visible = true; var lp = cur.group.worldToLocal(nw.clone());
+        dot.position.copy(nw); dot.visible = true; mirror(nw); var lp = cur.group.worldToLocal(nw.clone());
         hitStr = lp.x.toFixed(2) + ',' + lp.y.toFixed(2) + ',' + lp.z.toFixed(2);
       } else { hitStr = 'h'; dot.visible = false; }
       window.__ptStr = hitStr;
