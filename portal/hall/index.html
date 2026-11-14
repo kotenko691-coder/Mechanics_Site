@@ -1117,51 +1117,57 @@ function meetDoor(d) {
   [[-4.2, -3.2], [4.2, -3.2]].forEach(function (p) { var br = cyl(0.3, 0.3, 0.8, mat(0x3a4a5a, { rough: .5, metal: .4 }), p[0], 0.4, p[1], G, 14); act(br, 'Бочка з розчином', say('Розчин. Не чіпати без дозволу майстра.'), { reach: 4 }); obs(loc, p[0], p[1], 0.35, 0.35); });
 })();
 
-/* ---------- Кабінет архітекторів ---------- */
-(function () {
-  var loc = cabinet('arch', 10, 8, { floor: TX.planks, wall: TX.wallpaper, ceil: 0x2a2622, amb: 0xfff0d8, ambI: 0.6, bg: 0x0b0907 }), G = loc.group;
-  [[-3.2, -1.8], [-1.1, -1.8], [1.1, -1.8], [3.2, -1.8]].forEach(function (p, i) {
-    var t = tbl(G, p[0], p[1], 1.6, 1.0, 0.95, M.white); var bd = box(1.4, 0.03, 0.9, mat(0xeae6da), p[0], 1.08, p[1], G); bd.rotation.x = -0.25;
-    act(t.children[0], 'Креслярський стіл', say('Креслярський стіл: рейсшина, ватман, олівці.'), { reach: 4 }); act(bd, 'Креслення', say('Недороблений фасад будинку. Лінії тонкі, олівцем.'), { reach: 4 }); obs(loc, p[0], p[1], 0.9, 0.55);
+/* ---------- Навчальні кабінети: 22 місця за партами, дошка, стенд ліворуч, телевізор праворуч ---------- */
+function classroom(id, o, decor) {
+  var loc = cabinet(id, 14, 12, o), G = loc.group, W = 14;
+  loc.seats = [];
+  var rows = [-2.6, -0.8, 1.0, 2.8], cols = [-3.8, 0, 3.8], n = 0;
+  rows.forEach(function (zd, r) {
+    cols.forEach(function (cx, c) {
+      if (r === 3 && c === 2) return; // 22 місця
+      tbl(G, cx, zd, 1.5, 0.6, 0.76, mat(0x8a6a44, { rough: .6 })); obs(loc, cx, zd, 0.8, 0.35);
+      [-0.38, 0.38].forEach(function (dx) {
+        var x = cx + dx, zc = zd + 0.68, ch = chair(G, x, zc, Math.PI, 0x2a3a4a), seat = { x: loc.X + x, z: zc, yaw: 0 };
+        loc.seats.push(seat); n++;
+        ch.children.forEach(function (p, k) { if (k < 2) act(p, 'Сісти', function () { sitDown(seat); }, { reach: 4.2 }); });
+      });
+    });
   });
-  var mt = tbl(G, 0, 1.2, 2.6, 1.3, 0.8, mat(0x6a5238));
-  [[-0.7, 0.2, 0.5, 0.3], [0, 0.3, 0.4, 0.45], [0.7, 0.15, 0.5, 0.25]].forEach(function (b, i) { var m = box(0.6, b[1] * 2, 0.6, mat([0xd8cdb4, 0xc9bfa6, 0xb8ad94][i]), b[0], 0.84 + b[1], 1.2, G); act(m, 'Макет будинку', say('Макет мікрорайону. Будинки з картону й пінопласту.'), { reach: 4 }); });
-  obs(loc, 0, 1.2, 1.4, 0.7);
-  ppaint(loc, 0, -3.6, 1.9, 1.6, 1.0, function (x, w, h) { blue(x, w, h); x.strokeStyle = '#cfe4ff'; x.lineWidth = 3; x.strokeRect(24, 40, w - 48, h - 70); for (var i = 0; i < 4; i++) for (var k = 0; k < 3; k++) x.strokeRect(46 + i * 62, 60 + k * 32, 36, 20); }, 'Фасад', 'Креслення фасаду: вікна, ритм, пропорції.');
-  ppaint(loc, 0, 3.6, 1.9, 1.6, 1.0, sysDraw('ГЕНПЛАН', 'Ділянка · будівля · благоустрій'), 'Генплан', 'Генеральний план ділянки.');
-  plant(loc, -4.4, 2.6); plant(loc, 4.4, 2.6);
-})();
+  var td = tbl(G, -2.6, -4.9, 2.2, 0.8, 0.78, mat(0x4a2e1a, { rough: .5 })); obs(loc, -2.6, -4.9, 1.2, 0.5);
+  act(td.children[0], 'Стіл викладача', say('Стіл викладача. Звідси він веде заняття.'), { reach: 5 });
+  chair(G, -2.6, -5.5, 0, 0x4a2a2a);
+  plant(loc, -6.3, 5.2); plant(loc, 6.3, 5.2);
+  decor(loc, G);
+  return loc;
+}
+
+/* ---------- Кабінет архітекторів ---------- */
+classroom('arch', { floor: TX.planks, wall: TX.wallpaper, ceil: 0x2a2622, amb: 0xfff0d8, ambI: 0.7, bg: 0x0b0907 }, function (loc, G) {
+  ppaint(loc, 0, -5.4, 1.9, 1.6, 1.0, function (x, w, h) { blue(x, w, h); x.strokeStyle = '#cfe4ff'; x.lineWidth = 3; x.strokeRect(24, 40, w - 48, h - 70); for (var i = 0; i < 4; i++) for (var k = 0; k < 3; k++) x.strokeRect(46 + i * 62, 60 + k * 32, 36, 20); }, 'Фасад', 'Креслення фасаду: вікна, ритм, пропорції.');
+  ppaint(loc, 0, 5.4, 1.9, 1.6, 1.0, sysDraw('ГЕНПЛАН', 'Ділянка · будівля · благоустрій'), 'Генплан', 'Генеральний план ділянки.');
+  var mt = tbl(G, 5.6, 4.2, 1.5, 1.0, 0.8, mat(0x6a5238)); obs(loc, 5.6, 4.2, 0.8, 0.55);
+  [[-0.35, 0.2], [0, 0.3], [0.35, 0.15]].forEach(function (b, i) { var m = box(0.3, b[1] * 2, 0.3, mat([0xd8cdb4, 0xc9bfa6, 0xb8ad94][i]), 5.6 + b[0], 0.84 + b[1], 4.2, G); act(m, 'Макет будинку', say('Макет мікрорайону. Будинки з картону й пінопласту.'), { reach: 4 }); });
+});
 
 /* ---------- Кабінет будівельників ---------- */
-(function () {
-  var loc = cabinet('build', 10, 8, { floor: TX.concrete, wall: TX.brick, ceil: 0x2a2622, amb: 0xffe8c8, ambI: 0.5, bg: 0x0b0907 }), G = loc.group;
-  var bp = grp(-3.6, 0, -1.5, G); // стос цегли
+classroom('build', { floor: TX.concrete, wall: TX.brick, ceil: 0x2a2622, amb: 0xffe8c8, ambI: 0.65, bg: 0x0b0907 }, function (loc, G) {
+  var bp = grp(-5.6, 0, 4.4, G);
   for (var r = 0; r < 5; r++) for (var c = 0; c < 4; c++) box(0.25, 0.07, 0.12, mat(0x9a4a32), -0.4 + c * 0.27, 0.04 + r * 0.075, ((r % 2) ? 0.07 : -0.07), bp).rotation.y = (r % 2) * 0.1;
-  act(bp.children[0], 'Цегла', say('Повнотіла керамічна цегла. Розмір 250×120×65.'), { reach: 4 }); obs(loc, -3.6, -1.5, 0.7, 0.4);
-  var sd = cyl(0.05, 0.8, 0.8, mat(0xc8b078, { rough: 1 }), 3.5, 0.4, -1.4, G, 16); act(sd, 'Пісок', say('Пісок для розчину. Просіяний.'), { reach: 4 }); obs(loc, 3.5, -1.4, 0.8, 0.8);
-  var sc = grp(0, 0, -2.6, G); // риштування
-  [-1.4, 1.4].forEach(function (x) { for (var y = 0; y < 2; y++) { cyl(0.025, 0.025, 1.5, M.steel, x, 0.75 + y * 1.5, 0, sc, 8); } cyl(0.02, 0.02, 2.8, M.steel, 0, 1.5, 0, sc, 8).rotation.z = Math.PI / 2; cyl(0.02, 0.02, 2.8, M.steel, 0, 3.0, 0, sc, 8).rotation.z = Math.PI / 2; });
-  box(2.9, 0.05, 0.6, M.wood, 0, 1.5, 0, sc); act(sc.children[sc.children.length - 1], 'Риштування', say('Фасадне риштування. Настил, стійки, зв’язки.'), { reach: 4 }); obs(loc, 0, -2.6, 1.5, 0.4);
-  var t = tbl(G, 3.3, 1.2, 1.8, 0.9, 0.85, M.wood); var lv = box(0.7, 0.05, 0.08, mat(0xe8b020), 3.3, 0.92, 1.2, G); helmet(G, 2.8, 0.96, 1.4, 0xe8b020);
-  act(lv, 'Рівень', say('Будівельний рівень. Бульбашка по центру: стіна рівна.'), { reach: 4 }); obs(loc, 3.3, 1.2, 1.0, 0.55);
-  ppaint(loc, 0, -3.6, 1.9, 1.6, 1.0, sysDraw('ПЛАН ПОВЕРХУ', 'Стіни · прорізи · розміри'), 'План', 'Креслення плану поверху.');
-  ppaint(loc, 0, 3.6, 1.9, 1.6, 1.0, sysDraw('КЛАДКА', 'Перев’язка швів: ложки й тички'), 'Кладка', 'Схема перев’язки швів цегляної кладки.');
-})();
+  act(bp.children[0], 'Цегла', say('Повнотіла керамічна цегла. Розмір 250×120×65.'), { reach: 4 }); obs(loc, -5.6, 4.4, 0.7, 0.4);
+  var sd = cyl(0.05, 0.8, 0.8, mat(0xc8b078, { rough: 1 }), 5.6, 0.4, 4.4, G, 16); act(sd, 'Пісок', say('Пісок для розчину. Просіяний.'), { reach: 4 }); obs(loc, 5.6, 4.4, 0.8, 0.8);
+  helmet(G, 4.2, 0.82, -4.8, 0xe8b020);
+  ppaint(loc, 0, -5.4, 1.9, 1.6, 1.0, sysDraw('ПЛАН ПОВЕРХУ', 'Стіни · прорізи · розміри'), 'План', 'Креслення плану поверху.');
+  ppaint(loc, 0, 5.4, 1.9, 1.6, 1.0, sysDraw('КЛАДКА', 'Перев’язка швів: ложки й тички'), 'Кладка', 'Схема перев’язки швів цегляної кладки.');
+});
 
 /* ---------- Кабінет дорожників ---------- */
-(function () {
-  var loc = cabinet('road', 10, 8, { floor: TX.concrete, wall: TX.wall2, ceil: 0x2a2622, amb: 0xeaf0f4, ambI: 0.55, bg: 0x0b0e10 }), G = loc.group;
-  var t = tbl(G, 0, -1.4, 4.4, 1.2, 0.85, M.white);
-  [[0x6b4a2a, 'Ґрунт'], [0xb0a898, 'Щебінь'], [0x8a8a86, 'Пісок'], [0x2a2a2c, 'Асфальт']].forEach(function (L, i) {
-    var b = box(4.0, 0.07, 0.9 - i * 0.12, mat(L[0], { rough: 1 }), 0, 0.9 + i * 0.07, -1.4, G); act(b, 'Шар: ' + L[1], say('Шар дорожнього одягу: ' + L[1].toLowerCase() + '.'), { reach: 4 });
-  });
-  obs(loc, 0, -1.4, 2.3, 0.65);
-  for (var i = 0; i < 5; i++) { var cn = cyl(0.03, 0.17, 0.6, mat(0xe8742a, { rough: .6 }), -3.6 + i * 0.6, 0.3, 2.2, G, 12); cyl(0.12, 0.12, 0.06, M.white, -3.6 + i * 0.6, 0.38, 2.2, G, 12); act(cn, 'Конус', say('Дорожній конус огороджує місце робіт.'), { reach: 4 }); }
-  var sg = grp(3.8, 0, 2.2, G); cyl(0.03, 0.03, 2.0, M.steel, 0, 1.0, 0, sg, 8); var disc = cyl(0.3, 0.3, 0.03, mat(0xd8d8d0), 0, 2.1, 0, sg, 24); disc.rotation.x = Math.PI / 2; var ring = new THREE.Mesh(new THREE.TorusGeometry(0.27, 0.03, 8, 24), mat(0xc02a22)); ring.position.set(0, 2.1, 0.02); sg.add(ring);
-  act(disc, 'Дорожній знак', say('Знак обмеження швидкості. Дорожники ставлять їх за ДБН.'), { reach: 4 }); obs(loc, 3.8, 2.2, 0.3, 0.3);
-  ppaint(loc, 0, -3.6, 1.9, 1.6, 1.0, function (x, w, h) { blue(x, w, h); x.fillStyle = '#2a2a2c'; x.fillRect(30, 50, w - 60, 20); x.fillStyle = '#b0a898'; x.fillRect(30, 70, w - 60, 28); x.fillStyle = '#8a8a86'; x.fillRect(30, 98, w - 60, 28); x.fillStyle = '#6b4a2a'; x.fillRect(30, 126, w - 60, 30); x.fillStyle = '#fff'; x.font = '14px Georgia'; x.textAlign = 'center'; x.fillText('Конструкція дорожнього одягу', w / 2, 36); }, 'Дорожній одяг', 'Шари зверху вниз: асфальт, щебінь, пісок, ґрунт.');
-  ppaint(loc, 0, 3.6, 1.9, 1.6, 1.0, sysDraw('ПОПЕРЕЧНИЙ ПРОФІЛЬ', 'Проїзна частина · узбіччя · кювет'), 'Профіль', 'Поперечний профіль дороги.');
-})();
+classroom('road', { floor: TX.concrete, wall: TX.wall2, ceil: 0x2a2622, amb: 0xeaf0f4, ambI: 0.7, bg: 0x0b0e10 }, function (loc, G) {
+  for (var i = 0; i < 5; i++) { var cn = cyl(0.03, 0.17, 0.6, mat(0xe8742a, { rough: .6 }), 4.6 + i * 0.45, 0.3, 5.3, G, 12); cyl(0.12, 0.12, 0.06, M.white, 4.6 + i * 0.45, 0.38, 5.3, G, 12); act(cn, 'Конус', say('Дорожній конус огороджує місце робіт.'), { reach: 4 }); }
+  var sg = grp(-5.8, 0, 4.9, G); cyl(0.03, 0.03, 2.0, M.steel, 0, 1.0, 0, sg, 8); var disc = cyl(0.3, 0.3, 0.03, mat(0xd8d8d0), 0, 2.1, 0, sg, 24); disc.rotation.x = Math.PI / 2; var ring = new THREE.Mesh(new THREE.TorusGeometry(0.27, 0.03, 8, 24), mat(0xc02a22)); ring.position.set(0, 2.1, 0.02); sg.add(ring);
+  act(disc, 'Дорожній знак', say('Знак обмеження швидкості. Дорожники ставлять їх за ДБН.'), { reach: 4 }); obs(loc, -5.8, 4.9, 0.3, 0.3);
+  ppaint(loc, 0, -5.4, 1.9, 1.6, 1.0, function (x, w, h) { blue(x, w, h); x.fillStyle = '#2a2a2c'; x.fillRect(30, 50, w - 60, 20); x.fillStyle = '#b0a898'; x.fillRect(30, 70, w - 60, 28); x.fillStyle = '#8a8a86'; x.fillRect(30, 98, w - 60, 28); x.fillStyle = '#6b4a2a'; x.fillRect(30, 126, w - 60, 30); x.fillStyle = '#fff'; x.font = '14px Georgia'; x.textAlign = 'center'; x.fillText('Конструкція дорожнього одягу', w / 2, 36); }, 'Дорожній одяг', 'Шари зверху вниз: асфальт, щебінь, пісок, ґрунт.');
+  ppaint(loc, 0, 5.4, 1.9, 1.6, 1.0, sysDraw('ПОПЕРЕЧНИЙ ПРОФІЛЬ', 'Проїзна частина · узбіччя · кювет'), 'Профіль', 'Поперечний профіль дороги.');
+});
 
 
 /* ====== ПРАКТИКА: два макети. Студент складає свою задачу й вводить знайдені реакції ====== */
@@ -1470,9 +1476,9 @@ function meetDoor(d) {
       var vx = nx - r.ex, vy = ny - r.ey, len = Math.hypot(vx, vy) || 0.01; r.m.position.set((nx + r.ex) / 2, (ny + r.ey) / 2, 0.03); r.m.scale.y = len; r.m.quaternion.setFromUnitVectors(ARM, new THREE.Vector3(vx / len, vy / len, 0));
     });
   }
-  function station(kind, i, wx, wz, ry) {
-    var title = (kind === 'beam' ? 'Двоопорна балка ' : 'Реакції в стержнях ') + (i + 1);
-    var g = grp(wx, 0, wz, G, ry), st = { kind: kind, i: i, S: null, root: null, body: null, anim: null, ok: false, checked: false };
+  function station(kind, i, wx, wz, ry, L2) {
+    var L = L2 || loc, GG = L.group, title = (kind === 'beam' ? 'Двоопорна балка' : 'Реакції в стержнях') + (i >= 0 ? ' ' + (i + 1) : '');
+    var g = grp(wx, 0, wz, GG, ry), st = { loc: L, g: g, kind: kind, i: i, S: null, root: null, body: null, anim: null, ok: false, checked: false };
     box(1.7, 0.82, 0.6, mat(0x5a4630), 0, 0.41, 0.1, g); box(1.78, 0.04, 0.68, M.darkwood, 0, 0.84, 0.1, g);
     box(1.7, 1.2, 0.05, mat(0xe8e2d2), 0, 1.45, -0.05, g); box(1.78, 1.28, 0.03, M.brass, 0, 1.45, -0.08, g);
     var sg = signPlane([title], 1.7, 0.3, { bg: '#17110b', fg: '#f2d9a0', px: 110 }); sg.position.set(0, 2.2, -0.02); g.add(sg);
@@ -1482,12 +1488,26 @@ function meetDoor(d) {
     curSt = st; build3D(st);
     var h = hit(g, 1.7, 1.5, 0.6, 0, 1.4, 0.2);
     [h, g.children[0]].forEach(function (o) { act(o, title, function () { curSt = st; if (kind === 'beam') { B = st.S; openBeam(); } else { R = st.S; openRods(); } }, { reach: 4.6 }); });
-    obs(loc, wx, wz, 0.5, 0.95); STS.push(st); return st;
+    if (!L2) obs(L, wx, wz, 0.5, 0.95); STS.push(st); return st;
   }
   [-1.6, 0.3, 2.2].forEach(function (z, i) { station('beam', i, -4.15, z, PI / 2); station('rods', i, 4.15, z, -PI / 2); });
+  /* стенд, який можна перемикати: двоопорна балка або стержні */
+  function standSwitch(L, wx, wz, ry) {
+    var a = station('beam', -1, wx, wz, ry, L), b = station('rods', -1, wx, wz, ry, L); b.g.visible = false;
+    obs(L, wx, wz, 0.5, 0.95); L.zoomStand = a.root; var cur2 = a;
+    var pg = grp(wx, 0, wz, L.group, ry), pl2 = box(0.7, 0.3, 0.05, M.brass, 0.0, 2.55, 0.02, pg);
+    var sg = signPlane(['Перемкнути стенд'], 1.1, 0.26, { bg: '#6b4a1f', fg: '#fff4d8', px: 90 }); sg.position.set(0, 2.55, 0.06); pg.add(sg); pl2.visible = false;
+    act(sg, 'Перемкнути стенд', function () {
+      cur2.g.visible = false; cur2 = (cur2 === a) ? b : a; cur2.g.visible = true; L.zoomStand = cur2.root;
+      toast(cur2.kind === 'beam' ? 'Стенд: двоопорна балка.' : 'Стенд: реакції в стержнях.', 2600);
+    }, { reach: 6 });
+    return { a: a, b: b };
+  }
+  ['arch', 'build', 'road'].forEach(function (id) { var L = LOC[id]; standSwitch(L, -L.W / 2 + 0.4, -1.2, PI / 2); });
   updaters.push(function (s) {
-    if (cur.id !== 'prak') return;
+    if (!cur.pub) return;
     STS.forEach(function (st) {
+      if (st.loc !== cur || !st.g.visible) return;
       if (!st.anim) return; var ph = 0.5 + 0.5 * Math.sin(s * 2.4 - 1.57), a = st.anim;
       if (st.kind === 'beam' && st.body) { st.body.position.set(st.pose.x + a.dx * ph, st.pose.y + a.dy * ph, 0.03); st.body.rotation.z = a.th * ph; }
       else if (st.node) placeRods(st, a.dx * ph, a.dy * ph);
@@ -1875,11 +1895,13 @@ if (window.__hall) { window.__hall.sit = sitDown; window.__hall.meetCheck = meet
 /* Дошка: малюнки бачать усі в переговорній. Малюнок живе в базі, поки автор у грі; потім зникає.
    Голос: прямий зв'язок між учасниками одного кабінету (WebRTC), база лише передає службові повідомлення. */
 (function () {
+  function fb() { return window.__fb || null; }
+  function makeBoard(CFG) {
+  var MEET = CFG.loc, KEY = CFG.key, SEP = !!CFG.sep;
   var BW = 1500, BH = 600, BG = '#f4f1e8';
   var master = document.createElement('canvas'); master.width = BW; master.height = BH; var mx = master.getContext('2d');
   var btex = new THREE.CanvasTexture(master); btex.anisotropy = 4;
   var mine = [], remote = [], cur_ = null, ovCtx = null, ovCanvas = null;
-  function fb() { return window.__fb || null; }
 
   function enc(pts) { return pts.map(function (q) { return Math.round(q[0] * 10000) + ',' + Math.round(q[1] * 10000); }).join(';'); }
   function dec(s) { return String(s || '').split(';').map(function (t) { var a = t.split(','); return [(+a[0]) / 10000, (+a[1]) / 10000]; }).filter(function (q) { return isFinite(q[0]) && isFinite(q[1]); }); }
@@ -1900,15 +1922,29 @@ if (window.__hall) { window.__hall.sit = sitDown; window.__hall.meetCheck = meet
   renderAll();
 
   /* дошка у 3D */
-  var bg = wallAt(MEET, 0, 0, 2.15);
+  var bg = wallAt(MEET, 0, 0, 2.15), tvg = null, tvPlane = null;
   box(6.5, 2.7, 0.08, M.darkwood, 0, 0, 0.04, bg); box(6.3, 2.5, 0.03, M.steel, 0, 0, 0.07, bg);
   var plane = new THREE.Mesh(new THREE.PlaneGeometry(6.0, 2.4), new THREE.MeshBasicMaterial({ map: btex, color: 0xe6e2d6 })); plane.position.z = 0.09; bg.add(plane);
   box(6.2, 0.06, 0.12, M.steel, 0, -1.3, 0.12, bg);
-  act(plane, 'Дошка і телевізор', function () { openPanel(); }, { reach: 6.5 });
+  if (SEP) {
+    act(plane, 'Дошка', function () { openBoard(); }, { reach: 7 });
+    tvg = grp(CFG.tvx, 1.7, CFG.tvz, MEET.group, -Math.PI / 2);
+    box(3.5, 2.05, 0.1, M.darksteel, 0, 0, 0.05, tvg); box(3.36, 1.92, 0.03, basic(0x000000), 0, 0, 0.1, tvg);
+    tvPlane = new THREE.Mesh(new THREE.PlaneGeometry(3.2, 1.8), new THREE.MeshBasicMaterial({ color: 0xffffff })); tvPlane.position.z = 0.13; tvg.add(tvPlane);
+    box(0.6, 0.05, 0.25, M.darksteel, 0, -1.08, 0.1, tvg);
+    act(tvPlane, 'Телевізор', function () { openPanel(); }, { reach: 7 });
+    MEET.zoomT = MEET.zoomT || []; MEET.zoomT.push({ label: 'Дошка', obj: plane }, { label: 'Телевізор', obj: tvPlane });
+    var oc = document.createElement('canvas'); oc.width = 640; oc.height = 360; var ox2 = oc.getContext('2d'); ox2.fillStyle = '#05080c'; ox2.fillRect(0, 0, 640, 360); ox2.fillStyle = '#1d2a38'; ox2.font = '28px Georgia'; ox2.textAlign = 'center'; ox2.fillText('Телевізор вимкнено', 320, 190);
+    var offTex = new THREE.CanvasTexture(oc); tvPlane.material.map = offTex; tvPlane.material.needsUpdate = true;
+    box(0.04, 0.04, 0.04, basic(0xd03030), 1.62, -0.97, 0.12, tvg);
+  } else {
+    act(plane, 'Дошка і телевізор', function () { openPanel(); }, { reach: 6.5 });
+    MEET.zoomT = [{ label: 'Дошка', obj: plane }];
+  }
 
   /* повноекранне вікно малювання: усе поза дошкою заблоковано */
   var COLS = ['#111111', '#1f4fd8', '#c62828', '#2e7d32', '#e08a00'], color = COLS[0], width = 4, eraser = false, penSeen = false, drawing = null;
-  var ov = document.createElement('div'); ov.id = 'wb';
+  var ov = document.createElement('div'); ov.id = 'wb' + KEY;
   ov.style.cssText = 'position:fixed;inset:0;z-index:60;background:#0c0a08;display:none;flex-direction:column;align-items:center;touch-action:none;-webkit-user-select:none;user-select:none';
   ov.innerHTML = '<div id="wbbar" style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;justify-content:center;padding:8px;width:100%"></div><div style="flex:1;display:flex;align-items:center;justify-content:center;width:100%;overflow:hidden"><canvas id="wbc" width="' + BW + '" height="' + BH + '" style="background:' + BG + ';touch-action:none;box-shadow:0 0 0 3px #8a7347"></canvas></div><div style="color:#a89468;font-size:13px;padding:6px 10px;text-align:center">Малюйте пальцем або стилусом. Решта екрана зараз не реагує на дотики.</div>';
   document.body.appendChild(ov);
@@ -1959,6 +1995,13 @@ if (window.__hall) { window.__hall.sit = sitDown; window.__hall.meetCheck = meet
   var TW = 1280, TH = 720, tvc = document.createElement('canvas'); tvc.width = TW; tvc.height = TH; var tvx = tvc.getContext('2d');
   var ttex = new THREE.CanvasTexture(tvc); ttex.anisotropy = 4; var tvState = null, myPages = null, myIdx = 0, myPdf = null, tvImg = null;
   function showTv() {
+    if (SEP) {
+      if (!tvState) { tvPlane.material.map = offTex; tvPlane.material.needsUpdate = true; return; }
+      var im0 = new Image(); im0.onload = function () {
+        tvx.fillStyle = '#000'; tvx.fillRect(0, 0, TW, TH); var k = Math.min(TW / im0.width, TH / im0.height), w = im0.width * k, h = im0.height * k; tvx.drawImage(im0, (TW - w) / 2, (TH - h) / 2, w, h);
+        ttex.needsUpdate = true; tvPlane.material.map = ttex; tvPlane.material.needsUpdate = true;
+      }; im0.src = tvState.d; return;
+    }
     if (!tvState) { plane.material.map = btex; plane.material.needsUpdate = true; bg.scale.x = 1; return; }
     var im = new Image(); im.onload = function () {
       tvx.fillStyle = '#000'; tvx.fillRect(0, 0, TW, TH); var k = Math.min(TW / im.width, TH / im.height), w = im.width * k, h = im.height * k; tvx.drawImage(im, (TW - w) / 2, (TH - h) / 2, w, h);
@@ -1970,9 +2013,9 @@ if (window.__hall) { window.__hall.sit = sitDown; window.__hall.meetCheck = meet
     var rec = { d: d, i: i + 1, n: myPages.length, by: who, u: f ? f.uid : 'local', t: Date.now() };
     myIdx = i; tvState = rec; showTv();
     if (!f) return;
-    var r = f.db.ref('tv/meet'); r.onDisconnect().remove().catch(function () {}); r.set(rec).catch(function (e) { toast('Телевізор: ' + (e && e.code || 'помилка'), 4500); });
+    var r = f.db.ref('tv/' + KEY); r.onDisconnect().remove().catch(function () {}); r.set(rec).catch(function (e) { toast('Телевізор: ' + (e && e.code || 'помилка'), 4500); });
   }
-  function tvOff() { tvState = null; myPages = null; myPdf = null; showTv(); var f = fb(); if (f) f.db.ref('tv/meet').remove().catch(function () {}); }
+  function tvOff() { tvState = null; myPages = null; myPdf = null; showTv(); var f = fb(); if (f) f.db.ref('tv/' + KEY).remove().catch(function () {}); }
   function imgToJpeg(src, maxW, q) {
     var w = src.naturalWidth || src.width, h = src.naturalHeight || src.height, k = Math.min(1, maxW / w), c = document.createElement('canvas'); c.width = Math.round(w * k); c.height = Math.round(h * k);
     var x = c.getContext('2d'); x.fillStyle = '#fff'; x.fillRect(0, 0, c.width, c.height); x.drawImage(src, 0, 0, c.width, c.height);
@@ -2008,14 +2051,14 @@ if (window.__hall) { window.__hall.sit = sitDown; window.__hall.meetCheck = meet
   function openPanel() {
     if (busy || modalOpen) return;
     var f = fb(), me = f ? f.uid : 'local', own = tvState && tvState.u === me, tch = isTeacher();
-    var h = '<h3>Дошка і телевізор</h3>';
+    var h = '<h3>' + (SEP ? 'Телевізор' : 'Дошка і телевізор') + '</h3>';
     if (tvState) {
       h += '<img id="tvimg" alt="" style="width:100%;border:1px solid #6d5a3c;background:#000">' +
         '<p class="muted">Показує: ' + String(tvState.by).replace(/</g, '') + (tvState.n > 1 ? ' · сторінка ' + tvState.i + ' із ' + tvState.n : '') + '</p>';
       if (own && tvState.n > 1) h += '<button id="tvp" type="button">← Назад</button><button id="tvn" type="button">Далі →</button> ';
       if (own || tch) h += '<button id="tvoff" type="button">Вимкнути телевізор</button> ';
       h += '<button id="pf" type="button">Показати інший файл</button>';
-    } else h += '<p class="muted">Зараз на стіні дошка. Можна малювати або вивести файл (зображення чи PDF) на телевізор.</p><button class="main" id="pb" type="button">Малювати на дошці</button> <button id="pf" type="button">Показати файл на телевізорі</button>';
+    } else h += SEP ? '<p class="muted">Телевізор вимкнено. Можна вивести на нього файл (зображення чи PDF).</p><button class="main" id="pf" type="button">Показати файл на телевізорі</button>' : '<p class="muted">Зараз на стіні дошка. Можна малювати або вивести файл (зображення чи PDF) на телевізор.</p><button class="main" id="pb" type="button">Малювати на дошці</button> <button id="pf" type="button">Показати файл на телевізорі</button>';
     h += '<input type="file" id="fi" accept="image/*,application/pdf" style="display:none">';
     var b = modal(h), im = b.querySelector('#tvimg'); if (im) im.src = tvState.d;
     function q(s) { return b.querySelector(s); }
@@ -2026,25 +2069,33 @@ if (window.__hall) { window.__hall.sit = sitDown; window.__hall.meetCheck = meet
     if (q('#tvp')) q('#tvp').addEventListener('click', function () { closeModal(); gotoPage(myIdx - 1); });
     if (q('#tvn')) q('#tvn').addEventListener('click', function () { closeModal(); gotoPage(myIdx + 1); });
   }
-  window.__tv = { open: openPanel, publish: function (d) { myPages = [d]; myPdf = null; tvPublish(0); }, off: tvOff, state: function () { return tvState; } };
+  var __tvApi = { open: openPanel, publish: function (d) { myPages = [d]; myPdf = null; tvPublish(0); }, off: tvOff, state: function () { return tvState; } };
+  if (KEY === 'meet') window.__tv = __tvApi;
 
   var warned = false;
   function fail(e) { if (!warned) { warned = true; toast('Дошка поки видна лише вам: ' + (e && e.code || 'немає доступу до бази'), 5000); } }
-  function push(s) { var f = fb(); if (!f) { fail(); return; } try { f.db.ref('board/meet/' + f.uid).push({ c: s.c, w: s.w, p: enc(s.p), t: Date.now() }).catch(fail); } catch (e) { fail(e); } }
-  function clearMine() { mine = []; renderAll(); var f = fb(); if (f) f.db.ref('board/meet/' + f.uid).remove().catch(fail); }
-  function clearAll() { mine = []; remote = []; renderAll(); var f = fb(); if (f) f.db.ref('board/meet').remove().catch(fail); }
+  function push(s) { var f = fb(); if (!f) { fail(); return; } try { f.db.ref('board/' + KEY + '/' + f.uid).push({ c: s.c, w: s.w, p: enc(s.p), t: Date.now() }).catch(fail); } catch (e) { fail(e); } }
+  function clearMine() { mine = []; renderAll(); var f = fb(); if (f) f.db.ref('board/' + KEY + '/' + f.uid).remove().catch(fail); }
+  function clearAll() { mine = []; remote = []; renderAll(); var f = fb(); if (f) f.db.ref('board/' + KEY).remove().catch(fail); }
 
   var wired = false;
   function wire() {
     var f = fb(); if (!f || wired) return; wired = true;
-    f.db.ref('board/meet/' + f.uid).onDisconnect().remove().catch(function () {});
-    f.db.ref('tv/meet').on('value', function (s) { var v = s.val(); tvState = v && v.d ? v : null; if (!(tvState && myPages && tvState.u === f.uid)) { if (!tvState) { myPages = null; myPdf = null; } } showTv(); }, function () {});
-    f.db.ref('board/meet').on('value', function (snap) {
+    f.db.ref('board/' + KEY + '/' + f.uid).onDisconnect().remove().catch(function () {});
+    f.db.ref('tv/' + KEY).on('value', function (s) { var v = s.val(); tvState = v && v.d ? v : null; if (!(tvState && myPages && tvState.u === f.uid)) { if (!tvState) { myPages = null; myPdf = null; } } showTv(); }, function () {});
+    f.db.ref('board/' + KEY).on('value', function (snap) {
       var r = []; snap.forEach(function (u) { if (u.key === f.uid) return; u.forEach(function (st) { var v = st.val(); if (v && v.c && v.p) r.push({ c: String(v.c).slice(0, 9), w: +v.w || 4, p: dec(v.p) }); }); });
       remote = r; renderAll();
     }, function () {});
   }
-  window.__wb = { mine: function () { return mine; }, openBoard: openBoard, renderAll: renderAll, setRemote: function (r) { remote = r; renderAll(); } };
+  var __wbApi = { mine: function () { return mine; }, openBoard: openBoard, renderAll: renderAll, setRemote: function (r) { remote = r; renderAll(); } };
+  if (KEY === 'meet') window.__wb = __wbApi;
+  BOARDS.push({ key: KEY, wire: wire });
+  return { wire: wire };
+  }
+  var BOARDS = [];
+  makeBoard({ loc: MEET, key: 'meet', sep: false });
+  ['arch', 'build', 'road'].forEach(function (id) { var L = LOC[id]; makeBoard({ loc: L, key: id, sep: true, tvx: L.W / 2 - 0.12, tvz: -2.4 }); });
 
   /* ====== ГОЛОС ====== */
   var VOICE = { meet: 1, prak: 1, arch: 1, build: 1, road: 1 };
@@ -2114,7 +2165,7 @@ if (window.__hall) { window.__hall.sit = sitDown; window.__hall.meetCheck = meet
   micBtn.addEventListener('click', function () { setMic(!micOn); });
 
   setInterval(function () {
-    wire();
+    BOARDS.forEach(function (b) { b.wire(); });
     var l = vloc(), f = fb(); micBtn.style.display = (l && !modalOpen) ? 'block' : 'none';
     if (!f || !window.RTCPeerConnection) return; startSignals();
     if (!l) { Object.keys(peers).forEach(closePeer); if (micOn) setMic(false); return; }
@@ -2131,22 +2182,31 @@ if (window.__hall) { window.__hall.sit = sitDown; window.__hall.meetCheck = meet
     });
   });
 
-  /* ====== наближення дошки, коли студент сидить у переговорній ====== */
-  var zoomLv = 0, ZL = [1, 1.8, 2.5], zBtn = document.createElement('button'); zBtn.type = 'button'; zBtn.id = 'zoomb';
-  zBtn.style.cssText = 'position:fixed;right:12px;top:112px;z-index:6;display:none;padding:9px 12px;font-family:inherit;font-size:14px;background:rgba(36,26,16,.92);color:#f2e2c0;border:1px solid #8a7347;cursor:pointer';
-  document.body.appendChild(zBtn);
-  function zLabel() { zBtn.textContent = zoomLv === 0 ? 'Наблизити дошку' : zoomLv === 1 ? 'Ще ближче' : 'Звичайний вигляд'; }
-  zLabel();
-  zBtn.addEventListener('click', function () {
-    zoomLv = (zoomLv + 1) % ZL.length; zLabel();
-    if (zoomLv === 1 && !busy) { var bp = worldPos(plane); lookAtPoint(bp, 600); }
-  });
+  /* ====== наближення дошки / телевізора / стенда, коли студент сидить у кабінеті ====== */
+  var ZL = [1, 1.8, 2.6], zT = null, zLv = 0, zRoom = null;
+  var zPanel = document.createElement('div'); zPanel.id = 'zoomp';
+  zPanel.style.cssText = 'position:fixed;right:12px;top:112px;z-index:6;display:none;flex-direction:column;gap:4px;align-items:stretch';
+  document.body.appendChild(zPanel);
+  function zBtnMake(label, fn, on) { var b = document.createElement('button'); b.type = 'button'; b.textContent = label; b.style.cssText = 'padding:9px 12px;font-family:inherit;font-size:14px;background:' + (on ? '#6b4a1f' : 'rgba(36,26,16,.92)') + ';color:#f2e2c0;border:1px solid #8a7347;cursor:pointer;text-align:left'; b.addEventListener('click', fn); zPanel.appendChild(b); return b; }
+  function zDraw() {
+    zPanel.innerHTML = ''; var L = LOC[zRoom]; if (!L) return;
+    var list = (L.zoomT || []).slice(); if (L.zoomStand) list.push({ label: 'Стенд', obj: L.zoomStand });
+    list.forEach(function (t) {
+      var lab = zT === t && zLv ? (zLv === 1 ? t.label + ': ще ближче' : t.label + ': ближче не можна') : (list.length === 1 ? 'Наблизити ' + t.label.toLowerCase() : 'До ' + (t.label === 'Дошка' ? 'дошки' : t.label === 'Телевізор' ? 'телевізора' : 'стенда'));
+      zBtnMake(lab, function () {
+        if (zT === t && zLv) zLv = Math.min(ZL.length - 1, zLv + 1); else { zT = t; zLv = 1; }
+        if (!busy) lookAtPoint(worldPos(t.obj), 600); zDraw();
+      }, zT === t && zLv);
+    });
+    if (zLv) zBtnMake('Звичайний вигляд', function () { zLv = 0; zT = null; zDraw(); });
+  }
   var fovNow = 72;
   updaters.push(function () {
-    var sit = EMO === 4 && cur.id === 'meet' && !modalOpen;
-    zBtn.style.display = sit ? 'block' : 'none';
-    if (!(EMO === 4 && cur.id === 'meet')) { if (zoomLv) { zoomLv = 0; zLabel(); } }
-    var want = 72 / ZL[zoomLv]; if (Math.abs(fovNow - want) > 0.05) { fovNow += (want - fovNow) * 0.18; camera.fov = fovNow; camera.updateProjectionMatrix(); } else if (fovNow !== want) { fovNow = want; camera.fov = want; camera.updateProjectionMatrix(); }
+    var ok = EMO === 4 && cur.pub && cur.id !== 'f2' && !modalOpen;
+    if (ok && zRoom !== cur.id) { zRoom = cur.id; zLv = 0; zT = null; zDraw(); }
+    zPanel.style.display = ok ? 'flex' : 'none';
+    if (!(EMO === 4 && cur.pub)) { if (zLv) { zLv = 0; zT = null; zDraw(); } zRoom = null; }
+    var want = 72 / ZL[zLv]; if (Math.abs(fovNow - want) > 0.05) { fovNow += (want - fovNow) * 0.18; camera.fov = fovNow; camera.updateProjectionMatrix(); } else if (fovNow !== want) { fovNow = want; camera.fov = want; camera.updateProjectionMatrix(); }
   });
 })();
 
