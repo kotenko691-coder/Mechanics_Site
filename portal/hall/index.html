@@ -1106,9 +1106,9 @@ function meetDoor(d) {
 /* ---------- Практика ---------- */
 (function () {
   var loc = cabinet('prak', 10, 8, { floor: TX.concrete, wall: TX.brick, ceil: 0x2a2622, amb: 0xffe2b8, ambI: 0.5, bg: 0x0b0907 }), G = loc.group;
-  [-2.6, 0, 2.6].forEach(function (x) {
-    var t = tbl(G, x, -1.2, 2.0, 0.9, 0.9, mat(0x5a4630)); box(0.25, 0.18, 0.2, M.darksteel, x - 0.6, 1.04, -1.2, G); box(0.5, 0.04, 0.35, M.paper, x + 0.3, 0.97, -1.2, G);
-    act(t.children[0], 'Верстак', say('Верстак для практичних робіт: штукатурка, цегла, кладка.'), { reach: 4 }); obs(loc, x, -1.2, 1.05, 0.5);
+  [0].forEach(function (x) { // один стіл: лекції й практичні з сайту, як на партах у кабінетах
+    var t = tbl(G, x, -1.2, 2.0, 0.9, 0.9, mat(0x5a4630)); box(0.25, 0.18, 0.2, M.darksteel, x - 0.6, 1.04, -1.2, G); var pp = box(0.5, 0.04, 0.35, M.paper, x + 0.3, 0.97, -1.2, G);
+    act(t.children[0], 'Стіл: лекції, практичні, конспекти', deskTopics, { reach: 4.5 }); act(pp, 'Стіл: лекції, практичні, конспекти', deskTopics, { reach: 4.5 }); obs(loc, x, -1.2, 1.05, 0.5);
   });
   var rk = wallAt(loc, 0, 0, 0); box(5.2, 0.06, 0.4, M.wood, 0, 1.8, 0.22, rk);
   [0xe8b020, 0xd8442a, 0xeeeeee, 0x2f5d9a, 0x3f8a4f, 0xe8742a].forEach(function (c, i) { var h = helmet(rk, -2.1 + i * 0.84, 1.83, 0.22, c); act(h, 'Каска', say('Без каски на практиці нікуди.'), { reach: 4.5 }); });
