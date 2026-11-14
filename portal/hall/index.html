@@ -270,7 +270,7 @@ function walk(dt) {
   p.x += (-Math.sin(yaw) * fx + Math.cos(yaw) * sx) * sp; p.z += (-Math.cos(yaw) * fx - Math.sin(yaw) * sx) * sp;
   var b = cur.bounds; p.x = Math.max(b.x1, Math.min(b.x2, p.x)); p.z = Math.max(b.z1, Math.min(b.z2, p.z));
   cur.obst.forEach(function (r) {
-    if (r.off) return;
+    if (r.off || EMO === 4) return;
     var m = 0.28, x1 = r.x1 - m, x2 = r.x2 + m, z1 = r.z1 - m, z2 = r.z2 + m;
     if (p.x > x1 && p.x < x2 && p.z > z1 && p.z < z2) {
       var dl = p.x - x1, dr = x2 - p.x, dt2 = p.z - z1, db = z2 - p.z, mn = Math.min(dl, dr, dt2, db);
@@ -1012,7 +1012,11 @@ var f2Door = {};
   // лавки, лампи, рослини
   [-3.6, 0].forEach(function (lx) {
     var b = tbl(G, lx, 3.9, 2.4, 0.5, 0.45, M.wood);
-    act(b.children[0], 'Лавка', say('Лавка для очікування.'), { reach: 4 }); obs(F2, lx, 3.9, 1.2, 0.3);
+    act(b.children[0], 'Сісти на лавку', function () {
+      var ss = [-0.6, 0.6].map(function (d) { return { x: F2.X + lx + d, z: 3.9, yaw: 0 }; }).filter(function (s) { return !(window.__seatTaken && window.__seatTaken(s.x, s.z)); });
+      if (!ss.length) { toast('На лавці немає вільних місць.'); return; }
+      ss.sort(function (a, c) { return Math.hypot(a.x - camera.position.x, a.z - camera.position.z) - Math.hypot(c.x - camera.position.x, c.z - camera.position.z); }); sitDown(ss[0]);
+    }, { reach: 4.5 }); obs(F2, lx, 3.9, 1.2, 0.3);
   });
   plant(F2, -5.2, -3.7); plant(F2, 5.2, -3.7); plant(F2, -5.2, 3.8);
   ppaint(F2, 3, 0, 1.9, 1.3, 0.9, sysDraw('2 поверх', 'Тут кабінети груп і переговорна'), 'Схема поверху', 'На схемі п’ять дверей: переговорна, практика та три кабінети за спеціальностями.');
