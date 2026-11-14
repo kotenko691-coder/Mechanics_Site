@@ -2293,6 +2293,19 @@ var RB = (function () {
   var aud = null, audRun = 0;
   function stopAud() { audRun++; if (aud) { try { aud.pause(); } catch (e) { /* ігноруємо */ } aud = null; } }
   function chunks(t) { var out = [], w = t.split(/\s+/), c = ''; w.forEach(function (x) { if ((c + ' ' + x).length > 170 && c) { out.push(c); c = x; } else c = c ? c + ' ' + x : x; }); if (c) out.push(c); return out; }
+  var man = null, manP = null;
+  function loadMan() { if (!manP) manP = fetch('voice/index.json', { cache: 'no-cache' }).then(function (r) { return r.ok ? r.json() : {}; }).then(function (j) { man = j || {}; return man; }, function () { man = {}; return man; }); return manP; }
+  function hash(t) { try { return crypto.subtle.digest('SHA-1', new TextEncoder().encode(t)).then(function (b) { return Array.prototype.map.call(new Uint8Array(b), function (x) { return ('0' + x.toString(16)).slice(-2); }).join('').slice(0, 16); }); } catch (e) { return Promise.reject(e); } }
+  function sayFile(text, onend, onerr, miss) {
+    stopAud(); var run = audRun;
+    Promise.all([loadMan(), hash(text)]).then(function (a) {
+      if (run !== audRun) return; var h = a[1];
+      if (!a[0][h]) { miss(); return; }
+      var au = new Audio('voice/' + h + '.mp3'); aud = au; au.onended = function () { if (run === audRun) { aud = null; if (onend) onend(); } };
+      au.onerror = function () { if (run === audRun) { aud = null; miss(); } };
+      var pr = au.play(); if (pr && pr.catch) pr.catch(function (e) { if (run !== audRun) return; if (e && e.name === 'NotAllowedError') { if (onerr) onerr('not-allowed'); } else miss(); });
+    }, function () { if (run === audRun) miss(); });
+  }
   var refSet = false;
   function sayRemote(text, onend, onerr) {
     if (!refSet) { refSet = true; try { var mt = document.createElement('meta'); mt.name = 'referrer'; mt.content = 'no-referrer'; document.head.appendChild(mt); } catch (e) { /* ігноруємо */ } }
@@ -2308,7 +2321,8 @@ var RB = (function () {
   }
   var warned = false;
   function noVoice() { if (warned) return; warned = true; try { toast('На цьому пристрої немає українського голосу: лекція йде лише субтитрами. Додайте українську мову в налаштуваннях голосу пристрою.', 7000); } catch (e) { /* ігноруємо */ } }
-  function say(text, onend, onerr) {
+  function say(text, onend, onerr) { sayFile(text, onend, onerr, function () { say2(text, onend, onerr); }); }
+  function say2(text, onend, onerr) {
     if (!window.speechSynthesis) { sayRemote(text, onend, onerr); return; }
     try {
       if (!voice) voice = pickVoice(); if (!voice) { sayRemote(text, onend, onerr); return; }
@@ -2382,7 +2396,7 @@ var RB = (function () {
     var res = []; out.forEach(function (sn) { while (sn.length > 260) { var k = sn.lastIndexOf(',', 240); if (k < 80) k = sn.lastIndexOf(' ', 240); if (k < 80) k = 240; res.push(sn.slice(0, k + 1).trim()); sn = sn.slice(k + 1).trim(); } if (sn) res.push(sn); });
     return res.slice(0, 160);
   }
-  return { attach: attach, start: start, toSentences: toSentences, available: function () { return true; } };
+  return { attach: attach, start: start, loadMan: loadMan, toSentences: toSentences, available: function () { return true; } };
 })();
 
 
@@ -2553,6 +2567,21 @@ var RB = (function () {
     if (!f) return; var r = f.db.ref('tv/' + KEY); r.onDisconnect().remove().catch(function () {}); r.set(rec).catch(function (e) { toast('Телевізор: ' + (e && e.code || 'помилка'), 4500); });
   }
 
+  function robotExport() {
+    modal('<h3>Текст для озвучки</h3><p class="muted" id="rxp">Збираємо тексти лекцій…</p>');
+    NET.lectures().then(function (list) {
+      var all = {}, n = 0, i = 0;
+      (function next() {
+        var it = list[i++];
+        if (!it) {
+          var arr = Object.keys(all), blob = new Blob([JSON.stringify(arr)], { type: 'application/json' }), a = document.createElement('a');
+          a.href = URL.createObjectURL(blob); a.download = 'sentences.json'; document.body.appendChild(a); a.click(); a.remove(); closeModal(); toast('Готово: ' + arr.length + ' речень у файлі sentences.json', 5000); return;
+        }
+        var pp = document.getElementById('rxp'); if (pp) pp.textContent = 'Лекція ' + i + ' з ' + list.length + '…';
+        NET.lectureParts(it.id).then(function (p) { RB.toSentences(p.notes || p.deck || '').forEach(function (sn) { all[sn] = 1; n++; }); next(); }, function () { next(); });
+      })();
+    }, function () { closeModal(); toast('Не вдалося отримати список тем.', 3500); });
+  }
   function robotStart(lid, ttl) {
     modal('<h3>' + String(ttl).replace(/</g, '') + '</h3><p class="muted">Готуємо текст для озвучення…</p>');
     NET.lectureParts(lid).then(function (p) {
@@ -2661,13 +2690,14 @@ var RB = (function () {
     } else h += SEP ? '<p class="muted">Телевізор вимкнено. Можна вивести на нього файл (зображення чи PDF).</p><button class="main" id="pf" type="button">Показати файл на телевізорі</button>' : '<p class="muted">Зараз на стіні дошка. Можна малювати або вивести файл (зображення чи PDF) на телевізор.</p><button class="main" id="pb" type="button">Малювати на дошці</button> <button id="pf" type="button">Показати файл на телевізорі</button>';
     if (tch) h += ' <button id="pv" type="button">Відео за посиланням</button>';
     h += ' <button id="pl" type="button">Тема з сайту</button>';
-    if (SEP && tch && RB.available()) h += ' <button id="prb" type="button">Лекція від викладача-робота</button>';
+    if (SEP && tch && RB.available()) h += ' <button id="prb" type="button">Лекція від викладача-робота</button> <button id="prx" type="button">Текст для озвучки (файл)</button>';
     h += '<input type="file" id="fi" accept="image/*,application/pdf" style="display:none">';
     var b = modal(h), im = b.querySelector('#tvimg'); if (im) im.src = tvState.d;
     function q(s) { return b.querySelector(s); }
     if (q('#pb')) q('#pb').addEventListener('click', function () { closeModal(); openBoard(); });
     if (q('#pf')) q('#pf').addEventListener('click', function () { q('#fi').click(); });
     q('#fi').addEventListener('change', function () { var fl = this.files && this.files[0]; closeModal(); loadFile(fl); });
+    if (q('#prx')) q('#prx').addEventListener('click', function () { closeModal(); robotExport(); });
     if (q('#prb')) q('#prb').addEventListener('click', function () { closeModal(); lecPicker('robot'); });
     if (q('#pl')) q('#pl').addEventListener('click', function () { closeModal(); lecPicker(); });
     if (q('#lpo')) q('#lpo').addEventListener('click', function () { closeModal(); if (NET && NET.openLecture) NET.openLecture(tvState.lid); });
