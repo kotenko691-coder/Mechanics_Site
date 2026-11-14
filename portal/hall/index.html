@@ -2395,10 +2395,17 @@ var RB = (function () {
       var u = fig.userData, talk = r.rec && r.rec.st === 'play' && cur === loc && curKey === key;
       if (u.arms) { var tt = s * 3.2; u.arms[0].rotation.x = talk ? 0.9 + Math.sin(tt) * 0.45 : 0.04; u.arms[1].rotation.x = talk ? 0.7 + Math.cos(tt * 0.8) * 0.4 : 0.04; u.arms[0].rotation.z = talk ? 0.2 : 0.04; u.arms[1].rotation.z = talk ? -0.2 : -0.04; }
       fig.rotation.z = 0;
+      var dt = Math.min(0.1, s - (r.last || s)); r.last = s; if (r.tx == null) r.tx = fig.position.x;
+      var dx = r.tx - fig.position.x, mv = Math.abs(dx) > 0.03;
+      if (mv) { fig.position.x += Math.sign(dx) * Math.min(Math.abs(dx), 1.2 * dt); }
+      var ty = mv ? (dx > 0 ? -Math.PI / 2 : Math.PI / 2) : Math.PI, dy = ty - fig.rotation.y; fig.rotation.y += dy * Math.min(1, dt * 7);
+      if (u.legs) { var sw = mv ? Math.sin(s * 9) * 0.5 : 0; u.legs[0].rotation.x = sw; u.legs[1].rotation.x = -sw; }
+      if (mv && u.arms) { u.arms[0].rotation.x = Math.sin(s * 9) * 0.5; u.arms[1].rotation.x = -Math.sin(s * 9) * 0.5; }
+      if (u.sign) u.sign.position.x = fig.position.x;
       if (r.rec && r.rec.m && r.rec.st !== 'stop' && cur === loc && curKey === key && typeof VP !== 'undefined' && s - (r.slT || 0) > 0.4) {
         r.slT = s; if (r.mraw !== r.rec.m) { r.mraw = r.rec.m; try { r.mm = JSON.parse(r.rec.m); } catch (e) { r.mm = null; } }
         var k = r.mm && r.mm[Math.min(r.rec.i | 0, r.mm.length - 1)];
-        if (typeof k === 'number' && VP.lpGoto(k) && r.bk !== k + ':' + r.rec.t0) { r.bk = k + ':' + r.rec.t0; var inf = VP.lpInfo(k); if (inf && window.__rbBoards && window.__rbBoards[key]) window.__rbBoards[key]([inf.title].concat(inf.pts)); }
+        if (typeof k === 'number' && VP.lpGoto(k) && r.bk !== k + ':' + r.rec.t0) { r.bk = k + ':' + r.rec.t0; r.tx = [3.2, 2.4, 1.8, 2.8][k % 4]; var inf = VP.lpInfo(k); if (inf && window.__rbBoards && window.__rbBoards[key]) window.__rbBoards[key]([inf.title].concat(inf.pts)); }
       }
     });
   }
@@ -2504,9 +2511,9 @@ var RB = (function () {
     MEET.zoomT = [{ label: 'Дошка', obj: plane }];
   }
   if (SEP) {
-    var rbf = makeFigure({ s: 'm', c: 4, h: 0, r: 1 }); rbf.position.set(-2.4, 0, -5.0); rbf.rotation.y = Math.PI; MEET.group.add(rbf);
-    var rbs = signPlane(['Викладач-робот'], 1.5, 0.3, { bg: '#17110b', fg: '#9fe6b0', px: 72 }); rbs.position.set(-2.4, 2.25, -5.0); rbs.rotation.y = 0; MEET.group.add(rbs);
-    obs(MEET, -2.4, -5.0, 0.5, 0.5); RB.attach(KEY, MEET, rbf);
+    var rbf = makeFigure({ s: 'm', c: 4, h: 0, r: 1 }); rbf.position.set(3.0, 0, -5.0); rbf.rotation.y = Math.PI; MEET.group.add(rbf);
+    var rbs = signPlane(['Викладач-робот'], 1.5, 0.3, { bg: '#17110b', fg: '#9fe6b0', px: 72 }); rbs.position.set(3.0, 2.25, -5.0); rbs.rotation.y = 0; MEET.group.add(rbs); rbf.userData.sign = rbs;
+    obs(MEET, 3.0, -5.0, 0.5, 0.5); RB.attach(KEY, MEET, rbf);
   }
   (function () { var arr = SEP ? tvPlanes : [plane]; arr.forEach(function (q) { q.userData.hs = SEP ? [1.35, 0.76] : [3, 1.2]; }); VP.screens(KEY, arr); })();
 
