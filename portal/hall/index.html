@@ -39,6 +39,11 @@ canvas{display:block;width:100%;height:100%;touch-action:none}
 .msg.ok{color:#a5d6a7}
 svg.dr{width:100%;height:auto;background:#fff;border:1px solid #6d5a3c;margin:8px 0}
 .row{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+#chat{position:fixed;right:12px;bottom:12px;width:min(340px,58vw);z-index:6;display:none}
+#clog{pointer-events:none}
+#crow{display:flex;gap:4px;margin-top:6px}
+#cin{flex:1;min-width:0;padding:8px;font-size:16px;font-family:inherit;background:rgba(20,14,8,.9);color:#f2e2c0;border:1px solid #8a7347;-webkit-user-select:text;user-select:text}
+#csend{padding:8px 10px;font-family:inherit;font-size:14px;background:#6b4a1f;color:#f2e2c0;border:1px solid #8a7347;cursor:pointer}
 </style>
 </head>
 <body>
@@ -48,6 +53,7 @@ svg.dr{width:100%;height:auto;background:#fff;border:1px solid #6d5a3c;margin:8p
 <div id="toast"></div>
 <div id="tip"></div>
 <div id="stick"><div id="knob"></div></div>
+<div id="chat"><div id="clog"></div><div id="crow"><input id="cin" maxlength="100" placeholder="Чат холу…" autocomplete="off"><button id="csend" type="button">Надіслати</button></div></div>
 <div id="fade"></div>
 <div id="modal"><div id="mcard"><button id="mclose" type="button" aria-label="Закрити">×</button><div id="mbody"></div></div></div>
 <script>/**
@@ -248,7 +254,7 @@ stick.addEventListener('pointerdown', function (e) { sid = e.pointerId; stick.se
 stick.addEventListener('pointermove', function (e) { if (e.pointerId === sid) sMove(e); });
 stick.addEventListener('pointerup', function (e) { if (e.pointerId === sid) sEnd(); });
 stick.addEventListener('pointercancel', sEnd);
-addEventListener('keydown', function (e) { if (modalOpen) { if (e.key === 'Escape') closeModal(); return; } keys[e.code] = true; if (e.code === 'Escape') leaveRoom && leaveRoom(); });
+addEventListener('keydown', function (e) { if (e.target && /^(INPUT|TEXTAREA)$/.test(e.target.tagName)) return; if (modalOpen) { if (e.key === 'Escape') closeModal(); return; } keys[e.code] = true; if (e.code === 'Escape') leaveRoom && leaveRoom(); });
 addEventListener('keyup', function (e) { keys[e.code] = false; });
 function walk(dt) {
   if (!cur) return;
@@ -1051,6 +1057,89 @@ syncAll();
 requestAnimationFrame(loop);
 
 
+/* ====== ФІГУРКИ, ШАФА (ВИГЛЯД) ====== */
+var SHIRTS = [0xb23a3a, 0x2f5d9a, 0x3f8a4f, 0xd9a521, 0x7a3f98, 0x1f8a8a, 0xe07a9a, 0x555555, 0xeeeeee, 0xe8742a];
+var HAIRS = [0x1a1a1a, 0x4a2c17, 0x8a5a2a, 0xd8b060, 0xa83a1a, 0x9a9a9a];
+var AV = { s: 'm', c: 0, h: 1 };
+try { var _a = JSON.parse(localStorage.getItem('hall-av') || 'null'); if (_a && (_a.s === 'm' || _a.s === 'f')) AV = { s: _a.s, c: (_a.c | 0) % SHIRTS.length, h: (_a.h | 0) % HAIRS.length }; else AV.c = Math.floor(Math.random() * SHIRTS.length); } catch (e) {}
+function avSave() { try { localStorage.setItem('hall-av', JSON.stringify(AV)); } catch (e) {} }
+function cssHex(n) { return '#' + ('000000' + n.toString(16)).slice(-6); }
+
+function makeFigure(o) {
+  var s = o.s === 'f' ? 'f' : 'm', shirt = SHIRTS[(o.c | 0) % SHIRTS.length], hair = HAIRS[(o.h | 0) % HAIRS.length], skin = 0xe0bf9c, pants = 0x2a2f3a;
+  var g = new THREE.Group(), M_ = function (c, r) { return new THREE.MeshStandardMaterial({ color: c, roughness: r || .75 }); };
+  function add(m, x, y, z, p) { m.raycast = function () {}; m.position.set(x, y, z); (p || g).add(m); return m; }
+  function pivot(x, y, z) { var p = new THREE.Group(); p.position.set(x, y, z); g.add(p); return p; }
+  var f = s === 'f', hx = f ? 0.085 : 0.105;
+  var legs = [-1, 1].map(function (k) {
+    var p = pivot(k * hx, 0.82, 0);
+    add(new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.05, 0.78, 10), M_(f ? skin : pants)), 0, -0.41, 0, p);
+    add(new THREE.Mesh(new THREE.BoxGeometry(0.11, 0.07, 0.2), M_(0x1b1b1b, .6)), 0, -0.78, -0.03, p); return p;
+  });
+  if (f) add(new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.3, 0.42, 16), M_(shirt)), 0, 0.88, 0);
+  var tor = add(new THREE.Mesh(new THREE.CylinderGeometry(f ? 0.15 : 0.2, f ? 0.14 : 0.17, 0.56, 14), M_(shirt)), 0, 1.1, 0); tor.scale.z = 0.62;
+  var arms = [-1, 1].map(function (k) {
+    var p = pivot(k * (f ? 0.2 : 0.265), 1.36, 0);
+    add(new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.04, 0.5, 8), M_(f ? skin : shirt)), 0, -0.25, 0, p);
+    if (f) add(new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.16, 8), M_(shirt)), 0, -0.07, 0, p);
+    add(new THREE.Mesh(new THREE.SphereGeometry(0.045, 8, 8), M_(skin)), 0, -0.53, 0, p); return p;
+  });
+  add(new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.05, 0.1, 8), M_(skin)), 0, 1.42, 0);
+  var head = add(new THREE.Mesh(new THREE.SphereGeometry(0.115, 16, 14), M_(skin)), 0, 1.56, 0); head.scale.y = 1.12;
+  add(new THREE.Mesh(new THREE.SphereGeometry(0.126, 16, 10, 0, 6.2832, 0, f ? 1.75 : 1.45), M_(hair, .9)), 0, 1.575, 0.01);
+  if (f) { add(new THREE.Mesh(new THREE.BoxGeometry(0.23, 0.32, 0.07), M_(hair, .9)), 0, 1.42, 0.085); }
+  [-1, 1].forEach(function (k) { add(new THREE.Mesh(new THREE.SphereGeometry(0.013, 6, 6), M_(0x111111)), k * 0.04, 1.575, -0.108); });
+  g.userData.legs = legs; g.userData.arms = arms; return g;
+}
+
+/* малюнок для вікна шафи */
+function drawPreview(cv, o) {
+  var x = cv.getContext('2d'), s = o.s === 'f', shirt = cssHex(SHIRTS[o.c]), hair = cssHex(HAIRS[o.h]), skin = '#e0bf9c', W = cv.width, H = cv.height;
+  x.clearRect(0, 0, W, H); x.fillStyle = '#241a10'; x.fillRect(0, 0, W, H); x.translate(W / 2, 0);
+  x.fillStyle = s ? skin : '#2a2f3a'; x.fillRect(-26, 128, 20, 62); x.fillRect(6, 128, 20, 62);
+  x.fillStyle = '#1b1b1b'; x.fillRect(-30, 188, 26, 8); x.fillRect(4, 188, 26, 8);
+  x.fillStyle = shirt;
+  if (s) { x.beginPath(); x.moveTo(-26, 80); x.lineTo(26, 80); x.lineTo(46, 140); x.lineTo(-46, 140); x.closePath(); x.fill(); }
+  else x.fillRect(-32, 66, 64, 76);
+  x.fillStyle = s ? skin : shirt; x.fillRect(-48, 70, 14, 62); x.fillRect(34, 70, 14, 62);
+  x.fillStyle = skin; x.beginPath(); x.arc(-41, 135, 8, 0, 7); x.arc(41, 135, 8, 0, 7); x.fill(); x.fillRect(-7, 52, 14, 18);
+  x.beginPath(); x.ellipse(0, 36, 24, 28, 0, 0, 7); x.fill();
+  x.fillStyle = hair; x.beginPath(); x.ellipse(0, 28, 26, 24, 0, Math.PI, 0); x.fill(); if (s) x.fillRect(-26, 28, 10, 50), x.fillRect(16, 28, 10, 50);
+  x.fillStyle = '#111'; x.fillRect(-10, 38, 4, 5); x.fillRect(6, 38, 4, 5); x.setTransform(1, 0, 0, 1, 0, 0);
+}
+
+function openWardrobe() {
+  var html = '<h3>Шафа: ваш вигляд</h3><div class="row" style="align-items:flex-start;gap:14px"><canvas id="avp" width="140" height="210" style="border:1px solid #6d5a3c;width:140px;height:210px;max-width:140px;flex:none"></canvas><div style="flex:1;min-width:190px">' +
+    '<p class="muted" style="margin:0 0 4px">Стать</p><div><button id="avm" type="button">Чоловік</button><button id="avf" type="button">Жінка</button></div>' +
+    '<p class="muted" style="margin:10px 0 4px">Колір одягу</p><div id="avc"></div><p class="muted" style="margin:10px 0 4px">Колір волосся</p><div id="avh"></div></div></div><button class="main" id="avok" type="button" style="margin-top:14px">Готово</button>';
+  var b = modal(html); var pv = b.querySelector('#avp');
+  function sw(cont, arr, key) {
+    var el = b.querySelector(cont); el.innerHTML = '';
+    arr.forEach(function (c, i) { var bt = document.createElement('button'); bt.type = 'button'; bt.style.cssText = 'width:34px;height:34px;padding:0;margin:3px;background:' + cssHex(c) + ';border:2px solid ' + (AV[key] === i ? '#fff' : '#555'); bt.addEventListener('click', function () { AV[key] = i; refresh(); }); el.appendChild(bt); });
+  }
+  function refresh() {
+    drawPreview(pv, AV); sw('#avc', SHIRTS, 'c'); sw('#avh', HAIRS, 'h');
+    b.querySelector('#avm').style.borderColor = AV.s === 'm' ? '#fff' : '#8a7347'; b.querySelector('#avf').style.borderColor = AV.s === 'f' ? '#fff' : '#8a7347';
+    avSave(); if (window.__avChanged) window.__avChanged();
+  }
+  b.querySelector('#avm').addEventListener('click', function () { AV.s = 'm'; refresh(); });
+  b.querySelector('#avf').addEventListener('click', function () { AV.s = 'f'; refresh(); });
+  b.querySelector('#avok').addEventListener('click', closeModal); refresh();
+}
+(function () {
+  var g = grp(-3.6, 0, 0, HWALL[2].g);
+  box(1.9, 2.5, 0.62, M.darkwood, 0, 1.25, 0.31, g);
+  box(0.9, 2.3, 0.04, M.wood, -0.46, 1.25, 0.64, g); box(0.9, 2.3, 0.04, M.wood, 0.46, 1.25, 0.64, g);
+  box(0.7, 1.0, 0.03, M.darkwood, -0.46, 1.6, 0.67, g); box(0.7, 1.0, 0.03, M.darkwood, 0.46, 1.6, 0.67, g);
+  box(0.7, 0.8, 0.03, M.darkwood, -0.46, 0.55, 0.67, g); box(0.7, 0.8, 0.03, M.darkwood, 0.46, 0.55, 0.67, g);
+  box(0.04, 0.3, 0.05, M.brass, -0.08, 1.2, 0.7, g); box(0.04, 0.3, 0.05, M.brass, 0.08, 1.2, 0.7, g);
+  box(2.0, 0.12, 0.7, M.wood, 0, 2.56, 0.33, g);
+  var hit = box(1.9, 2.5, 0.1, basic(0x000000), 0, 1.25, 0.72, g); hit.material.transparent = true; hit.material.opacity = 0;
+  act(hit, 'Шафа: змінити вигляд', openWardrobe, { reach: 4 });
+  var wp = worldPos(g); blockBox(HALL, wp.x, wp.z - 0.35, 1.0, 0.42);
+})();
+
+
 /* ====== ПРИСУТНІСТЬ У ХОЛІ (Firebase Realtime Database) ====== */
 /* Працює лише всередині кабінету. Кожен у холі бачить інших як фігурки з іменами. */
 (function () {
@@ -1059,7 +1148,7 @@ requestAnimationFrame(loop);
   var V = 'https://www.gstatic.com/firebasejs/10.12.2/';
   function load(src) { return new Promise(function (ok, no) { var s = document.createElement('script'); s.src = src; s.onload = ok; s.onerror = no; document.head.appendChild(s); }); }
   var ghosts = {}, myRef = null, uid = null, offset = 0, lastSent = 0, last = { x: 1e9, z: 1e9, y: 1e9 };
-  var COLORS = [0x9a4a3a, 0x3a6a9a, 0x4a8a5a, 0x8a6a2a, 0x7a4a8a, 0x2a7a7a, 0xa05a7a, 0x5a5a5a];
+  var seenMt = {}, me = { m: null, mt: 0 }, chatOn = false, lastChat = 0, logEl = $('clog');
 
   function labelTex(name, sub) {
     var c = document.createElement('canvas'); c.width = 512; c.height = 128; var x = c.getContext('2d');
@@ -1070,17 +1159,30 @@ requestAnimationFrame(loop);
     if (sub) { x.fillStyle = '#c9b88a'; x.font = '30px Georgia,serif'; x.fillText(sub, 256, 90); }
     var t = new THREE.CanvasTexture(c); t.anisotropy = 4; return t;
   }
+  function bubbleTex(text) {
+    var c = document.createElement('canvas'), x = c.getContext('2d'); c.width = 512; c.height = 160;
+    x.font = '34px Georgia,serif'; var words = text.split(' '), lines = [], cur = '';
+    words.forEach(function (w) { var t = cur ? cur + ' ' + w : w; if (x.measureText(t).width > 470 && cur) { lines.push(cur); cur = w; } else cur = t; }); lines.push(cur); lines = lines.slice(0, 3);
+    var h = 30 + lines.length * 42; x.fillStyle = 'rgba(245,238,220,.95)'; x.fillRect(4, 160 - h, 504, h - 4); x.strokeStyle = '#8a7347'; x.lineWidth = 4; x.strokeRect(4, 160 - h, 504, h - 4);
+    x.fillStyle = '#2a1d10'; x.textAlign = 'center'; x.textBaseline = 'middle'; lines.forEach(function (l, i) { x.fillText(l, 256, 160 - h + 34 + i * 42); });
+    var t = new THREE.CanvasTexture(c); return t;
+  }
+  function say(g, text) {
+    if (g.userData.bub) { g.remove(g.userData.bub); }
+    var sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: bubbleTex(text), transparent: true, depthTest: false })); sp.scale.set(1.9, 0.6, 1); sp.position.y = 2.75; sp.renderOrder = 11; g.add(sp);
+    g.userData.bub = sp; g.userData.bubUntil = Date.now() + 9000;
+  }
   function makeGhost(id, d) {
-    var g = new THREE.Group(), col = COLORS[(id.charCodeAt(0) + id.charCodeAt(id.length - 1)) % COLORS.length];
-    var body = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.26, 1.0, 14), new THREE.MeshStandardMaterial({ color: col, roughness: .7 })); body.position.y = 0.9;
-    var head = new THREE.Mesh(new THREE.SphereGeometry(0.17, 14, 12), new THREE.MeshStandardMaterial({ color: 0xe0c2a0, roughness: .7 })); head.position.y = 1.62;
-    var cap = new THREE.Mesh(new THREE.SphereGeometry(0.18, 14, 8, 0, 6.3, 0, 1.2), new THREE.MeshStandardMaterial({ color: 0xe8b020, roughness: .5 })); cap.position.y = 1.66;
-    var nose = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.05, 0.12), new THREE.MeshStandardMaterial({ color: 0xd0b090 })); nose.position.set(0, 1.6, -0.17);
-    var leg = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.45, 0.2), new THREE.MeshStandardMaterial({ color: 0x2a2f3a })); leg.position.y = 0.23;
-    [body, head, cap, nose, leg].forEach(function (m) { m.raycast = function () {}; g.add(m); });
+    var g = makeFigure({ s: d.s, c: d.c == null ? (id.charCodeAt(0) + id.charCodeAt(id.length - 1)) % SHIRTS.length : d.c, h: d.h == null ? id.charCodeAt(1) % HAIRS.length : d.h });
     var sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: labelTex(d.n, d.g || ''), transparent: true, depthTest: false })); sp.scale.set(1.5, 0.375, 1); sp.position.y = 2.15; sp.renderOrder = 10; g.add(sp);
-    g.userData = { tx: d.x, tz: d.z, ty: d.y, name: d.n, sub: d.g || '' };
+    Object.assign(g.userData, { tx: d.x, tz: d.z, ty: d.y, name: d.n, sub: d.g || '', key: [d.s, d.c, d.h].join(), ph: 0, amp: 0 });
     g.position.set(d.x, 0, d.z); g.rotation.y = d.y; HALL.group.add(g); return g;
+  }
+  function logMsg(who, text, mine) {
+    var el = document.createElement('div'); el.style.cssText = 'background:rgba(10,7,4,.68);padding:3px 8px;margin-top:3px;font-size:14px;color:' + (mine ? '#a5d6a7' : '#f2e2c0') + ';transition:opacity 1s;word-break:break-word';
+    var b = document.createElement('b'); b.textContent = who + ': '; el.appendChild(b); el.appendChild(document.createTextNode(text)); logEl.appendChild(el);
+    while (logEl.children.length > 7) logEl.removeChild(logEl.firstChild);
+    setTimeout(function () { el.style.opacity = 0; }, 14000); setTimeout(function () { if (el.parentNode) el.parentNode.removeChild(el); }, 15500);
   }
   function onData(snap) {
     var v = snap.val() || {}, now = Date.now() + offset, seen = {};
@@ -1088,8 +1190,9 @@ requestAnimationFrame(loop);
       if (id === uid) return; var d = v[id];
       if (!d || now - d.t > 25000) return; seen[id] = 1;
       var g = ghosts[id];
-      if (!g || g.userData.name !== d.n || g.userData.sub !== (d.g || '')) { if (g) HALL.group.remove(g); if (Object.keys(ghosts).length > 40) return; g = ghosts[id] = makeGhost(id, d); }
+      if (!g || g.userData.name !== d.n || g.userData.sub !== (d.g || '') || g.userData.key !== [d.s, d.c, d.h].join()) { if (g) HALL.group.remove(g); if (Object.keys(ghosts).length > 40) return; g = ghosts[id] = makeGhost(id, d); }
       g.userData.tx = d.x; g.userData.tz = d.z; g.userData.ty = d.y;
+      if (d.m && d.mt && d.mt > (seenMt[id] || 0)) { if (seenMt[id] !== undefined || now - d.mt < 20000) { say(g, String(d.m)); logMsg(d.n, String(d.m)); } seenMt[id] = d.mt; } else if (seenMt[id] === undefined) seenMt[id] = d.mt || 0;
     });
     Object.keys(ghosts).forEach(function (id) { if (!seen[id]) { HALL.group.remove(ghosts[id]); delete ghosts[id]; } });
   }
@@ -1106,18 +1209,39 @@ requestAnimationFrame(loop);
     myRef = db.ref('presence/' + uid);
     myRef.onDisconnect().remove();
     db.ref('presence').on('value', onData);
-    function send() {
+    function send(force) {
       var inHall = !inRoom();
       if (!inHall) { if (last.x !== 1e9) { myRef.remove(); last.x = 1e9; } return; }
       var p = camera.position, nowMs = Date.now(), moved = Math.abs(p.x - last.x) > 0.05 || Math.abs(p.z - last.z) > 0.05 || Math.abs(yaw - last.y) > 0.08;
-      if (!moved && nowMs - lastSent < 8000) return;
+      if (!force && !moved && nowMs - lastSent < 8000) return;
       lastSent = nowMs; last = { x: p.x, z: p.z, y: yaw };
-      myRef.set({ n: w.name, g: w.group, x: Math.round(p.x * 100) / 100, z: Math.round(p.z * 100) / 100, y: Math.round(yaw * 100) / 100, t: firebase.database.ServerValue.TIMESTAMP }).catch(function (e) { if (!window.__perr) { window.__perr = 1; toast('Присутність: ' + (e && e.code || e), 6000); } });
+      var rec = { n: w.name, g: w.group, s: AV.s, c: AV.c, h: AV.h, x: Math.round(p.x * 100) / 100, z: Math.round(p.z * 100) / 100, y: Math.round(yaw * 100) / 100, t: firebase.database.ServerValue.TIMESTAMP };
+      if (me.m && Date.now() + offset - me.mt < 30000) { rec.m = me.m; rec.mt = me.mt; }
+      myRef.set(rec).catch(function (e) { if (!window.__perr) { window.__perr = 1; toast('Присутність: ' + (e && e.code || e), 6000); } });
     }
     setInterval(send, 450);
+    window.__avChanged = function () { send(true); };
+    function sendChat() {
+      var inp = $('cin'), t = inp.value.replace(/\s+/g, ' ').trim().slice(0, 100); if (!t || Date.now() - lastChat < 1200) return;
+      lastChat = Date.now(); inp.value = ''; me.m = t; me.mt = Date.now() + offset; logMsg('Ви', t, true); send(true);
+    }
+    $('csend').addEventListener('click', sendChat);
+    $('cin').addEventListener('keydown', function (e) { e.stopPropagation(); if (e.key === 'Enter') sendChat(); });
+    chatOn = true;
     updaters.push(function (s, dt) {
-      var k = Math.min(1, (dt || 0.016) * 6);
-      Object.keys(ghosts).forEach(function (id) { var g = ghosts[id], u = g.userData; g.position.x += (u.tx - g.position.x) * k; g.position.z += (u.tz - g.position.z) * k; g.rotation.y += angDiff(g.rotation.y, u.ty) * k; });
+      dt = dt || 0.016; var k = Math.min(1, dt * 6), nowMs = Date.now();
+      $('chat').style.display = (chatOn && !inRoom() && !modalOpen) ? 'block' : 'none';
+      Object.keys(ghosts).forEach(function (id) {
+        var g = ghosts[id], u = g.userData, ox = g.position.x, oz = g.position.z;
+        g.position.x += (u.tx - g.position.x) * k; g.position.z += (u.tz - g.position.z) * k; g.rotation.y += angDiff(g.rotation.y, u.ty) * k;
+        var sp = Math.hypot(g.position.x - ox, g.position.z - oz) / dt, want = sp > 0.15 ? Math.min(0.7, 0.25 + sp * 0.12) : 0;
+        u.amp += (want - u.amp) * Math.min(1, dt * 8); u.ph += dt * (5 + sp * 2); var w = Math.sin(u.ph) * u.amp;
+        u.legs[0].rotation.x = w; u.legs[1].rotation.x = -w; u.arms[0].rotation.x = -w; u.arms[1].rotation.x = w;
+        var idle = 1 - Math.min(1, u.amp * 3), br = Math.sin(nowMs / 520 + g.id) * 0.025 * idle;
+        g.scale.y = 1 + br; u.arms[0].rotation.z = 0.04 + br * 2; u.arms[1].rotation.z = -0.04 - br * 2;
+        if (u.bub) { var wv = Math.sin(nowMs / 130); u.arms[1].rotation.x = -2.5; u.arms[1].rotation.z = -0.3 + wv * 0.35; }
+        if (u.bub && nowMs > u.bubUntil) { g.remove(u.bub); u.bub = null; }
+      });
     });
   }).catch(function (e) { toast('Присутність недоступна: ' + (e && (e.code || e.message) || e), 7000); });
 })();
