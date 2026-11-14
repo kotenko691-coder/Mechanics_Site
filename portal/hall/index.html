@@ -1936,7 +1936,7 @@ if (window.__hall) { window.__hall.sit = sitDown; window.__hall.meetCheck = meet
   function angDiff(a, b) { var d = (b - a) % (2 * Math.PI); if (d > Math.PI) d -= 2 * Math.PI; if (d < -Math.PI) d += 2 * Math.PI; return d; }
 
   window.__pres = { onData: onData, ghosts: ghosts };
-  window.__seatTaken = function (x, z) { return Object.keys(ghosts).some(function (id) { var u = ghosts[id].userData; return u.e === 4 && Math.hypot(ghosts[id].position.x - x, ghosts[id].position.z - z) < 0.5; }); };
+  window.__seatTaken = function (x, z) { return Object.keys(ghosts).some(function (id) { var u = ghosts[id].userData; var gp = ghosts[id].parent ? ghosts[id].parent.position : { x: 0, z: 0 }; return u.e === 4 && u.loc === cur.id && Math.hypot(ghosts[id].position.x + gp.x - x, ghosts[id].position.z + gp.z - z) < 0.5; }); };
   Promise.all([load(V + 'firebase-app-compat.js'), load(V + 'firebase-auth-compat.js'), load(V + 'firebase-database-compat.js')]).then(function () {
     firebase.initializeApp(FB);
     var cred = firebase.auth.GoogleAuthProvider.credential(NET.token());
@@ -1954,7 +1954,7 @@ if (window.__hall) { window.__hall.sit = sitDown; window.__hall.meetCheck = meet
       var p = camera.position, nowMs = Date.now(), moved = Math.abs(p.x - last.x) > 0.05 || Math.abs(p.z - last.z) > 0.05 || Math.abs(yaw - last.y) > 0.08 || (window.__ptStr || '') !== (last.pt || '') || (window.__hand | 0) !== (last.hd | 0);
       if (!force && !moved && nowMs - lastSent < 8000) return;
       lastSent = nowMs; last = { x: p.x, z: p.z, y: yaw, pt: window.__ptStr || '', hd: window.__hand | 0 };
-      var rec = { n: w.name, g: w.group, s: AV.s, c: AV.c, h: AV.h, e: EMO, r: isTeacher() ? 1 : 0, l: cur.id, v: (window.__micOn ? 1 : 0), x: Math.round(p.x * 100) / 100, z: Math.round(p.z * 100) / 100, y: Math.round(yaw * 100) / 100, t: firebase.database.ServerValue.TIMESTAMP };
+      var rec = { n: w.name, g: w.group, s: AV.s, c: AV.c, h: AV.h, e: EMO, r: isTeacher() ? 1 : 0, l: cur.id, v: (window.__micOn ? 1 : 0), x: Math.round((p.x - cur.group.position.x) * 100) / 100, z: Math.round((p.z - cur.group.position.z) * 100) / 100, y: Math.round(yaw * 100) / 100, t: firebase.database.ServerValue.TIMESTAMP };
       if (window.__ptStr) rec.pt = window.__ptStr;
       if (window.__hand && EMO === 4) rec.hd = 1;
       if (me.m && Date.now() + offset - me.mt < 30000) { rec.m = me.m; rec.mt = me.mt; }
@@ -2417,7 +2417,7 @@ window.__vp = VP;
     var gh = (window.__pres && window.__pres.ghosts) || {}, p = camera.position;
     Object.keys(peers).forEach(function (id) {
       var el = peers[id].el, g = gh[id]; if (!el || !g) return;
-      var d = Math.hypot(g.position.x - p.x, g.position.z - p.z); el.volume = Math.max(0.15, Math.min(1, 1.25 - d / 12));
+      var gx = g.position.x + (g.parent ? g.parent.position.x : 0), gz = g.position.z + (g.parent ? g.parent.position.z : 0), d = Math.hypot(gx - p.x, gz - p.z); el.volume = Math.max(0.15, Math.min(1, 1.25 - d / 12));
     });
   });
 
