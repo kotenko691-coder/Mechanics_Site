@@ -1175,7 +1175,7 @@ if (window.__hall) { window.__hall.makeFigure = makeFigure; window.__hall.openWa
   }
   function makeGhost(id, d) {
     var g = makeFigure({ s: d.s, c: d.c == null ? (id.charCodeAt(0) + id.charCodeAt(id.length - 1)) % SHIRTS.length : d.c, h: d.h == null ? id.charCodeAt(1) % HAIRS.length : d.h });
-    var sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: labelTex(d.n, d.g || ''), transparent: true, depthTest: false })); sp.scale.set(1.5, 0.375, 1); sp.position.y = 2.15; sp.renderOrder = 10; g.add(sp);
+    var sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: labelTex(d.n, d.g || ''), transparent: true, depthTest: false })); sp.scale.set(0.75, 0.1875, 1); sp.position.y = 2.05; sp.renderOrder = 10; g.add(sp);
     Object.assign(g.userData, { tx: d.x, tz: d.z, ty: d.y, name: d.n, sub: d.g || '', key: [d.s, d.c, d.h].join(), ph: 0, amp: 0 });
     g.position.set(d.x, 0, d.z); g.rotation.y = d.y; HALL.group.add(g); return g;
   }
