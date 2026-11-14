@@ -2187,6 +2187,11 @@ var VP = (function () {
     if (pts.length < 2) Array.prototype.forEach.call(el.querySelectorAll('strong,b'), function (n) { if (pts.length < 4) { var t = cl(n.textContent); if (t.length > 3 && t !== title && pts.indexOf(t) < 0) pts.push(t); } });
     return { title: title, pts: pts };
   }
+  function lpHead(i) {
+    var d = lpDoc(), w = lpIfr && lpIfr.contentWindow; if (!d || !w) return false; var h = d.querySelectorAll('h1,h2,h3,h4')[i]; if (!h) return false;
+    var se = d.scrollingElement || d.documentElement, y = Math.max(0, h.getBoundingClientRect().top + se.scrollTop - 14);
+    try { w.scrollTo({ top: y, behavior: 'smooth' }); } catch (e) { se.scrollTop = y; } return true;
+  }
   function lpGet(lid) {
     var NETx = window.parent && window.parent.PortalHall; if (!NETx || !NETx.lectureParts) return Promise.reject(new Error('no'));
     return NETx.lectureParts(lid);
@@ -2289,7 +2294,7 @@ var VP = (function () {
   return {
     parse: parse,
     screens: function (room, planes) { scrPl[room] = planes; },
-    lpGoto: lpGoto, lpInfo: lpInfo,
+    lpGoto: lpGoto, lpInfo: lpInfo, lpHead: lpHead,
     set: function (room, st) { states[room] = st && st.k ? st : null; tick(); var s2 = states[room]; if (s2 && ytReady && !ctl && shown) { s2.room = room; follow(s2); } }
   };
 })();
@@ -2402,6 +2407,11 @@ var RB = (function () {
       if (u.legs) { var sw = mv ? Math.sin(s * 9) * 0.5 : 0; u.legs[0].rotation.x = sw; u.legs[1].rotation.x = -sw; }
       if (mv && u.arms) { u.arms[0].rotation.x = Math.sin(s * 9) * 0.5; u.arms[1].rotation.x = -Math.sin(s * 9) * 0.5; }
       if (u.sign) u.sign.position.x = fig.position.x;
+      if (r.rec && r.rec.sx && r.rec.st !== 'stop' && cur === loc && curKey === key && typeof VP !== 'undefined' && s - (r.sxT || 0) > 0.5) {
+        r.sxT = s; if (r.sxraw !== r.rec.sx) { r.sxraw = r.rec.sx; try { r.sxa = JSON.parse(r.rec.sx); r.sca = JSON.parse(r.rec.sc); } catch (e) { r.sxa = null; } }
+        var q = r.sca && r.sca[Math.min(r.rec.i | 0, r.sca.length - 1)], sec = r.sxa && r.sxa[q];
+        if (sec) { var kk = q + ':' + r.rec.t0; if (r.bk2 !== kk && VP.lpHead(sec.h)) { r.bk2 = kk; r.tx = [3.2, 2.4, 1.8, 2.8][q % 4]; if (window.__rbBoards && window.__rbBoards[key]) window.__rbBoards[key]([sec.t].concat(sec.p)); } }
+      }
       if (r.rec && r.rec.m && r.rec.st !== 'stop' && cur === loc && curKey === key && typeof VP !== 'undefined' && s - (r.slT || 0) > 0.4) {
         r.slT = s; if (r.mraw !== r.rec.m) { r.mraw = r.rec.m; try { r.mm = JSON.parse(r.rec.m); } catch (e) { r.mm = null; } }
         var k = r.mm && r.mm[Math.min(r.rec.i | 0, r.mm.length - 1)];
@@ -2413,7 +2423,7 @@ var RB = (function () {
     var f = window.__fb, q = ref(key); if (!f || !q) { toast('Немає зв’язку з сервером (вхід у гру не завершено). Оновіть сторінку й спробуйте ще раз.', 5200); return false; }
     var s = JSON.stringify(sentences); if (s.length > 200000) { toast('Тема надто велика для озвучення.', 3600); return false; }
     q.onDisconnect().remove().catch(function () {});
-    q.set({ d: 'r', u: f.uid, by: NET && NET.who ? NET.who().name : 'Викладач', ti: String(title).slice(0, 120), s: s, i: 0, st: 'play', t: Date.now() + (window.__srvOff || 0), t0: Date.now(), lid: extra && extra.lid || '', m: extra && extra.m ? JSON.stringify(extra.m) : '' }).catch(function (e) { toast('Робот не запустився: ' + (e && e.code || 'помилка'), 6000); });
+    q.set({ d: 'r', u: f.uid, by: NET && NET.who ? NET.who().name : 'Викладач', ti: String(title).slice(0, 120), s: s, i: 0, st: 'play', t: Date.now() + (window.__srvOff || 0), t0: Date.now(), lid: extra && extra.lid || '', m: extra && extra.m ? JSON.stringify(extra.m) : '', sx: extra && extra.sx ? JSON.stringify(extra.sx) : '', sc: extra && extra.sc ? JSON.stringify(extra.sc) : '' }).catch(function (e) { toast('Робот не запустився: ' + (e && e.code || 'помилка'), 6000); });
     return true;
   }
   function toSentences(html) {
@@ -2422,7 +2432,23 @@ var RB = (function () {
     var raw = txt.split(/(?<=[.!?…])\s+/), out = [], buf = '';
     raw.forEach(function (p) { p = p.trim(); if (!p) return; buf = buf ? buf + ' ' + p : p; if (buf.length >= 45) { out.push(buf); buf = ''; } }); if (buf) out.push(buf);
     var res = []; out.forEach(function (sn) { while (sn.length > 260) { var k = sn.lastIndexOf(',', 240); if (k < 80) k = sn.lastIndexOf(' ', 240); if (k < 80) k = 240; res.push(sn.slice(0, k + 1).trim()); sn = sn.slice(k + 1).trim(); } if (sn) res.push(sn); });
-    return res.slice(0, 160);
+    return res.slice(0, 260);
+  }
+  function sections(html, sentences) {
+    try {
+      var d = new DOMParser().parseFromString(html, 'text/html'); Array.prototype.forEach.call(d.querySelectorAll('script,style,noscript,svg,img'), function (n) { n.remove(); });
+      var hs = d.body.querySelectorAll('h1,h2,h3,h4'); if (hs.length < 2) return null;
+      var nz = function (t) { return String(t || '').toLowerCase().replace(/[^a-zа-яіїєґ0-9]+/g, ''); }, cl = function (t) { t = String(t || '').replace(/\s+/g, ' ').trim(); var m = /^(.{12,90}?)([.:;]\s|$)/.exec(t); return (m ? m[1] : t).slice(0, 90); };
+      var secs = [], cur = null, hi = -1;
+      Array.prototype.forEach.call(d.body.querySelectorAll('h1,h2,h3,h4,p,li'), function (e) {
+        if (/^H/.test(e.tagName)) { hi++; cur = { t: String(e.textContent).replace(/\s+/g, ' ').trim().slice(0, 70), h: hi, txt: '', li: [], p: '' }; secs.push(cur); return; }
+        if (!cur) return; var t = String(e.textContent).replace(/\s+/g, ' ').trim(); if (!t) return;
+        cur.txt += nz(t); if (e.tagName === 'LI') { if (cur.li.length < 3 && t.length > 5) cur.li.push(cl(t)); } else if (!cur.p && t.length > 25) cur.p = cl(t);
+      });
+      var sc = [], j = 0;
+      sentences.forEach(function (sn) { var key = nz(sn).slice(0, 24); for (var k = j; k < secs.length; k++) { if (secs[k].txt.indexOf(key) >= 0) { j = k; break; } } sc.push(j); });
+      return { sx: secs.map(function (x) { return { t: x.t, h: x.h, p: x.li.length ? x.li : (x.p ? [x.p] : []) }; }), sc: sc };
+    } catch (e) { return null; }
   }
   function mapSlides(sentences, deckHtml) {
     try {
@@ -2436,7 +2462,7 @@ var RB = (function () {
       var m = new Array(n); for (i = n - 1; i >= 0; i--) { m[i] = kk; kk = bp[i][kk]; } m[0] = 0; return m;
     } catch (e) { return null; }
   }
-  return { mapSlides: mapSlides, attach: attach, start: start, loadMan: loadMan, toSentences: toSentences, available: function () { return true; } };
+  return { sections: sections, mapSlides: mapSlides, attach: attach, start: start, loadMan: loadMan, toSentences: toSentences, available: function () { return true; } };
 })();
 
 
@@ -2643,8 +2669,8 @@ var RB = (function () {
     NET.lectureParts(lid).then(function (p) {
       closeModal(); var sn = RB.toSentences(p.notes || p.deck || '');
       if (!sn.length) { toast('У цієї теми немає тексту для озвучення (лише PDF).', 4500); return; }
-      var mp = p.deck ? RB.mapSlides(sn, p.deck) : null;
-      if (RB.start(KEY, ttl, sn, { lid: lid, m: mp }) !== false) { toast('Викладач-робот починає лекцію. Речень: ' + sn.length + (mp ? ' · слайди на телевізорі' : ''), 3800); if (mp) tvLecPart(lid, 'deck', ttl); }
+      var mp = p.deck ? RB.mapSlides(sn, p.deck) : null, sec = !mp && p.notes ? RB.sections(p.notes, sn) : null;
+      if (RB.start(KEY, ttl, sn, { lid: lid, m: mp, sx: sec && sec.sx, sc: sec && sec.sc }) !== false) { toast('Викладач-робот починає. Речень: ' + sn.length + (mp || sec ? ' · текст на телевізорі і дошці' : ''), 3800); if (mp) tvLecPart(lid, 'deck', ttl); else if (sec) tvLecPart(lid, 'notes', ttl); }
     }, function () { closeModal(); toast('Тема недоступна.', 3500); });
   }
   function partPicker(lid, ttl) {
