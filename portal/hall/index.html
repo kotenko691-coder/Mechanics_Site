@@ -1286,12 +1286,14 @@ classroom('road', { floor: TX.concrete, wall: TX.wall2, ceil: 0x2a2622, amb: 0xe
   function sel(k, opts, cur, i) { return '<select data-k="' + k + '"' + (i !== undefined ? ' data-i="' + i + '"' : '') + ' style="' + selCss + '">' + opts.map(function (o) { return '<option value="' + o[0] + '"' + (String(cur) === o[0] ? ' selected' : '') + '>' + o[1] + '</option>'; }).join('') + '</select>'; }
   var ANGS = '<button type="button" data-ang="270" style="padding:5px 9px;margin:0 2px">↓</button><button type="button" data-ang="90" style="padding:5px 9px;margin:0 2px">↑</button><button type="button" data-ang="0" style="padding:5px 9px;margin:0 2px">→</button><button type="button" data-ang="180" style="padding:5px 9px;margin:0 2px">←</button>';
 
-    function refreshStand() { if (curSt) build3D(curSt); }
+    function sigOf(S) { return JSON.stringify(S, function (k, v) { return k === 'res' ? undefined : v; }); }
+  function stopSt(st) { if (!st) return; st.anim = null; st.checked = false; st.ok = false; st.sig = null; build3D(st); }
+  function refreshStand() { if (curSt) build3D(curSt); }
 
   function openBeam(msg) {
     var h = '<h3>Двоопорна балка</h3><p class="muted">Складіть свою задачу: довжина, положення опор, сили. Опора A нерухома шарнірна (дає вертикальну V і горизонтальну H реакції), опора B рухома (дає тільки V). Знайдіть реакції та введіть їх зі своїм напрямком.</p>' +
       '<canvas id="pc" width="640" height="260" style="width:100%;height:auto;display:block;background:#fff;border:1px solid #6d5a3c"></canvas>' +
-      '<div style="margin:6px 0"><span class="muted">Готові варіанти:</span> <button type="button" data-v="0">1</button><button type="button" data-v="1">2</button><button type="button" data-v="2">3</button> <button type="button" id="clr">Очистити</button></div>' +
+      '<div style="margin:6px 0"><span class="muted">Готові варіанти:</span> <button type="button" data-v="0">1</button><button type="button" data-v="1">2</button><button type="button" data-v="2">3</button> <button type="button" id="clr">Очистити</button> <button type="button" id="stopm" style="border-color:#c62828">Зупинити макет</button></div>' +
       '<div class="row">L, м ' + inp('L', B.L) + ' A: x= ' + inp('xA', B.xA) + ' B: x= ' + inp('xB', B.xB) + '</div><div id="ld">';
     B.loads.forEach(function (l, i) {
       h += '<div class="row" style="margin-top:6px;border-top:1px solid #3a2c1a;padding-top:6px"><b>' + (l.t === 'F' ? 'F' : l.t === 'q' ? 'q' : 'M') + (i + 1) + '</b> ';
@@ -1321,6 +1323,7 @@ classroom('road', { floor: TX.concrete, wall: TX.wall2, ceil: 0x2a2622, amb: 0xe
       if (t.dataset.ang !== undefined) { readAll(); B.loads[+t.dataset.i].a = t.dataset.ang; B.res = null; openBeam(); return; }
       if (t.dataset.v !== undefined) { setB(+t.dataset.v); openBeam(); return; }
       if (t.dataset.del !== undefined) { readAll(); B.loads.splice(+t.dataset.del, 1); B.res = null; openBeam(); return; }
+      if (t.id === 'stopm') { stopSt(curSt); toast('Макет зупинено.'); return; }
       if (t.id === 'clr') { B.loads = []; B.res = null; openBeam(); return; }
       if (t.id === 'aF') { readAll(); B.loads.push({ t: 'F', x: '', F: '', a: '270' }); openBeam(); return; }
       if (t.id === 'aQ') { readAll(); B.loads.push({ t: 'q', x1: '', x2: '', q: '' }); openBeam(); return; }
@@ -1345,7 +1348,7 @@ classroom('road', { floor: TX.concrete, wall: TX.wall2, ceil: 0x2a2622, amb: 0xe
     var rx0 = sv.HA + s.fx, ry0 = sv.VA + sv.VB + s.fy, mr = s.mA + sv.VB * (num(B.xB) - num(B.xA));
     curSt.ok = all; curSt.checked = true; curSt.anim = all ? { dx: 0, dy: 0, th: 0 } : { dx: clp(rx0 * 0.03, 0.35), dy: clp(ry0 * 0.03, 0.4), th: clp(mr * 0.015, 0.7) };
     if (!all && Math.hypot(curSt.anim.dx, curSt.anim.dy, curSt.anim.th) < 0.03) curSt.anim.dy = 0.07;
-    build3D(curSt);
+    curSt.sig = sigOf(curSt.S); build3D(curSt);
     [j.VA, j.HA, j.VB].forEach(function (r) { h += '<div style="color:' + (r.ok ? '#a5d6a7' : '#f2b0a0') + '">' + esc(r.msg) + '</div>'; });
     var ry = sv.VA + sv.VB + s.fy, rx = sv.HA + s.fx;
     if (!all) {
@@ -1360,7 +1363,7 @@ classroom('road', { floor: TX.concrete, wall: TX.wall2, ceil: 0x2a2622, amb: 0xe
   function openRods(msg) {
     var h = '<h3>Реакції в стержнях</h3><p class="muted">Вузол утримують два стержні й навантажують сили. Складіть свою задачу: задайте кути стержнів (від осі x проти годинникової стрілки, у бік опори) і сили. Знайдіть зусилля в стержнях: розтяг чи стиск.</p>' +
       '<canvas id="pc" width="640" height="260" style="width:100%;height:auto;display:block;background:#fff;border:1px solid #6d5a3c"></canvas>' +
-      '<div style="margin:6px 0"><span class="muted">Готові варіанти:</span> <button type="button" data-v="0">1</button><button type="button" data-v="1">2</button><button type="button" data-v="2">3</button> <button type="button" id="clr">Очистити</button></div>' +
+      '<div style="margin:6px 0"><span class="muted">Готові варіанти:</span> <button type="button" data-v="0">1</button><button type="button" data-v="1">2</button><button type="button" data-v="2">3</button> <button type="button" id="clr">Очистити</button> <button type="button" id="stopm" style="border-color:#c62828">Зупинити макет</button></div>' +
       '<div class="row">Стержень 1: кут° ' + inp('a1', R.a1) + ' Стержень 2: кут° ' + inp('a2', R.a2) + '</div><div id="ld">';
     R.loads.forEach(function (l, i) {
       h += '<div class="row" style="margin-top:6px;border-top:1px solid #3a2c1a;padding-top:6px"><b>F' + (i + 1) + '</b> F, кН ' + inp('F', l.F, i) + ' кут° ' + inp('a', l.a, i, '62px') + ANGS.replace(/data-ang/g, 'data-i="' + i + '" data-ang') + ' <button type="button" data-del="' + i + '">Видалити</button></div>';
@@ -1384,6 +1387,7 @@ classroom('road', { floor: TX.concrete, wall: TX.wall2, ceil: 0x2a2622, amb: 0xe
       if (t.dataset.ang !== undefined) { readAll(); R.loads[+t.dataset.i].a = t.dataset.ang; R.res = null; openRods(); return; }
       if (t.dataset.v !== undefined) { setR(+t.dataset.v); openRods(); return; }
       if (t.dataset.del !== undefined) { readAll(); R.loads.splice(+t.dataset.del, 1); R.res = null; openRods(); return; }
+      if (t.id === 'stopm') { stopSt(curSt); toast('Макет зупинено.'); return; }
       if (t.id === 'clr') { R.loads = []; R.res = null; openRods(); return; }
       if (t.id === 'aF') { readAll(); R.loads.push({ F: '', a: '270' }); openRods(); return; }
       if (t.id === 'chk') checkRods();
@@ -1400,9 +1404,9 @@ classroom('road', { floor: TX.concrete, wall: TX.wall2, ceil: 0x2a2622, amb: 0xe
     R.res = { N1: j1.ok, N2: j2.ok }; drawRods(cv, R); refreshStand();
     var all = j1.ok && j2.ok, h = '';
     var qx = sv1 * s.u1[0] + sv2 * s.u2[0] + s.fx, qy = sv1 * s.u1[1] + sv2 * s.u2[1] + s.fy;
-    curSt.ok = all; curSt.checked = true; curSt.anim = all ? { dx: 0, dy: 0 } : { dx: clp(qx * 0.02, 0.3), dy: clp(qy * 0.02, 0.3) };
+    curSt.sig = null; curSt.ok = all; curSt.checked = true; curSt.anim = all ? { dx: 0, dy: 0 } : { dx: clp(qx * 0.02, 0.3), dy: clp(qy * 0.02, 0.3) };
     if (!all && Math.hypot(curSt.anim.dx, curSt.anim.dy) < 0.03) curSt.anim.dy = -0.07;
-    build3D(curSt);
+    curSt.sig = sigOf(curSt.S); build3D(curSt);
     [j1, j2].forEach(function (r) { h += '<div style="color:' + (r.ok ? '#a5d6a7' : '#f2b0a0') + '">' + esc(r.msg) + '</div>'; });
     if (!all) {
       var rx = sv1 * s.u1[0] + sv2 * s.u2[0] + s.fx, ry = sv1 * s.u1[1] + sv2 * s.u2[1] + s.fy;
@@ -1484,6 +1488,8 @@ classroom('road', { floor: TX.concrete, wall: TX.wall2, ceil: 0x2a2622, amb: 0xe
     var sg = signPlane([title], 1.7, 0.3, { bg: '#17110b', fg: '#f2d9a0', px: 110 }); sg.position.set(0, 2.2, -0.02); g.add(sg);
     st.lamp = new THREE.Mesh(new THREE.SphereGeometry(0.045, 12, 10), new THREE.MeshStandardMaterial({ color: 0x808080, emissive: 0x808080, emissiveIntensity: .8 })); st.lamp.position.set(0.72, 0.9, 0.3); g.add(st.lamp);
     st.root = grp(0, 0, 0, g);
+    var stp = signPlane(['ЗУПИНИТИ'], 0.9, 0.22, { bg: '#8a1c1c', fg: '#fff4d8', px: 90 }); stp.position.set(0, 0.55, 0.42); g.add(stp);
+    act(stp, 'Зупинити макет', function () { stopSt(st); toast('Макет зупинено.'); }, { reach: 5 });
     var save = (kind === 'beam') ? B : R; if (kind === 'beam') { B = newB(); setB(0); st.S = B; } else { R = newR(); setR(0); st.S = R; }
     curSt = st; build3D(st);
     var h = hit(g, 1.7, 1.5, 0.6, 0, 1.4, 0.2);
@@ -1508,6 +1514,7 @@ classroom('road', { floor: TX.concrete, wall: TX.wall2, ceil: 0x2a2622, amb: 0xe
     if (!cur.pub) return;
     STS.forEach(function (st) {
       if (st.loc !== cur || !st.g.visible) return;
+      if (st.anim && st.sig && sigOf(st.S) !== st.sig) { stopSt(st); return; }
       if (!st.anim) return; var ph = 0.5 + 0.5 * Math.sin(s * 2.4 - 1.57), a = st.anim;
       if (st.kind === 'beam' && st.body) { st.body.position.set(st.pose.x + a.dx * ph, st.pose.y + a.dy * ph, 0.03); st.body.rotation.z = a.th * ph; }
       else if (st.node) placeRods(st, a.dx * ph, a.dy * ph);
