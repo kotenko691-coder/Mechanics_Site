@@ -1016,6 +1016,7 @@
     var s = admStudents.filter(function (x) { return x.email === em; })[0];
     var d = s && s.tasks && s.tasks[id];
     $('#rs-btn').disabled = !d;
+    var tv = $('#ts-val'); if (tv) tv.value = d ? d.points : '';
     $('#rs-info').textContent = !s || !id ? '' : d
       ? 'Пройдено: ' + window.PortalTasks.mmss(d.seconds) + ', ' + d.points + ' балів.'
       : 'Це завдання студент ще не здавав.';
@@ -1065,6 +1066,26 @@
   function refreshAdmin() {
     api('admin', null, true).then(function (r) { renderAdmin(r); }).catch(function () {});
   }
+
+  // Змінити бали за одне завдання (решта балів студента не чіпається)
+  $('#ts-btn').addEventListener('click', function () {
+    var em = $('#rs-student').value, id = $('#rs-task').value, raw = $('#ts-val').value;
+    var val = Number(raw);
+    if (!em || !id || raw === '' || !isFinite(val) || val < 0 || val > 1000) { say('Оберіть студента й завдання та впишіть бали від 0 до 1000.', true); return; }
+    var sel = $('#rs-student'), who = sel.options[sel.selectedIndex].textContent.split(' · ')[1];
+    var old = ((admStudents.filter(function (x) { return x.email === em; })[0] || {}).tasks || {})[id];
+    api('admin_task_set', { email: em, task: id, points: val }).then(function () {
+      say('Бали змінено: ' + who + ', ' + val + '.'); refreshAdmin();
+    }).catch(function (err) {
+      // старий сервер ще не знає цієї дії: записуємо різницю окремим рядком (у рейтингу буде вірна сума)
+      if (err && err.message === 'BAD_ACTION') {
+        var delta = val - (old ? old.points : 0);
+        if (!delta) { say('Бали вже такі.'); return; }
+        api('admin_points', { email: em, task: 'Корекція: ' + ($('#rs-task').options[$('#rs-task').selectedIndex].textContent), points: delta })
+          .then(function () { say('Бали змінено (сервер без оновлення: записано корекцію ' + (delta > 0 ? '+' : '') + delta + ').'); refreshAdmin(); }).catch(fail);
+      } else fail(err);
+    });
+  });
 
   $('#rs-form').addEventListener('submit', function (e) {
     e.preventDefault();

@@ -175,6 +175,11 @@
                     <button class="btn" type="submit" id="rs-btn">Дозволити пройти знову</button>
                 </form>
                 <p id="rs-info" class="muted"></p>
+                <p class="muted">Змінити бали студента лише за це завдання (група, студент і завдання обираються вище):</p>
+                <div class="code-form">
+                    <input id="ts-val" type="number" step="1" min="0" max="1000" placeholder="Бали за завдання" aria-label="Бали за завдання" style="max-width:170px">
+                    <button class="btn" type="button" id="ts-btn">Змінити бали</button>
+                </div>
                 <p><label for="adm-filter">Група: </label><select id="adm-filter" aria-label="Фільтр за групою"></select></p>
                 <div class="table-wrap">
                     <table class="adm-table">
@@ -194,7 +199,7 @@
     <script src="config.js?v=39"></script>
     <script src="tasks.js?v=39"></script>
     <script src="quest-theory.js?v=39"></script>
-    <script src="portal.js?v=57"></script>
+    <script src="portal.js?v=58"></script>
     <script src="https://accounts.google.com/gsi/client" async defer></script>
     <script src="portal-bg.js?v=39"></script>
 <script>
