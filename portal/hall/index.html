@@ -2130,6 +2130,68 @@ if (window.__hall) { window.__hall.sit = sitDown; window.__hall.meetCheck = meet
       var d = Math.hypot(g.position.x - p.x, g.position.z - p.z); el.volume = Math.max(0.15, Math.min(1, 1.25 - d / 12));
     });
   });
+
+  /* ====== наближення дошки, коли студент сидить у переговорній ====== */
+  var zoomLv = 0, ZL = [1, 1.8, 2.5], zBtn = document.createElement('button'); zBtn.type = 'button'; zBtn.id = 'zoomb';
+  zBtn.style.cssText = 'position:fixed;right:12px;top:112px;z-index:6;display:none;padding:9px 12px;font-family:inherit;font-size:14px;background:rgba(36,26,16,.92);color:#f2e2c0;border:1px solid #8a7347;cursor:pointer';
+  document.body.appendChild(zBtn);
+  function zLabel() { zBtn.textContent = zoomLv === 0 ? 'Наблизити дошку' : zoomLv === 1 ? 'Ще ближче' : 'Звичайний вигляд'; }
+  zLabel();
+  zBtn.addEventListener('click', function () {
+    zoomLv = (zoomLv + 1) % ZL.length; zLabel();
+    if (zoomLv === 1 && !busy) { var bp = worldPos(plane); lookAtPoint(bp, 600); }
+  });
+  var fovNow = 72;
+  updaters.push(function () {
+    var sit = EMO === 4 && cur.id === 'meet' && !modalOpen;
+    zBtn.style.display = sit ? 'block' : 'none';
+    if (!(EMO === 4 && cur.id === 'meet')) { if (zoomLv) { zoomLv = 0; zLabel(); } }
+    var want = 72 / ZL[zoomLv]; if (Math.abs(fovNow - want) > 0.05) { fovNow += (want - fovNow) * 0.18; camera.fov = fovNow; camera.updateProjectionMatrix(); } else if (fovNow !== want) { fovNow = want; camera.fov = want; camera.updateProjectionMatrix(); }
+  });
+})();
+
+
+/* ====== ДЗЕРКАЛО НА 2 ПОВЕРСІ: студент бачить свою фігурку й інших ====== */
+(function () {
+  var W = 2.0, H = 2.6, CY = 1.55, g = wallAt(F2, 3, 0, 0), sx = F2.X - 6 + 0.075;
+  box(W + 0.28, H + 0.28, 0.08, M.darkwood, 0, CY, 0.04, g); box(W + 0.12, H + 0.12, 0.05, M.brass, 0, CY, 0.07, g);
+  var rt = new THREE.WebGLRenderTarget(512, 640, { minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter });
+  rt.texture.wrapS = THREE.RepeatWrapping; rt.texture.repeat.x = -1; rt.texture.offset.x = 1;
+  var plane = new THREE.Mesh(new THREE.PlaneGeometry(W, H), new THREE.MeshBasicMaterial({ map: rt.texture, color: 0xe8ecef })); plane.position.set(0, CY, 0.1); g.add(plane);
+  act(plane, 'Дзеркало', function () { toast('Дзеркало. Так вас бачать інші. Змінити вигляд можна в шафі в холі.', 3600); }, { reach: 5 });
+  var vcam = new THREE.PerspectiveCamera(60, W / H, 0.1, 60), self = null, selfKey = '', prev = { x: 0, z: 0 }, ph = 0, amp = 0;
+  var cen = new THREE.Vector3(sx, CY, F2.group.position.z), fw = new THREE.Vector3();
+  function ensureSelf() {
+    var k = AV.s + AV.c + AV.h; if (self && selfKey === k) return; if (self) F2.group.remove(self);
+    self = makeFigure(AV); self.visible = false; F2.group.add(self); selfKey = k;
+  }
+  function pose(dt, nowMs) {
+    var u = self.userData, sp = Math.hypot(camera.position.x - prev.x, camera.position.z - prev.z) / (dt || 0.016); prev.x = camera.position.x; prev.z = camera.position.z;
+    var want = sp > 0.3 ? Math.min(0.7, 0.25 + sp * 0.12) : 0; amp += (want - amp) * Math.min(1, (dt || 0.016) * 8); ph += (dt || 0.016) * (5 + sp * 2); var w = Math.sin(ph) * amp;
+    u.legs[0].rotation.x = w; u.legs[1].rotation.x = -w; u.arms[0].rotation.x = -w; u.arms[1].rotation.x = w; u.arms[0].rotation.z = 0.04; u.arms[1].rotation.z = -0.04; self.rotation.z = 0;
+    var ts = nowMs / 1000, y0 = 0, e = EMO | 0;
+    if (e === 1) { y0 = -0.7; u.legs[0].rotation.x = u.legs[1].rotation.x = 1.5; u.arms[0].rotation.x = u.arms[1].rotation.x = 0.7; }
+    else if (e === 4) { y0 = -0.32; u.legs[0].rotation.x = u.legs[1].rotation.x = 1.4; u.arms[0].rotation.x = u.arms[1].rotation.x = 0.6; }
+    else if (e === 2) { var d = Math.sin(ts * 7); y0 = Math.abs(d) * 0.07; u.legs[0].rotation.x = d * 0.55; u.legs[1].rotation.x = -d * 0.55; u.arms[0].rotation.x = 2.6 + d * 0.5; u.arms[1].rotation.x = 2.6 - d * 0.5; u.arms[0].rotation.z = 0.35; u.arms[1].rotation.z = -0.35; self.rotation.z = Math.sin(ts * 3.5) * 0.06; }
+    else if (e === 3) { y0 = Math.abs(Math.sin(ts * 6)) * 0.1; u.arms[0].rotation.x = u.arms[1].rotation.x = 3.0; u.arms[0].rotation.z = 0.28 + Math.sin(ts * 6) * 0.1; u.arms[1].rotation.z = -0.28 - Math.sin(ts * 6) * 0.1; }
+    self.position.set(camera.position.x - F2.group.position.x, y0, camera.position.z - F2.group.position.z); self.rotation.y = yaw;
+  }
+  var lastT = 0;
+  updaters.push(function (s) {
+    if (cur.id !== 'f2') return;
+    var dt = lastT ? Math.min(0.1, s - lastT) : 0.016; lastT = s;
+    ensureSelf();
+    camera.getWorldDirection(fw); var to = cen.clone().sub(camera.position), dist = to.length();
+    if (dist > 16 || to.normalize().dot(fw) < 0.2) return;
+    var px = camera.position.x, py = camera.position.y, pz = camera.position.z, d = px - sx; if (d < 0.2) return;
+    vcam.position.set(2 * sx - px, py, pz); vcam.up.set(0, 1, 0); vcam.lookAt(vcam.position.x + 1, py, pz); vcam.updateMatrixWorld(true);
+    var dz = cen.z - pz, dy = CY - py, hw = W / 2, hh = H / 2, nr = d;
+    vcam.projectionMatrix.makePerspective(dz - hw, dz + hw, dy + hh, dy - hh, nr, 60); vcam.projectionMatrixInverse.copy(vcam.projectionMatrix).invert();
+    pose(dt, performance.now()); self.visible = true; plane.visible = false;
+    var old = renderer.getRenderTarget(); renderer.setRenderTarget(rt); renderer.render(scene, vcam); renderer.setRenderTarget(old);
+    self.visible = false; plane.visible = true;
+  });
+  window.__mirror = { plane: plane, vcam: vcam };
 })();
 
 })();
