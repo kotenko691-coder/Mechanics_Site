@@ -1112,14 +1112,14 @@ requestAnimationFrame(loop);
       var p = camera.position, nowMs = Date.now(), moved = Math.abs(p.x - last.x) > 0.05 || Math.abs(p.z - last.z) > 0.05 || Math.abs(yaw - last.y) > 0.08;
       if (!moved && nowMs - lastSent < 8000) return;
       lastSent = nowMs; last = { x: p.x, z: p.z, y: yaw };
-      myRef.set({ n: w.name, g: w.group, x: Math.round(p.x * 100) / 100, z: Math.round(p.z * 100) / 100, y: Math.round(yaw * 100) / 100, t: firebase.database.ServerValue.TIMESTAMP }).catch(function () {});
+      myRef.set({ n: w.name, g: w.group, x: Math.round(p.x * 100) / 100, z: Math.round(p.z * 100) / 100, y: Math.round(yaw * 100) / 100, t: firebase.database.ServerValue.TIMESTAMP }).catch(function (e) { if (!window.__perr) { window.__perr = 1; toast('Присутність: ' + (e && e.code || e), 6000); } });
     }
     setInterval(send, 450);
     updaters.push(function (s, dt) {
       var k = Math.min(1, (dt || 0.016) * 6);
       Object.keys(ghosts).forEach(function (id) { var g = ghosts[id], u = g.userData; g.position.x += (u.tx - g.position.x) * k; g.position.z += (u.tz - g.position.z) * k; g.rotation.y += angDiff(g.rotation.y, u.ty) * k; });
     });
-  }).catch(function () { /* без присутності хол працює як раніше */ });
+  }).catch(function (e) { toast('Присутність недоступна: ' + (e && (e.code || e.message) || e), 7000); });
 })();
 
 })();
