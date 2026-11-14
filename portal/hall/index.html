@@ -2280,6 +2280,91 @@ var VP = (function () {
 window.__vp = VP;
 
 
+/* ====== ВИКЛАДАЧ-РОБОТ: розповідає тему українською (голос пристрою), субтитри, синхронно для кабінету ====== */
+var RB = (function () {
+  var rooms = {}, bar = null, sub = null, speakBtn = null, curKey = null, voice = null, lastSpoken = {};
+  function pickVoice() {
+    try {
+      var vs = window.speechSynthesis ? window.speechSynthesis.getVoices() : []; if (!vs.length) return null;
+      var uk = vs.filter(function (v) { return /^uk/i.test(v.lang); }); return uk[0] || null;
+    } catch (e) { return null; }
+  }
+  if (window.speechSynthesis) { try { window.speechSynthesis.onvoiceschanged = function () { voice = pickVoice(); }; voice = pickVoice(); } catch (e) { /* ігноруємо */ } }
+  function say(text, onend, onerr) {
+    if (!window.speechSynthesis) { if (onerr) onerr('none'); return; }
+    try {
+      window.speechSynthesis.cancel(); var u = new SpeechSynthesisUtterance(text); u.lang = 'uk-UA'; if (voice || (voice = pickVoice())) u.voice = voice;
+      u.pitch = 0.7; u.rate = 0.93; u.volume = 1;
+      u.onend = function () { if (onend) onend(); }; u.onerror = function (e) { if (e && e.error === 'canceled' || e && e.error === 'interrupted') return; if (onerr) onerr(e && e.error || 'err'); };
+      window.speechSynthesis.speak(u);
+    } catch (e) { if (onerr) onerr('err'); }
+  }
+  function ui() {
+    if (bar) return;
+    sub = document.createElement('div'); sub.style.cssText = 'position:fixed;left:50%;transform:translateX(-50%);bottom:70px;width:min(92vw,820px);z-index:6;background:rgba(10,7,4,.82);border:1px solid #8a7347;color:#f6e7c4;font:20px Georgia,serif;padding:10px 16px;text-align:center;display:none;pointer-events:none';
+    document.body.appendChild(sub);
+    bar = document.createElement('div'); bar.style.cssText = 'position:fixed;left:50%;transform:translateX(-50%);top:62px;z-index:7;background:rgba(11,9,7,.92);border:1px solid #8a7347;color:#f2e2c0;font:13px Georgia,serif;padding:6px 10px;display:none;gap:8px;align-items:center;flex-wrap:wrap;max-width:92vw';
+    document.body.appendChild(bar);
+    speakBtn = document.createElement('button'); speakBtn.type = 'button'; speakBtn.textContent = 'Увімкнути голос викладача-робота';
+    speakBtn.style.cssText = 'position:fixed;left:50%;transform:translateX(-50%);bottom:140px;z-index:8;padding:12px 16px;font:16px Georgia,serif;background:#7a5a1e;color:#fff4d8;border:2px solid #f2d9a0;cursor:pointer;display:none';
+    document.body.appendChild(speakBtn);
+  }
+  function btn(t, fn) { var b = document.createElement('button'); b.type = 'button'; b.textContent = t; b.style.cssText = 'padding:5px 9px;font:13px Georgia,serif;background:#241a10;color:#f2e2c0;border:1px solid #8a7347;cursor:pointer'; b.addEventListener('click', fn); return b; }
+  function hideAll() { if (bar) { bar.style.display = 'none'; sub.style.display = 'none'; speakBtn.style.display = 'none'; } curKey = null; }
+  function ref(key) { var f = window.__fb; return f && f.db ? f.db.ref('tv/' + key + '_rb') : null; }
+  function render(r, rec) {
+    ui(); var f = window.__fb, lead = f && rec.u === f.uid, arr; try { arr = JSON.parse(rec.s); } catch (e) { arr = []; }
+    r.arr = arr; r.rec = rec; r.lead = lead; var i = Math.min(rec.i | 0, arr.length - 1);
+    if (rec.st === 'stop' || !arr.length) { hideAll(); if (window.speechSynthesis) try { window.speechSynthesis.cancel(); } catch (e) { /* ігноруємо */ } r.speaking = false; return; }
+    curKey = r.key; sub.style.display = 'block'; sub.textContent = arr[i] || '';
+    bar.style.display = 'flex'; bar.innerHTML = '<b style="flex:1">Викладач-робот · ' + String(rec.ti || '').replace(/</g, '') + ' · ' + (i + 1) + '/' + arr.length + (rec.st === 'pause' ? ' · пауза' : '') + '</b>';
+    if (lead) {
+      bar.appendChild(btn(rec.st === 'pause' ? 'Далі' : 'Пауза', function () { var q = ref(r.key); if (q) q.set(Object.assign({}, rec, { st: rec.st === 'pause' ? 'play' : 'pause', t: Date.now() })); }));
+      bar.appendChild(btn('◀', function () { var q = ref(r.key); if (q) q.set(Object.assign({}, rec, { i: Math.max(0, i - 1), st: 'play', t: Date.now() })); }));
+      bar.appendChild(btn('▶', function () { var q = ref(r.key); if (q) q.set(Object.assign({}, rec, { i: Math.min(arr.length - 1, i + 1), st: 'play', t: Date.now() })); }));
+      bar.appendChild(btn('Зупинити', function () { var q = ref(r.key); if (q) q.set(Object.assign({}, rec, { st: 'stop', t: Date.now() })); }));
+    }
+    if (rec.st === 'pause') { r.speaking = false; if (window.speechSynthesis) try { window.speechSynthesis.cancel(); } catch (e) { /* ігноруємо */ } return; }
+    var tag = rec.t + ':' + i; if (r.tag === tag) return; r.tag = tag; r.speaking = true; speakBtn.style.display = 'none';
+    var sentence = arr[i] || '';
+    say(sentence, function () {
+      r.speaking = false;
+      if (lead && r.rec === rec) { var q = ref(r.key), nx = i + 1; if (!q) return; if (nx >= arr.length) q.set(Object.assign({}, rec, { st: 'stop', t: Date.now() })); else q.set(Object.assign({}, rec, { i: nx, t: Date.now() })); }
+    }, function (er) {
+      if (er === 'not-allowed' || er === 'none') { speakBtn.style.display = er === 'none' ? 'none' : 'block'; speakBtn.onclick = function () { r.tag = ''; speakBtn.style.display = 'none'; render(r, r.rec); }; }
+      else if (lead) { setTimeout(function () { var q = ref(r.key); if (q && r.rec === rec) q.set(Object.assign({}, rec, { i: Math.min(arr.length - 1, i + 1), t: Date.now() })); }, 800); }
+    });
+    if (lead && !voice && !pickVoice()) { /* голосу немає — читає лише текст, ведучий просуває за таймером */ }
+  }
+  function attach(key, loc, fig) {
+    var r = rooms[key] = { key: key, loc: loc, fig: fig, on: false, speaking: false };
+    updaters.push(function (s) {
+      var f = window.__fb; if (f && f.db && !r.on) { r.on = true; ref(key).on('value', function (sn) { var v = sn.val(); if (!v || v.d !== 'r' || typeof v.s !== 'string') { r.rec = null; if (curKey === key) hideAll(); return; } if (v.t && Date.now() + (window.__srvOff || 0) - v.t > 3 * 3600e3 && v.st !== 'play') { return; } r.rec = v; if (cur === loc) render(r, v); else if (curKey === key) hideAll(); }); }
+      if (r.rec && cur === loc && curKey !== key && r.rec.st !== 'stop') render(r, r.rec);
+      if (cur !== loc && curKey === key) { hideAll(); try { window.speechSynthesis.cancel(); } catch (e) { /* ігноруємо */ } r.tag = ''; }
+      var u = fig.userData, talk = r.rec && r.rec.st === 'play' && cur === loc && curKey === key;
+      if (u.arms) { var tt = s * 3.2; u.arms[0].rotation.x = talk ? -0.9 + Math.sin(tt) * 0.45 : 0.04; u.arms[1].rotation.x = talk ? -0.7 + Math.cos(tt * 0.8) * 0.4 : 0.04; u.arms[0].rotation.z = talk ? 0.2 : 0.04; u.arms[1].rotation.z = talk ? -0.2 : -0.04; }
+      fig.rotation.z = 0;
+    });
+  }
+  function start(key, title, sentences) {
+    var f = window.__fb, q = ref(key); if (!f || !q) { toast('Без зв’язку з сервером лекцію не запустити.', 3600); return; }
+    var s = JSON.stringify(sentences); if (s.length > 200000) { toast('Тема надто велика для озвучення.', 3600); return; }
+    q.onDisconnect().remove().catch(function () {});
+    q.set({ d: 'r', u: f.uid, by: NET && NET.who ? NET.who().name : 'Викладач', ti: String(title).slice(0, 120), s: s, i: 0, st: 'play', t: Date.now() + (window.__srvOff || 0) }).catch(function (e) { toast('Робот: ' + (e && e.code || 'помилка'), 4500); });
+  }
+  function toSentences(html) {
+    var txt = ''; try { var d = new DOMParser().parseFromString(html, 'text/html'); Array.prototype.forEach.call(d.querySelectorAll('script,style,noscript,svg,img'), function (n) { n.remove(); }); Array.prototype.forEach.call(d.querySelectorAll('p,li,h1,h2,h3,h4,tr,div,br'), function (n) { n.appendChild(d.createTextNode(' \n')); }); txt = d.body ? d.body.textContent : ''; } catch (e) { txt = ''; }
+    txt = txt.replace(/ /g, ' ').replace(/[ \t]+/g, ' ').replace(/\s*\n\s*/g, '. ').replace(/([.!?…:;])\s*\.\s*/g, '$1 ');
+    var raw = txt.split(/(?<=[.!?…])\s+/), out = [], buf = '';
+    raw.forEach(function (p) { p = p.trim(); if (!p) return; buf = buf ? buf + ' ' + p : p; if (buf.length >= 45) { out.push(buf); buf = ''; } }); if (buf) out.push(buf);
+    var res = []; out.forEach(function (sn) { while (sn.length > 260) { var k = sn.lastIndexOf(',', 240); if (k < 80) k = sn.lastIndexOf(' ', 240); if (k < 80) k = 240; res.push(sn.slice(0, k + 1).trim()); sn = sn.slice(k + 1).trim(); } if (sn) res.push(sn); });
+    return res.slice(0, 160);
+  }
+  return { attach: attach, start: start, toSentences: toSentences, available: function () { return !!window.speechSynthesis; } };
+})();
+
+
 /* ====== ДОШКА ПЕРЕГОВОРНОЇ І ГОЛОСОВИЙ ЧАТ ====== */
 /* Дошка: малюнки бачать усі в переговорній. Малюнок живе в базі, поки автор у грі; потім зникає.
    Голос: прямий зв'язок між учасниками одного кабінету (WebRTC), база лише передає службові повідомлення. */
@@ -2333,6 +2418,11 @@ window.__vp = VP;
   } else {
     act(plane, 'Дошка і телевізор', function () { openPanel(); }, { reach: 6.5 });
     MEET.zoomT = [{ label: 'Дошка', obj: plane }];
+  }
+  if (SEP) {
+    var rbf = makeFigure({ s: 'm', c: 4, h: 0, r: 1 }); rbf.position.set(-2.4, 0, -5.0); rbf.rotation.y = Math.PI; MEET.group.add(rbf);
+    var rbs = signPlane(['Викладач-робот'], 1.5, 0.3, { bg: '#17110b', fg: '#9fe6b0', px: 72 }); rbs.position.set(-2.4, 2.25, -5.0); rbs.rotation.y = 0; MEET.group.add(rbs);
+    obs(MEET, -2.4, -5.0, 0.5, 0.5); RB.attach(KEY, MEET, rbf);
   }
   (function () { var arr = SEP ? tvPlanes : [plane]; arr.forEach(function (q) { q.userData.hs = SEP ? [1.35, 0.76] : [3, 1.2]; }); VP.screens(KEY, arr); })();
 
@@ -2441,6 +2531,15 @@ window.__vp = VP;
     myPages = null; myPdf = null; tvState = rec; lecSeen = rec.t; showTv(); VP.set(KEY, tvState);
     if (!f) return; var r = f.db.ref('tv/' + KEY); r.onDisconnect().remove().catch(function () {}); r.set(rec).catch(function (e) { toast('Телевізор: ' + (e && e.code || 'помилка'), 4500); });
   }
+
+  function robotStart(lid, ttl) {
+    modal('<h3>' + String(ttl).replace(/</g, '') + '</h3><p class="muted">Готуємо текст для озвучення…</p>');
+    NET.lectureParts(lid).then(function (p) {
+      closeModal(); var sn = RB.toSentences(p.notes || p.deck || '');
+      if (!sn.length) { toast('У цієї теми немає тексту для озвучення (лише PDF).', 4500); return; }
+      RB.start(KEY, ttl, sn); toast('Викладач-робот починає лекцію. Речень: ' + sn.length, 3800);
+    }, function () { closeModal(); toast('Тема недоступна.', 3500); });
+  }
   function partPicker(lid, ttl) {
     var esc = function (t) { return String(t).replace(/[&<>"]/g, function (ch) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]; }); };
     var bd = modal('<h3>' + esc(ttl) + '</h3><p class="muted">Завантажуємо частини теми…</p>');
@@ -2463,7 +2562,7 @@ window.__vp = VP;
       });
     }, function () { if (modalOpen) modal('<h3>' + esc(ttl) + '</h3><p class="muted">Тема недоступна для вашої групи.</p>'); });
   }
-  function lecPicker() {
+  function lecPicker(mode) {
     if (!(NET && NET.lectures)) { toast('Теми доступні, коли хол відкрито з кабінету.', 4200); return; }
     modal('<h3>Тема на телевізор</h3><p class="muted">Завантажуємо список…</p>');
     NET.lectures().then(function (list) {
@@ -2474,7 +2573,7 @@ window.__vp = VP;
         ['lec', 'prac', 'extra'].forEach(function (sec) { var ls = list.filter(function (i) { return i.section === sec && (!fl || i.title.toLowerCase().indexOf(fl) >= 0); }); if (!ls.length) return; any = true; out += '<p class="muted" style="margin:10px 0 4px">' + NM[sec] + '</p>'; ls.forEach(function (i) { out += '<button type="button" data-id="' + esc(i.id) + '" data-t="' + esc(i.title) + '" style="display:block;width:100%;text-align:left;margin:3px 0">' + esc(i.title) + '</button>'; }); });
         box.innerHTML = any ? out : '<p class="muted">' + (list.length ? 'Нічого не знайдено.' : 'Тем поки немає.') + '</p>'; }
       draw(); q.addEventListener('input', draw);
-      box.addEventListener('click', function (e) { var t = e.target.closest('button[data-id]'); if (!t) return; var lid = t.getAttribute('data-id'), ttl = t.getAttribute('data-t'); partPicker(lid, ttl); });
+      box.addEventListener('click', function (e) { var t = e.target.closest('button[data-id]'); if (!t) return; var lid = t.getAttribute('data-id'), ttl = t.getAttribute('data-t'); if (mode === 'robot') robotStart(lid, ttl); else partPicker(lid, ttl); });
     }, function () { if (modalOpen) modal('<h3>Тема на телевізор</h3><p class="muted">Не вдалося завантажити список.</p>'); });
   }
   function tvOff() { tvState = null; myPages = null; myPdf = null; showTv(); VP.set(KEY, null); var f = fb(); if (f) f.db.ref('tv/' + KEY).remove().catch(function () {}); }
@@ -2541,12 +2640,14 @@ window.__vp = VP;
     } else h += SEP ? '<p class="muted">Телевізор вимкнено. Можна вивести на нього файл (зображення чи PDF).</p><button class="main" id="pf" type="button">Показати файл на телевізорі</button>' : '<p class="muted">Зараз на стіні дошка. Можна малювати або вивести файл (зображення чи PDF) на телевізор.</p><button class="main" id="pb" type="button">Малювати на дошці</button> <button id="pf" type="button">Показати файл на телевізорі</button>';
     if (tch) h += ' <button id="pv" type="button">Відео за посиланням</button>';
     h += ' <button id="pl" type="button">Тема з сайту</button>';
+    if (SEP && tch && RB.available()) h += ' <button id="prb" type="button">Лекція від викладача-робота</button>';
     h += '<input type="file" id="fi" accept="image/*,application/pdf" style="display:none">';
     var b = modal(h), im = b.querySelector('#tvimg'); if (im) im.src = tvState.d;
     function q(s) { return b.querySelector(s); }
     if (q('#pb')) q('#pb').addEventListener('click', function () { closeModal(); openBoard(); });
     if (q('#pf')) q('#pf').addEventListener('click', function () { q('#fi').click(); });
     q('#fi').addEventListener('change', function () { var fl = this.files && this.files[0]; closeModal(); loadFile(fl); });
+    if (q('#prb')) q('#prb').addEventListener('click', function () { closeModal(); lecPicker('robot'); });
     if (q('#pl')) q('#pl').addEventListener('click', function () { closeModal(); lecPicker(); });
     if (q('#lpo')) q('#lpo').addEventListener('click', function () { closeModal(); if (NET && NET.openLecture) NET.openLecture(tvState.lid); });
     if (q('#pv')) q('#pv').addEventListener('click', function () { closeModal(); openVideoDialog(); });
