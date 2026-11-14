@@ -2199,7 +2199,7 @@ var VP = (function () {
   function mountLp(st, f, sig) {
     var msg = document.createElement('div'); msg.style.cssText = 'position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#f2e2c0;font:34px Georgia,serif;background:#0b0907'; msg.textContent = 'Завантажуємо тему…'; f.appendChild(msg);
     var parts = String(st.vid || '').split('|'), lid = parts[0], part = parts[1] || 'deck';
-    lpGet(lid).then(function (r) {
+    (st.h ? Promise.resolve(part === 'notes' ? { notes: st.h } : { deck: st.h }) : lpGet(lid)).then(function (r) {
       if (shown !== sig) return; var html = part === 'notes' ? r.notes : r.deck; if (!html) { msg.textContent = 'Цієї частини в темі немає.'; return; }
       var ifr = document.createElement('iframe'); ifr.style.cssText = 'width:100%;height:100%;border:0;background:#fff'; ifr.setAttribute('sandbox', 'allow-scripts allow-same-origin'); lpIfr = ifr;
       ifr.addEventListener('load', function () {
@@ -2645,8 +2645,12 @@ var RB = (function () {
 
   function tvLecPart(lid, part, ttl) {
     var f = fb(), who = NET && NET.who ? NET.who().name : 'Викладач', rec = { d: 'l', k: 'lp', lid: String(lid), vid: lid + '|' + part, ti: String(ttl).slice(0, 120), by: who, u: f ? f.uid : 'local', t: Date.now() };
-    myPages = null; myPdf = null; tvState = rec; lecSeen = rec.t; showTv(); VP.set(KEY, tvState);
-    if (!f) return; var r = f.db.ref('tv/' + KEY); r.onDisconnect().remove().catch(function () {}); r.set(rec).catch(function (e) { toast('Телевізор: ' + (e && e.code || 'помилка'), 4500); });
+    var go = function () {
+      myPages = null; myPdf = null; tvState = rec; lecSeen = rec.t; showTv(); VP.set(KEY, tvState);
+      if (!f) return; var r = f.db.ref('tv/' + KEY); r.onDisconnect().remove().catch(function () {}); r.set(rec).catch(function (e) { toast('Телевізор: ' + (e && e.code || 'помилка'), 4500); });
+    };
+    /* текст теми йде разом із записом, щоб його бачили всі в кабінеті (сервер віддає лише групам, яким тема призначена) */
+    if (NET && NET.lectureParts) NET.lectureParts(lid).then(function (p) { var h = part === 'notes' ? p.notes : p.deck; if (h && h.length < 900000) rec.h = h; go(); }, go); else go();
   }
 
   function robotExport() {
