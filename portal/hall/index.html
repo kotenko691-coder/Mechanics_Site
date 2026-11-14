@@ -2196,10 +2196,28 @@ var VP = (function () {
     var NETx = window.parent && window.parent.PortalHall; if (!NETx || !NETx.lectureParts) return Promise.reject(new Error('no'));
     return NETx.lectureParts(lid);
   }
+  function lpUnpack(s, z) {
+    if (z === undefined) return Promise.resolve(s);
+    if (!z) { try { return Promise.resolve(decodeURIComponent(escape(atob(s)))); } catch (e) { return Promise.reject(e); } }
+    if (!window.DecompressionStream) return Promise.reject(new Error('nods'));
+    var bin = atob(s), u = new Uint8Array(bin.length), i; for (i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i);
+    return new Response(new Blob([u]).stream().pipeThrough(new DecompressionStream('gzip'))).text();
+  }
+  function lpHtml(st, lid, part) {
+    var wrap = function (h) { return part === 'notes' ? { notes: h } : { deck: h } };
+    var fallback = function () { return lpGet(lid); };
+    if (st.h) return lpUnpack(st.h, st.z).then(wrap, fallback);
+    if (st.hn) {
+      var fx = fbx(); if (!fx) return fallback();
+      var ps = [], i; for (i = 0; i < st.hn; i++) ps.push(fx.db.ref('tv/' + st.room + '_h' + i).once('value').then(function (sn) { var v = sn.val(); if (!v || typeof v.c !== 'string') throw new Error('nochunk'); return v.c; }));
+      return Promise.all(ps).then(function (a) { return lpUnpack(a.join(''), st.z); }).then(wrap, fallback);
+    }
+    return lpGet(lid);
+  }
   function mountLp(st, f, sig) {
     var msg = document.createElement('div'); msg.style.cssText = 'position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#f2e2c0;font:34px Georgia,serif;background:#0b0907'; msg.textContent = 'Завантажуємо тему…'; f.appendChild(msg);
     var parts = String(st.vid || '').split('|'), lid = parts[0], part = parts[1] || 'deck';
-    (st.h ? Promise.resolve(part === 'notes' ? { notes: st.h } : { deck: st.h }) : lpGet(lid)).then(function (r) {
+    lpHtml(st, lid, part).then(function (r) {
       if (shown !== sig) return; var html = part === 'notes' ? r.notes : r.deck; if (!html) { msg.textContent = 'Цієї частини в темі немає.'; return; }
       var ifr = document.createElement('iframe'); ifr.style.cssText = 'width:100%;height:100%;border:0;background:#fff'; ifr.setAttribute('sandbox', 'allow-scripts allow-same-origin'); lpIfr = ifr;
       ifr.addEventListener('load', function () {
@@ -2645,12 +2663,26 @@ var RB = (function () {
 
   function tvLecPart(lid, part, ttl) {
     var f = fb(), who = NET && NET.who ? NET.who().name : 'Викладач', rec = { d: 'l', k: 'lp', lid: String(lid), vid: lid + '|' + part, ti: String(ttl).slice(0, 120), by: who, u: f ? f.uid : 'local', t: Date.now() };
-    var go = function () {
+    var chunks = [], go = function () {
       myPages = null; myPdf = null; tvState = rec; lecSeen = rec.t; showTv(); VP.set(KEY, tvState);
-      if (!f) return; var r = f.db.ref('tv/' + KEY); r.onDisconnect().remove().catch(function () {}); r.set(rec).catch(function (e) { toast('Телевізор: ' + (e && e.code || 'помилка'), 4500); });
+      if (!f) return; var r = f.db.ref('tv/' + KEY); r.onDisconnect().remove().catch(function () {});
+      var put = function () { r.set(rec).catch(function (e) { toast('Телевізор: ' + (e && e.code || 'помилка'), 4500); }); };
+      if (!chunks.length) { put(); return; }
+      Promise.all(chunks.map(function (c, i) { var cr = f.db.ref('tv/' + KEY + '_h' + i); cr.onDisconnect().remove().catch(function () {}); return cr.set({ d: 'h', c: c }); })).then(put, function () { delete rec.hn; toast('Тема завелика для передачі: студенти інших груп її не побачать.', 5000); put(); });
     };
-    /* текст теми йде разом із записом, щоб його бачили всі в кабінеті (сервер віддає лише групам, яким тема призначена) */
-    if (NET && NET.lectureParts) NET.lectureParts(lid).then(function (p) { var h = part === 'notes' ? p.notes : p.deck; if (h && h.length < 900000) rec.h = h; go(); }, go); else go();
+    /* текст теми йде разом із записом (стиснутий, за потреби частинами), щоб його бачили всі в кабінеті */
+    var pack = function (h) {
+      if (window.CompressionStream && window.Response) { try { return new Response(new Blob([h]).stream().pipeThrough(new CompressionStream('gzip'))).arrayBuffer().then(function (b) { return { z: 1, s: b64(b) }; }); } catch (e) {} }
+      return Promise.resolve({ z: 0, s: btoa(unescape(encodeURIComponent(h))) });
+    };
+    if (NET && NET.lectureParts) NET.lectureParts(lid).then(function (p) {
+      var h = part === 'notes' ? p.notes : p.deck; if (!h) { go(); return; }
+      pack(h).then(function (o) {
+        if (o.s.length > 9000000) { toast('Тема завелика для передачі: студенти інших груп її не побачать.', 5000); go(); return; }
+        rec.z = o.z; if (o.s.length <= 900000) rec.h = o.s; else { var i; for (i = 0; i < o.s.length; i += 900000) chunks.push(o.s.slice(i, i + 900000)); rec.hn = chunks.length; }
+        go();
+      }, go);
+    }, go);
   }
 
   function robotExport() {
