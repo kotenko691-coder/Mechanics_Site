@@ -2361,6 +2361,44 @@ if (window.__hall) { window.__hall.sit = sitDown; window.__hall.meetCheck = meet
   window.__mirror = { plane: plane, vcam: vcam };
 })();
 
+
+/* ====== КАМЕРА ЗІ СПИНИ: коли студент сидить на підлозі, танцює або піднімає руки, камера відходить назад ====== */
+(function () {
+  var self = null, selfKey = '', b = 0, dist = 2.4, offX = 0, offZ = 0, offY = 0, active = false, last = 0;
+  function ensure() {
+    var k = AV.s + AV.c + AV.h + (isTeacher() ? 'T' : '');
+    if (!self || selfKey !== k) { if (self && self.parent) self.parent.remove(self); self = makeFigure({ s: AV.s, c: AV.c, h: AV.h, r: isTeacher() ? 1 : 0 }); selfKey = k; self.visible = false; var lt = new THREE.PointLight(0xfff0d8, 0.9, 6); lt.position.set(0, 2.2, 1.6); self.add(lt); }
+    if (self.parent !== cur.group) cur.group.add(self);
+  }
+  function pose(ts) {
+    var u = self.userData, e = EMO | 0, y0 = 0;
+    u.legs[0].rotation.x = u.legs[1].rotation.x = 0; u.arms[0].rotation.x = u.arms[1].rotation.x = 0; u.arms[0].rotation.z = 0.04; u.arms[1].rotation.z = -0.04; self.rotation.z = 0;
+    if (e === 1) { y0 = -0.7; u.legs[0].rotation.x = u.legs[1].rotation.x = 1.5; u.arms[0].rotation.x = u.arms[1].rotation.x = 0.7; }
+    else if (e === 2) { var d = Math.sin(ts * 7); y0 = Math.abs(d) * 0.07; u.legs[0].rotation.x = d * 0.55; u.legs[1].rotation.x = -d * 0.55; u.arms[0].rotation.x = 2.6 + d * 0.5; u.arms[1].rotation.x = 2.6 - d * 0.5; u.arms[0].rotation.z = 0.35; u.arms[1].rotation.z = -0.35; self.rotation.z = Math.sin(ts * 3.5) * 0.06; }
+    else if (e === 3) { y0 = Math.abs(Math.sin(ts * 6)) * 0.1; u.arms[0].rotation.x = u.arms[1].rotation.x = 3.0; u.arms[0].rotation.z = 0.28 + Math.sin(ts * 6) * 0.1; u.arms[1].rotation.z = -0.28 - Math.sin(ts * 6) * 0.1; }
+    self.position.set(camera.position.x - cur.group.position.x, y0, camera.position.z - cur.group.position.z); self.rotation.y = yaw;
+  }
+  updaters.push(function (s) {
+    var want = (EMO >= 1 && EMO <= 3 && !modalOpen) ? 1 : 0;
+    b += (want - b) * 0.12; if (Math.abs(want - b) < 0.01) b = want;
+    active = b > 0;
+    if (!active) { if (self) self.visible = false; return; }
+    ensure(); pose(performance.now() / 1000); self.visible = true;
+    var fx = -Math.sin(yaw), fz = -Math.cos(yaw), bd = cur.bounds, d = dist, px = camera.position.x, pz = camera.position.z;
+    if (bd) { for (var i = 0; i < 12 && d > 0.6; i++) { var cx = px - fx * d, cz = pz - fz * d; if (cx > bd.x1 - 0.3 && cx < bd.x2 + 0.3 && cz > bd.z1 - 0.3 && cz < bd.z2 + 0.3) break; d -= 0.2; } }
+    var ty = EMO === 1 ? 1.2 : 1.75;
+    offX = -fx * d * b; offZ = -fz * d * b; offY = (ty - camera.position.y) * b;
+  });
+  var rr = renderer.render.bind(renderer);
+  renderer.render = function (sc, cam) {
+    if (active && cam === camera) {
+      var p = camera.position, ox = p.x, oy = p.y, oz = p.z;
+      p.set(ox + offX, oy + offY, oz + offZ); camera.updateMatrixWorld(true);
+      rr(sc, cam); p.set(ox, oy, oz); camera.updateMatrixWorld(true);
+    } else rr(sc, cam);
+  };
+})();
+
 })();
 </script>
 </body>
