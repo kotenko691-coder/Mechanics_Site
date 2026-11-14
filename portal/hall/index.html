@@ -1895,6 +1895,7 @@ function drawEmo() {
     var b = document.createElement('button'); b.type = 'button'; b.textContent = e[1]; if (EMO === e[0]) b.className = 'on';
     b.addEventListener('click', function () { setEmo(EMO === e[0] ? 0 : e[0]); }); el.appendChild(b);
   });
+  if (emoOpen && !EMO && isTeacher()) { var jb = document.createElement('button'); jb.type = 'button'; jb.textContent = 'Хто заходив'; jb.addEventListener('click', function () { emoOpen = false; drawEmo(); if (window.__joinlogShow) window.__joinlogShow(); else toast('Журнал ще завантажується, спробуйте за мить.'); }); el.appendChild(jb); }
   if (EMO) { var s = document.createElement('button'); s.type = 'button'; s.textContent = 'Встати'; s.addEventListener('click', function () { setEmo(0); }); el.appendChild(s); }
 }
 drawEmo();
@@ -1983,6 +1984,33 @@ if (window.__hall) { window.__hall.sit = sitDown; window.__hall.meetCheck = meet
     return firebase.auth().signInWithCredential(cred);
   }).then(function (r) {
     uid = r.user.uid; var db = firebase.database(), w = NET.who();
+    (function () {
+      function pad(n) { return (n < 10 ? '0' : '') + n; }
+      function dayKey(d) { return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()); }
+      function logJoin(first) {
+        var t = Date.now() + (window.__srvOff || 0);
+        db.ref('joinlog/' + dayKey(new Date()) + '/' + uid).transaction(function (c) { return { n: String(w.name || '').slice(0, 40), g: String(w.group || '').slice(0, 12), f: (c && c.f) || t, l: t, c: (c && c.c || 0) + (first ? 1 : 0) }; }).catch(function () {});
+      }
+      logJoin(true); setInterval(function () { logJoin(false); }, 120000);
+      window.__joinlogShow = function (day) {
+        day = day || dayKey(new Date());
+        var esc = function (s) { return String(s).replace(/[&<>"]/g, function (ch) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]; }); };
+        var tm = function (ms) { var d = new Date(ms); return pad(d.getHours()) + ':' + pad(d.getMinutes()); };
+        var head = '<h3>Хто заходив</h3><p class="muted">Дата: <input type="date" id="jld" value="' + day + '" style="padding:6px;font-size:16px;background:#1a120a;color:#f2e2c0;border:1px solid #8a7347"></p>';
+        var b = modal(head + '<p class="muted">Завантажуємо…</p>');
+        b.querySelector('#jld').addEventListener('change', function () { if (this.value) window.__joinlogShow(this.value); });
+        db.ref('joinlog/' + day).once('value').then(function (sn) {
+          var v = sn.val() || {}, ids = Object.keys(v).sort(function (a, c) { return v[a].f - v[c].f; }), h = head;
+          if (!ids.length) h += '<p class="muted">У цей день ніхто не заходив.</p>';
+          else {
+            h += '<p class="muted">Усього: ' + ids.length + '</p><div style="max-height:50vh;overflow:auto"><table style="width:100%;border-collapse:collapse;font-size:15px"><tr style="color:#a89468;text-align:left"><th>Ім’я</th><th>Група</th><th>Зайшов</th><th>Востаннє</th><th>Разів</th></tr>';
+            ids.forEach(function (id) { var r = v[id]; h += '<tr style="border-top:1px solid #3a2c1a"><td>' + esc(r.n) + '</td><td>' + esc(r.g || '') + '</td><td>' + tm(r.f) + '</td><td>' + tm(r.l) + '</td><td>' + (r.c | 0) + '</td></tr>'; });
+            h += '</table></div>';
+          }
+          var b2 = modal(h); b2.querySelector('#jld').addEventListener('change', function () { if (this.value) window.__joinlogShow(this.value); });
+        }, function () { var b3 = modal(head + '<p class="muted">Немає доступу до журналу. Потрібно опублікувати оновлені правила Firebase (розділ joinlog).</p>'); b3.querySelector('#jld').addEventListener('change', function () { if (this.value) window.__joinlogShow(this.value); }); });
+      };
+    })();
     db.ref('.info/serverTimeOffset').on('value', function (s) { offset = s.val() || 0; window.__srvOff = offset; });
     window.__fb = { db: db, uid: uid, get: function (path) { return db.ref(path).once('value').then(function (s) { return s.val(); }); }, set: function (path, v) { return db.ref(path).set(v); } };
     myRef = db.ref('presence/' + uid);
