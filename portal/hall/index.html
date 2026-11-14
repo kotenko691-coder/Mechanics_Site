@@ -2337,7 +2337,7 @@ window.__vp = VP;
   ['arch', 'build', 'road'].forEach(function (id) { var L = LOC[id]; makeBoard({ loc: L, key: id, sep: true, tvx: L.W / 2 - 0.12, tvz: -2.4 }); });
 
   /* ====== ГОЛОС ====== */
-  var VOICE = { meet: 1, prak: 1, arch: 1, build: 1, road: 1 };
+  var VOICE = { meet: 1, prak: 1, arch: 1, build: 1, road: 1, hall: 1, f2: 1 }, OPENV = { hall: 1, f2: 1 };
   var peers = {}, localStream = null, micOn = false, sigOn = false, ICE = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }, { urls: 'stun:stun1.l.google.com:19302' }] };
   window.__micOn = false;
   var micBtn = document.createElement('button'); micBtn.id = 'mic'; micBtn.type = 'button';
@@ -2409,7 +2409,14 @@ window.__vp = VP;
     if (!f || !window.RTCPeerConnection) return; startSignals();
     if (!l) { Object.keys(peers).forEach(closePeer); if (micOn) setMic(false); return; }
     var gh = (window.__pres && window.__pres.ghosts) || {}, want = {};
-    Object.keys(gh).forEach(function (id) { if (gh[id].userData.loc === l) want[id] = 1; });
+    if (OPENV[l]) { // хол і коридор: говоримо з тими, хто поруч (до 6 найближчих у межах 8 м; вже підключених тримаємо до 12 м)
+      var me = camera.position, cand = [];
+      Object.keys(gh).forEach(function (id) {
+        var g = gh[id]; if (g.userData.loc !== l) return; var pp = g.parent ? g.parent.position : { x: 0, z: 0 };
+        var dd = Math.hypot(g.position.x + pp.x - me.x, g.position.z + pp.z - me.z); if (dd <= (peers[id] ? 12 : 8)) cand.push([dd, id]);
+      });
+      cand.sort(function (a, b) { return a[0] - b[0]; }); cand.slice(0, 6).forEach(function (a) { want[a[1]] = 1; });
+    } else Object.keys(gh).forEach(function (id) { if (gh[id].userData.loc === l) want[id] = 1; });
     Object.keys(peers).forEach(function (id) { if (!want[id]) closePeer(id); else if (peers[id].pc.connectionState === 'failed') closePeer(id); });
     Object.keys(want).forEach(function (id) { if (!peers[id] && f.uid < id) makePeer(id, true); });
   }, 1000);
