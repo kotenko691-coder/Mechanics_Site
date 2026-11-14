@@ -998,7 +998,7 @@
       document.body.appendChild(ov);
     }
     ov.hidden = false; ov.style.display = 'block';
-    document.getElementById('hall-frame').src = 'hall/?v=8';
+    document.getElementById('hall-frame').src = 'hall/?v=9';
   }
   function closeHall() {
     var ov = document.getElementById('hall-ov');
