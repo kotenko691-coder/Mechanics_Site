@@ -1502,7 +1502,7 @@ function console_(loc, wi, lx, w) {
   }
 
   /* ---------- 3D-стенди: по три однакових кожного виду ---------- */
-  var STS = [], ARM = new THREE.Vector3(0, 1, 0);
+  var STS = [], SWS = [], ARM = new THREE.Vector3(0, 1, 0);
   function lab3(text, col, w) {
     var c = document.createElement('canvas'); c.width = 256; c.height = 64; var x = c.getContext('2d'); x.fillStyle = 'rgba(255,255,255,.88)'; x.fillRect(0, 0, 256, 64);
     x.fillStyle = col; x.font = 'bold 30px Georgia,serif'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText(text, 128, 34);
@@ -1587,10 +1587,12 @@ function console_(loc, wi, lx, w) {
     obs(L, wx, wz, 0.5, 0.95); L.zoomStand = a.root; var cur2 = a;
     var pg = grp(wx, 0, wz, L.group, ry), pl2 = box(0.7, 0.3, 0.05, M.brass, 0.0, 2.55, 0.02, pg);
     var sg = signPlane(['Перемкнути стенд'], 1.1, 0.26, { bg: '#6b4a1f', fg: '#fff4d8', px: 90 }); sg.position.set(0, 2.55, 0.06); pg.add(sg); pl2.visible = false;
+    function setKind(k) { var n = (k === 'rods') ? b : a; if (n === cur2) return; cur2.g.visible = false; cur2 = n; cur2.g.visible = true; L.zoomStand = cur2.root; }
     act(sg, 'Перемкнути стенд', function () {
-      cur2.g.visible = false; cur2 = (cur2 === a) ? b : a; cur2.g.visible = true; L.zoomStand = cur2.root;
+      setKind(cur2 === a ? 'rods' : 'beam');
       toast(cur2.kind === 'beam' ? 'Стенд: двоопорна балка.' : 'Стенд: реакції в стержнях.', 2600);
     }, { reach: 6 });
+    SWS.push({ key: 'ps_' + L.id + '_sw', get: function () { return cur2.kind; }, set: setKind, last: 'beam' });
     return { a: a, b: b };
   }
   ['arch', 'build', 'road'].forEach(function (id) { var L = LOC[id]; standSwitch(L, -L.W / 2 + 0.4, -1.2, PI / 2); });
@@ -1603,6 +1605,43 @@ function console_(loc, wi, lx, w) {
       if (st.kind === 'beam' && st.body) { st.body.position.set(st.pose.x + a.dx * ph, st.pose.y + a.dy * ph, 0.03); st.body.rotation.z = a.th * ph; }
       else if (st.node) placeRods(st, a.dx * ph, a.dy * ph);
     });
+  });
+
+  /* ---------- синхронізація стендів між гравцями (tv/ps_*) ---------- */
+  var psInit = false, psLast = 0;
+  function stKey(st) { return 'ps_' + (st.loc.id || 'hall') + '_' + st.kind + '_' + st.i; }
+  function stPack(st) {
+    var S = {}; Object.keys(st.S).forEach(function (k) { if (k !== 'ans') S[k] = st.S[k]; });
+    return JSON.stringify({ S: S, c: st.checked ? 1 : 0, ok: st.ok ? 1 : 0, an: st.anim || null });
+  }
+  function stApply(st, str) {
+    var o; try { o = JSON.parse(str); } catch (e) { return; } if (!o || !o.S) return;
+    Object.keys(st.S).forEach(function (k) { if (k !== 'ans') delete st.S[k]; });
+    Object.keys(o.S).forEach(function (k) { st.S[k] = o.S[k]; });
+    st.checked = !!o.c; st.ok = !!o.ok; st.anim = o.an || null; st.sig = st.anim ? sigOf(st.S) : null;
+    build3D(st); if (curSt === st) { var m = $('modal'); if (m && m.style.display !== 'none' && m.style.display !== '' && $('pc')) { try { if (st.kind === 'beam') { B = st.S; drawBeam($('pc'), B); } else { R = st.S; drawRods($('pc'), R); } } catch (e) {} } }
+  }
+  function psStart() {
+    var f = window.__fb; if (!f || !f.db || psInit) return; psInit = true;
+    STS.forEach(function (st) {
+      var key = stKey(st); st.last = stPack(st);
+      f.db.ref('tv/' + key).on('value', function (sn) {
+        var v = sn.val(); if (!v || v.d !== 's' || typeof v.p !== 'string') return;
+        if (v.t && Date.now() - v.t > 6 * 3600e3) return;
+        if (v.p === st.last) return; st.last = v.p; stApply(st, v.p);
+      }, function () {});
+    });
+    SWS.forEach(function (w) {
+      f.db.ref('tv/' + w.key).on('value', function (sn) { var v = sn.val(); if (!v || v.d !== 's' || !v.p) return; if (v.t && Date.now() - v.t > 6 * 3600e3) return; w.last = v.p; w.set(v.p); }, function () {});
+    });
+  }
+  updaters.push(function (s) {
+    psStart(); var f = window.__fb; if (!f || !psInit || s - psLast < 0.35) return; psLast = s;
+    STS.forEach(function (st) {
+      if (st.loc !== cur) return; var p = stPack(st); if (p === st.last) return; st.last = p;
+      f.db.ref('tv/' + stKey(st)).set({ d: 's', p: p, t: Date.now() }).catch(function () {});
+    });
+    SWS.forEach(function (w) { if (w.get() === w.last) return; w.last = w.get(); f.db.ref('tv/' + w.key).set({ d: 's', p: w.last, t: Date.now() }).catch(function () {}); });
   });
   window.__prak = { openBeam: openBeam, openRods: openRods, STS: STS, beamSolve: beamSolve, rodSolve: rodSolve, check: function (st) { curSt = st; if (st.kind === 'beam') { B = st.S; openBeam(); checkBeam(); } else { R = st.S; openRods(); checkRods(); } } };
 })();
@@ -2015,16 +2054,57 @@ var VP = (function () {
     var s = document.createElement('script'); s.src = 'https://www.youtube.com/iframe_api'; document.head.appendChild(s);
     window.onYouTubeIframeAPIReady = function () { waitYT.splice(0).forEach(function (f) { f(); }); };
   }
+  var vtv = null, poppedOut = false, scrPl = {}, layoutOn = false;
   function build() {
-    if (box) return; box = document.createElement('div'); box.id = 'vp';
-    box.style.cssText = 'position:fixed;left:50%;transform:translateX(-50%);top:62px;width:min(44vw,540px);z-index:7;background:#0b0907;border:1px solid #8a7347;display:none;color:#f2e2c0;font-family:Georgia,serif';
-    box.innerHTML = '<div style="display:flex;gap:6px;align-items:center;padding:5px 8px;font-size:13px"><b id="vpt" style="flex:1;overflow:hidden;white-space:nowrap;text-overflow:ellipsis"></b><button type="button" id="vps">Більше</button><button type="button" id="vpx">Закрити</button></div>' +
-      '<div id="vpb" style="position:relative;padding-top:56.25%;background:#000"><div id="vpf" style="position:absolute;inset:0"></div></div>' +
-      '<div id="vpc" style="display:flex;gap:8px;align-items:center;padding:6px 8px;font-size:13px"></div>';
+    if (box) return;
+    vtv = document.createElement('div'); vtv.id = 'vtv'; vtv.style.cssText = 'position:fixed;left:0;top:0;width:640px;height:360px;z-index:5;background:#000;display:none;transform-origin:0 0;overflow:hidden;clip-path:inset(0)';
+    vtv.innerHTML = '<div id="vpf" style="position:absolute;inset:0"></div>'; document.body.appendChild(vtv);
+    box = document.createElement('div'); box.id = 'vp';
+    box.style.cssText = 'position:fixed;left:50%;transform:translateX(-50%);top:62px;width:min(92vw,560px);z-index:7;background:rgba(11,9,7,.92);border:1px solid #8a7347;display:none;color:#f2e2c0;font-family:Georgia,serif';
+    box.innerHTML = '<div style="display:flex;gap:6px;align-items:center;padding:5px 8px;font-size:13px"><b id="vpt" style="flex:1;overflow:hidden;white-space:nowrap;text-overflow:ellipsis"></b><button type="button" id="vps">Окремим вікном</button><button type="button" id="vpx">Закрити</button></div>' +
+      '<div id="vpc" style="display:flex;gap:8px;align-items:center;padding:6px 8px;font-size:13px;flex-wrap:wrap"></div>';
     document.body.appendChild(box);
     Array.prototype.forEach.call(box.querySelectorAll('button'), function (b) { b.style.cssText = 'padding:5px 9px;font:13px Georgia,serif;background:#241a10;color:#f2e2c0;border:1px solid #8a7347;cursor:pointer'; });
-    box.querySelector('#vps').addEventListener('click', function () { big = !big; box.style.width = big ? 'min(70vw,980px)' : 'min(44vw,540px)'; this.textContent = big ? 'Менше' : 'Більше'; });
-    box.querySelector('#vpx').addEventListener('click', function () { hiddenSig = shown; destroy(); box.style.display = 'none'; reopen(true); });
+    box.querySelector('#vps').addEventListener('click', function () { poppedOut = !poppedOut; this.textContent = poppedOut ? 'На телевізор' : 'Окремим вікном'; });
+    box.querySelector('#vpx').addEventListener('click', function () { hiddenSig = shown; destroy(); box.style.display = 'none'; vtv.style.display = 'none'; reopen(true); });
+  }
+  /* проєкція відео на екран телевізора: матриця 3D з чотирьох кутів */
+  function homog(w, h, d) {
+    var src = [[0, 0], [w, 0], [w, h], [0, h]], A = [], i, j, k;
+    for (i = 0; i < 4; i++) {
+      var x = src[i][0], y = src[i][1], X = d[i][0], Y = d[i][1];
+      A.push([x, y, 1, 0, 0, 0, -x * X, -y * X, X]); A.push([0, 0, 0, x, y, 1, -x * Y, -y * Y, Y]);
+    }
+    for (i = 0; i < 8; i++) {
+      var m = i; for (j = i + 1; j < 8; j++) if (Math.abs(A[j][i]) > Math.abs(A[m][i])) m = j;
+      var t = A[i]; A[i] = A[m]; A[m] = t; if (Math.abs(A[i][i]) < 1e-9) return null;
+      for (j = i + 1; j < 8; j++) { var f = A[j][i] / A[i][i]; for (k = i; k < 9; k++) A[j][k] -= f * A[i][k]; }
+    }
+    var h8 = []; for (i = 7; i >= 0; i--) { var sum = A[i][8]; for (j = i + 1; j < 8; j++) sum -= A[i][j] * h8[j]; h8[i] = sum / A[i][i]; }
+    var a = h8[0], b = h8[1], c = h8[2], dd = h8[3], e = h8[4], f2 = h8[5], g = h8[6], hh = h8[7];
+    return 'matrix3d(' + [a, dd, 0, g, b, e, 0, hh, 0, 0, 1, 0, c, f2, 0, 1].join(',') + ')';
+  }
+  var _v = null, _n = null, lastPl = null;
+  function layout() {
+    if (!vtv || !shown) return;
+    if (poppedOut) {
+      var w = Math.min(innerWidth * 0.92, 980), hh = w * 9 / 16; vtv.style.width = w + 'px'; vtv.style.height = hh + 'px'; vtv.style.transform = 'translate(' + ((innerWidth - w) / 2) + 'px,' + (innerHeight * 0.2) + 'px)';
+      vtv.style.pointerEvents = 'auto'; vtv.style.opacity = 1; vtv.style.display = 'block'; return;
+    }
+    var pls = scrPl[cur.id] || [], cand = [], best = null, bestA = 0, bestPl = null; if (!_v) { _v = new THREE.Vector3(); _n = new THREE.Vector3(); }
+    var rect = renderer.domElement.getBoundingClientRect(); camera.updateMatrixWorld(true);
+    pls.forEach(function (pl) {
+      pl.updateWorldMatrix(true, false); var hs = pl.userData.hs || [1.35, 0.76], W = hs[0], H = hs[1], cs = [[-W, H], [W, H], [W, -H], [-W, -H]], pts = [], ok = true, i;
+      for (i = 0; i < 4; i++) { _v.set(cs[i][0], cs[i][1], 0).applyMatrix4(pl.matrixWorld).project(camera); if (_v.z > 1 || _v.z < -1) { ok = false; break; } pts.push([(_v.x + 1) / 2 * rect.width + rect.left, (1 - _v.y) / 2 * rect.height + rect.top]); }
+      if (!ok) return; var ar = 0; for (i = 0; i < 4; i++) { var q = pts[(i + 1) % 4]; ar += pts[i][0] * q[1] - q[0] * pts[i][1]; }
+      if (ar <= 0) return; cand.push({ pl: pl, pts: pts, ar: ar }); if (ar > bestA) { bestA = ar; best = pts; bestPl = pl; }
+    });
+    var keep = cand.filter(function (c) { return c.pl === lastPl; })[0];
+    if (keep && bestPl !== lastPl && keep.ar * 1.35 > bestA) { best = keep.pts; bestA = keep.ar; bestPl = lastPl; }
+    lastPl = bestPl;
+    if (!best || bestA < 4000) { vtv.style.opacity = 0; vtv.style.pointerEvents = 'none'; return; }
+    var tr = homog(640, 360, best); if (!tr) { vtv.style.opacity = 0; return; }
+    vtv.style.width = '640px'; vtv.style.height = '360px'; vtv.style.transform = tr; vtv.style.pointerEvents = 'none'; vtv.style.opacity = 1; vtv.style.display = 'block';
   }
   var ro = null;
   function reopen(on) {
@@ -2033,16 +2113,26 @@ var VP = (function () {
   }
   function destroy() {
     clearInterval(loop); loop = null; try { if (ytP && ytP.destroy) ytP.destroy(); } catch (e) { /* ігноруємо */ } ytP = null; ytReady = false; shown = '';
-    if (box) { var f = box.querySelector('#vpf'); f.innerHTML = ''; var n = document.createElement('div'); n.id = 'vpf'; n.style.cssText = 'position:absolute;inset:0'; f.parentNode.replaceChild(n, f); }
+    if (vtv) { var f = vtv.querySelector('#vpf'); f.innerHTML = ''; var n = document.createElement('div'); n.id = 'vpf'; n.style.cssText = 'position:absolute;inset:0'; f.parentNode.replaceChild(n, f); }
+  }
+  function ytCmd(f, a) { try { var ifr = ytP && ytP.getIframe && ytP.getIframe(); if (ifr && ifr.contentWindow) ifr.contentWindow.postMessage(JSON.stringify({ event: 'command', func: f, args: a || [] }), '*'); } catch (e) { /* ігноруємо */ } }
+  function applyVol() {
+    if (!ytP) return;
+    try { if (ytP.setVolume) ytP.setVolume(vol); } catch (e) { /* ігноруємо */ }
+    try { if (muted) { if (ytP.mute) ytP.mute(); } else if (ytP.unMute) ytP.unMute(); } catch (e) { /* ігноруємо */ }
+    ytCmd('setVolume', [vol]); ytCmd(muted ? 'mute' : 'unMute');
   }
   function controls(st) {
     var c = box.querySelector('#vpc'); c.innerHTML = '';
     if (st.k === 'yt') {
       var mb = document.createElement('button'); mb.type = 'button'; mb.textContent = muted ? 'Звук вимкнено' : 'Звук увімкнено'; mb.style.cssText = 'padding:5px 9px;font:13px Georgia,serif;background:#241a10;color:#f2e2c0;border:1px solid #8a7347;cursor:pointer';
       var rg = document.createElement('input'); rg.type = 'range'; rg.min = 0; rg.max = 100; rg.value = vol; rg.style.cssText = 'flex:1;min-width:60px';
-      function apply() { if (ytReady) { try { ytP.setVolume(vol); muted ? ytP.mute() : ytP.unMute(); } catch (e) { /* ігноруємо */ } } mb.textContent = muted ? 'Звук вимкнено' : 'Звук увімкнено'; }
-      mb.addEventListener('click', function () { muted = !muted; apply(); }); rg.addEventListener('input', function () { vol = +rg.value; if (vol > 0) muted = false; apply(); });
-      c.appendChild(mb); c.appendChild(rg);
+      function apply() { applyVol(); setTimeout(applyVol, 250); mb.textContent = muted ? 'Звук вимкнено' : 'Звук увімкнено'; pc.textContent = (muted ? 0 : vol) + '%'; }
+      mb.addEventListener('click', function () { muted = !muted; apply(); }); rg.addEventListener('input', function () { vol = +rg.value; muted = vol === 0; apply(); }); rg.addEventListener('change', function () { apply(); });
+      if (ctl) { var pb = document.createElement('button'); pb.type = 'button'; pb.textContent = 'Пауза / грати'; pb.style.cssText = mb.style.cssText; pb.addEventListener('click', function () { if (!ytReady) return; try { var ps = ytP.getPlayerState(); if (ps === 1) ytP.pauseVideo(); else ytP.playVideo(); } catch (e) { /* ігноруємо */ } setTimeout(function () { follow(st); }, 150); }); c.appendChild(pb); }
+      var pc = document.createElement('span'); pc.style.cssText = 'min-width:38px;text-align:right'; pc.textContent = (muted ? 0 : vol) + '%'; var ios = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+      if (ios) { var ht = document.createElement('span'); ht.style.cssText = 'flex:1;color:#a89468'; ht.textContent = 'На iPad і iPhone гучність змінюється кнопками пристрою.'; c.appendChild(ht); }
+      else { c.appendChild(mb); c.appendChild(rg); c.appendChild(pc); }
     } else { var t = document.createElement('span'); t.className = 'muted'; t.style.color = '#a89468'; t.textContent = 'Гучність і перемотка: у самому плеєрі.'; c.appendChild(t); }
     if (ctl) { var sb = document.createElement('button'); sb.type = 'button'; sb.textContent = 'Зупинити для всіх'; sb.style.cssText = 'padding:5px 9px;font:13px Georgia,serif;background:#5a1c1c;color:#f2e2c0;border:1px solid #c62828;cursor:pointer'; sb.addEventListener('click', function () { if (window.__boardOff) window.__boardOff(st.room); }); c.appendChild(sb); }
   }
@@ -2064,35 +2154,37 @@ var VP = (function () {
     else { if (s === 1) ytP.pauseVideo(); if (Math.abs(cur - (st.pos || 0)) > 1) ytP.seekTo(st.pos || 0, true); }
   }
   function mount(st) {
-    build(); var sig = st.room + st.vid + st.t; shown = sig; var f = box.querySelector('#vpf');
+    build(); var sig = st.room + st.vid + st.t; shown = sig; var f = vtv.querySelector('#vpf');
     box.querySelector('#vpt').textContent = st.ti + ' · показує ' + String(st.by || '').slice(0, 30);
-    var fx = fbx(); ctl = !!(fx && st.u === fx.uid); controls(st); box.style.display = 'block'; reopen(false);
+    var fx = fbx(); ctl = !!(fx && st.u === fx.uid); controls(st); box.style.display = 'block'; vtv.style.display = 'block'; reopen(false); layout();
     if (st.k === 'gd') {
       if (!/^https:\/\/(drive|docs)\.google\.com\//.test(st.vid)) return;
       var ifr = document.createElement('iframe'); ifr.src = st.vid; ifr.setAttribute('allow', 'autoplay; fullscreen'); ifr.setAttribute('allowfullscreen', ''); ifr.style.cssText = 'width:100%;height:100%;border:0'; f.appendChild(ifr); return;
     }
     if (!/^[\w-]{11}$/.test(st.vid)) return;
     loadYT(function () {
-      if (shown !== sig) return; var d = document.createElement('div'); box.querySelector('#vpf').appendChild(d);
+      if (shown !== sig) return; var d = document.createElement('div'); vtv.querySelector('#vpf').appendChild(d);
       var expected = (st.pos || 0) + (st.st !== 'pause' ? Math.max(0, (srv() - (st.at || srv())) / 1000) : 0);
       ytP = new YT.Player(d, { width: '100%', height: '100%', videoId: st.vid, playerVars: { controls: ctl ? 1 : 0, disablekb: ctl ? 0 : 1, rel: 0, playsinline: 1, start: Math.floor(expected), autoplay: 1 }, events: {
-        onReady: function () { ytReady = true; try { ytP.setVolume(vol); if (muted) ytP.mute(); if (st.st !== 'pause') ytP.playVideo(); } catch (e) { /* ігноруємо */ } if (ctl) publish(st, st.st !== 'pause', expected); },
-        onStateChange: function () { if (ctl) follow(st); }
+        onReady: function () { ytReady = true; applyVol(); try { if (st.st !== 'pause') ytP.playVideo(); } catch (e) { /* ігноруємо */ } setTimeout(applyVol, 800); if (ctl) publish(st, st.st !== 'pause', expected); },
+        onStateChange: function () { applyVol(); if (ctl) follow(st); }
       } });
       loop = setInterval(function () { var s2 = states[st.room]; if (s2 && s2.k && shown === sig) { s2.room = st.room; follow(s2); } }, 1500);
     });
   }
   function tick() {
     var id = cur && cur.id, st = id && states[id];
-    if (!st || !st.k) { if (shown) destroy(); if (box) box.style.display = 'none'; reopen(false); hiddenSig = ''; return; }
+    if (!st || !st.k) { if (shown) destroy(); if (box) box.style.display = 'none'; if (vtv) vtv.style.display = 'none'; reopen(false); hiddenSig = ''; return; }
     st.room = id; var sig = id + st.vid + st.t;
     if (hiddenSig === sig) { reopen(true); return; } if (hiddenSig) hiddenSig = '';
     if (shown !== sig) { if (shown) destroy(); mount(st); }
   }
   setInterval(tick, 700);
+  updaters.push(function () { try { layout(); } catch (e) { /* ігноруємо */ } });
   return {
     parse: parse,
-    set: function (room, st) { states[room] = st && st.k ? st : null; tick(); }
+    screens: function (room, planes) { scrPl[room] = planes; },
+    set: function (room, st) { states[room] = st && st.k ? st : null; tick(); var s2 = states[room]; if (s2 && ytReady && !ctl && shown) { s2.room = room; follow(s2); } }
   };
 })();
 window.__vp = VP;
@@ -2152,6 +2244,7 @@ window.__vp = VP;
     act(plane, 'Дошка і телевізор', function () { openPanel(); }, { reach: 6.5 });
     MEET.zoomT = [{ label: 'Дошка', obj: plane }];
   }
+  (function () { var arr = SEP ? tvPlanes : [plane]; arr.forEach(function (q) { q.userData.hs = SEP ? [1.35, 0.76] : [3, 1.2]; }); VP.screens(KEY, arr); })();
 
   /* повноекранне вікно малювання: усе поза дошкою заблоковано */
   var COLS = ['#111111', '#1f4fd8', '#c62828', '#2e7d32', '#e08a00'], color = COLS[0], width = 4, eraser = false, penSeen = false, drawing = null;
@@ -2207,9 +2300,13 @@ window.__vp = VP;
   var ttex = new THREE.CanvasTexture(tvc); ttex.anisotropy = 4; var tvState = null, myPages = null, myIdx = 0, myPdf = null, tvImg = null;
   function drawPoster() {
     tvx.fillStyle = '#05080c'; tvx.fillRect(0, 0, TW, TH); tvx.fillStyle = '#f2e2c0'; tvx.textAlign = 'center';
-    tvx.font = 'bold 120px Georgia'; tvx.fillText('▶', TW / 2, TH / 2 - 10); tvx.font = '44px Georgia'; tvx.fillText(tvState.ti || 'Відео', TW / 2, TH / 2 + 80);
-    tvx.font = '30px Georgia'; tvx.fillStyle = '#a89468'; tvx.fillText('Дивіться у вікні відео', TW / 2, TH / 2 + 130); ttex.needsUpdate = true;
+    var pl = tvState.st !== 'pause', pos = (tvState.pos || 0) + (pl && tvState.at ? Math.max(0, (Date.now() + (window.__srvOff || 0) - tvState.at) / 1000) : 0);
+    function fm(x) { x = Math.floor(x); var m = Math.floor(x / 60), q = x % 60; return m + ':' + (q < 10 ? '0' : '') + q; }
+    tvx.font = 'bold 150px Georgia'; tvx.fillText(tvState.k === 'yt' ? (pl ? '▶' : '❚❚') : '▶', TW / 2, TH / 2 - 10); tvx.font = '44px Georgia'; tvx.fillText(tvState.ti || 'Відео', TW / 2, TH / 2 + 80);
+    tvx.font = '34px Georgia'; tvx.fillStyle = tvState.k === 'yt' && !pl ? '#ffb74d' : '#a89468';
+    tvx.fillText(tvState.k === 'yt' ? ((pl ? 'Відтворення ' : 'Пауза ') + fm(pos)) : 'Дивіться у вікні відео', TW / 2, TH / 2 + 135); ttex.needsUpdate = true;
   }
+  setInterval(function () { if (tvState && tvState.k === 'yt') drawPoster(); }, 1000);
   function showTv() {
     if (tvState && tvState.k) {
       drawPoster();
