@@ -1943,7 +1943,7 @@ if (window.__hall) { window.__hall.sit = sitDown; window.__hall.meetCheck = meet
     return firebase.auth().signInWithCredential(cred);
   }).then(function (r) {
     uid = r.user.uid; var db = firebase.database(), w = NET.who();
-    db.ref('.info/serverTimeOffset').on('value', function (s) { offset = s.val() || 0; });
+    db.ref('.info/serverTimeOffset').on('value', function (s) { offset = s.val() || 0; window.__srvOff = offset; });
     window.__fb = { db: db, uid: uid, get: function (path) { return db.ref(path).once('value').then(function (s) { return s.val(); }); }, set: function (path, v) { return db.ref(path).set(v); } };
     myRef = db.ref('presence/' + uid);
     myRef.onDisconnect().remove();
@@ -1992,6 +1992,108 @@ if (window.__hall) { window.__hall.sit = sitDown; window.__hall.meetCheck = meet
     });
   }).catch(function (e) { toast('Присутність недоступна: ' + (e && (e.code || e.message) || e), 7000); });
 })();
+
+
+/* ====== ВІДЕО НА ТЕЛЕВІЗОРІ: YouTube синхронно для всього кабінету, документи й відео з Google Диска ====== */
+/* Викладач вставляє посилання. YouTube грає в усіх одночасно (пауза й перемотка збігаються), гучність у кожного своя.
+   Файли Диска, Документи й Презентації відкриваються в усіх у вікні перегляду без синхронізації. */
+var VP = (function () {
+  var states = {}, shown = '', box = null, ytP = null, ytReady = false, ctl = false, vol = 80, muted = false, big = false, hiddenSig = '', loop = null, lastPub = { play: null, pos: 0, at: 0 }, waitYT = [];
+  function fbx() { return window.__fb || null; }
+  function srv() { return Date.now() + (window.__srvOff || 0); }
+  function parse(u) {
+    u = String(u || '').trim(); var m;
+    if ((m = u.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?(?:[^#]*&)?v=|embed\/|shorts\/|live\/))([\w-]{11})/))) { var t = u.match(/[?&#]t=(\d+)/); return { k: 'yt', vid: m[1], pos: t ? +t[1] : 0, ti: 'YouTube' }; }
+    if ((m = u.match(/drive\.google\.com\/(?:file\/d\/|open\?id=)([\w-]+)/))) return { k: 'gd', vid: 'https://drive.google.com/file/d/' + m[1] + '/preview', pos: 0, ti: 'Файл з Диска' };
+    if ((m = u.match(/docs\.google\.com\/(document|spreadsheets|presentation)\/d\/([\w-]+)/))) return { k: 'gd', vid: 'https://docs.google.com/' + m[1] + '/d/' + m[2] + (m[1] === 'presentation' ? '/embed?start=false&loop=false&delayms=3000' : '/preview'), pos: 0, ti: m[1] === 'presentation' ? 'Презентація' : m[1] === 'document' ? 'Документ' : 'Таблиця' };
+    return null;
+  }
+  function loadYT(cb) {
+    if (window.YT && YT.Player) { cb(); return; } waitYT.push(cb); if (loadYT.l) return; loadYT.l = 1;
+    var s = document.createElement('script'); s.src = 'https://www.youtube.com/iframe_api'; document.head.appendChild(s);
+    window.onYouTubeIframeAPIReady = function () { waitYT.splice(0).forEach(function (f) { f(); }); };
+  }
+  function build() {
+    if (box) return; box = document.createElement('div'); box.id = 'vp';
+    box.style.cssText = 'position:fixed;left:50%;transform:translateX(-50%);top:62px;width:min(44vw,540px);z-index:7;background:#0b0907;border:1px solid #8a7347;display:none;color:#f2e2c0;font-family:Georgia,serif';
+    box.innerHTML = '<div style="display:flex;gap:6px;align-items:center;padding:5px 8px;font-size:13px"><b id="vpt" style="flex:1;overflow:hidden;white-space:nowrap;text-overflow:ellipsis"></b><button type="button" id="vps">Більше</button><button type="button" id="vpx">Закрити</button></div>' +
+      '<div id="vpb" style="position:relative;padding-top:56.25%;background:#000"><div id="vpf" style="position:absolute;inset:0"></div></div>' +
+      '<div id="vpc" style="display:flex;gap:8px;align-items:center;padding:6px 8px;font-size:13px"></div>';
+    document.body.appendChild(box);
+    Array.prototype.forEach.call(box.querySelectorAll('button'), function (b) { b.style.cssText = 'padding:5px 9px;font:13px Georgia,serif;background:#241a10;color:#f2e2c0;border:1px solid #8a7347;cursor:pointer'; });
+    box.querySelector('#vps').addEventListener('click', function () { big = !big; box.style.width = big ? 'min(70vw,980px)' : 'min(44vw,540px)'; this.textContent = big ? 'Менше' : 'Більше'; });
+    box.querySelector('#vpx').addEventListener('click', function () { hiddenSig = shown; destroy(); box.style.display = 'none'; reopen(true); });
+  }
+  var ro = null;
+  function reopen(on) {
+    if (!ro) { ro = document.createElement('button'); ro.type = 'button'; ro.textContent = 'Відкрити відео'; ro.style.cssText = 'position:fixed;left:50%;transform:translateX(-50%);top:62px;z-index:7;padding:9px 12px;font:14px Georgia,serif;background:rgba(36,26,16,.92);color:#f2e2c0;border:1px solid #8a7347;cursor:pointer;display:none'; document.body.appendChild(ro); ro.addEventListener('click', function () { hiddenSig = ''; ro.style.display = 'none'; tick(); }); }
+    ro.style.display = on ? 'block' : 'none';
+  }
+  function destroy() {
+    clearInterval(loop); loop = null; try { if (ytP && ytP.destroy) ytP.destroy(); } catch (e) { /* ігноруємо */ } ytP = null; ytReady = false; shown = '';
+    if (box) { var f = box.querySelector('#vpf'); f.innerHTML = ''; var n = document.createElement('div'); n.id = 'vpf'; n.style.cssText = 'position:absolute;inset:0'; f.parentNode.replaceChild(n, f); }
+  }
+  function controls(st) {
+    var c = box.querySelector('#vpc'); c.innerHTML = '';
+    if (st.k === 'yt') {
+      var mb = document.createElement('button'); mb.type = 'button'; mb.textContent = muted ? 'Звук вимкнено' : 'Звук увімкнено'; mb.style.cssText = 'padding:5px 9px;font:13px Georgia,serif;background:#241a10;color:#f2e2c0;border:1px solid #8a7347;cursor:pointer';
+      var rg = document.createElement('input'); rg.type = 'range'; rg.min = 0; rg.max = 100; rg.value = vol; rg.style.cssText = 'flex:1;min-width:60px';
+      function apply() { if (ytReady) { try { ytP.setVolume(vol); muted ? ytP.mute() : ytP.unMute(); } catch (e) { /* ігноруємо */ } } mb.textContent = muted ? 'Звук вимкнено' : 'Звук увімкнено'; }
+      mb.addEventListener('click', function () { muted = !muted; apply(); }); rg.addEventListener('input', function () { vol = +rg.value; if (vol > 0) muted = false; apply(); });
+      c.appendChild(mb); c.appendChild(rg);
+    } else { var t = document.createElement('span'); t.className = 'muted'; t.style.color = '#a89468'; t.textContent = 'Гучність і перемотка: у самому плеєрі.'; c.appendChild(t); }
+    if (ctl) { var sb = document.createElement('button'); sb.type = 'button'; sb.textContent = 'Зупинити для всіх'; sb.style.cssText = 'padding:5px 9px;font:13px Georgia,serif;background:#5a1c1c;color:#f2e2c0;border:1px solid #c62828;cursor:pointer'; sb.addEventListener('click', function () { if (window.__boardOff) window.__boardOff(st.room); }); c.appendChild(sb); }
+  }
+  function publish(st, play, pos) {
+    var f = fbx(); if (!f || !st.room) return; lastPub = { play: play, pos: pos, at: Date.now() };
+    f.db.ref('tv/' + st.room).update({ st: play ? 'play' : 'pause', pos: Math.round(pos * 10) / 10, at: firebase.database.ServerValue.TIMESTAMP }).catch(function () {});
+  }
+  function follow(st) {
+    if (!ytReady) return; var s, cur;
+    try { s = ytP.getPlayerState(); cur = ytP.getCurrentTime(); } catch (e) { return; }
+    if (ctl) {
+      var play = s === 1, exp = lastPub.pos + (lastPub.play ? (Date.now() - lastPub.at) / 1000 : 0);
+      if (s === 3) return;
+      if (play !== lastPub.play || Math.abs(cur - exp) > 1.6 || Date.now() - lastPub.at > 10000) publish(st, play, cur);
+      return;
+    }
+    var want = st.st !== 'pause', expected = (st.pos || 0) + (want ? Math.max(0, (srv() - (st.at || srv())) / 1000) : 0);
+    if (want) { if (s !== 1 && s !== 3) ytP.playVideo(); if (Math.abs(cur - expected) > 2.2) ytP.seekTo(expected, true); }
+    else { if (s === 1) ytP.pauseVideo(); if (Math.abs(cur - (st.pos || 0)) > 1) ytP.seekTo(st.pos || 0, true); }
+  }
+  function mount(st) {
+    build(); var sig = st.room + st.vid + st.t; shown = sig; var f = box.querySelector('#vpf');
+    box.querySelector('#vpt').textContent = st.ti + ' · показує ' + String(st.by || '').slice(0, 30);
+    var fx = fbx(); ctl = !!(fx && st.u === fx.uid); controls(st); box.style.display = 'block'; reopen(false);
+    if (st.k === 'gd') {
+      if (!/^https:\/\/(drive|docs)\.google\.com\//.test(st.vid)) return;
+      var ifr = document.createElement('iframe'); ifr.src = st.vid; ifr.setAttribute('allow', 'autoplay; fullscreen'); ifr.setAttribute('allowfullscreen', ''); ifr.style.cssText = 'width:100%;height:100%;border:0'; f.appendChild(ifr); return;
+    }
+    if (!/^[\w-]{11}$/.test(st.vid)) return;
+    loadYT(function () {
+      if (shown !== sig) return; var d = document.createElement('div'); box.querySelector('#vpf').appendChild(d);
+      var expected = (st.pos || 0) + (st.st !== 'pause' ? Math.max(0, (srv() - (st.at || srv())) / 1000) : 0);
+      ytP = new YT.Player(d, { width: '100%', height: '100%', videoId: st.vid, playerVars: { controls: ctl ? 1 : 0, disablekb: ctl ? 0 : 1, rel: 0, playsinline: 1, start: Math.floor(expected), autoplay: 1 }, events: {
+        onReady: function () { ytReady = true; try { ytP.setVolume(vol); if (muted) ytP.mute(); if (st.st !== 'pause') ytP.playVideo(); } catch (e) { /* ігноруємо */ } if (ctl) publish(st, st.st !== 'pause', expected); },
+        onStateChange: function () { if (ctl) follow(st); }
+      } });
+      loop = setInterval(function () { var s2 = states[st.room]; if (s2 && s2.k && shown === sig) { s2.room = st.room; follow(s2); } }, 1500);
+    });
+  }
+  function tick() {
+    var id = cur && cur.id, st = id && states[id];
+    if (!st || !st.k) { if (shown) destroy(); if (box) box.style.display = 'none'; reopen(false); hiddenSig = ''; return; }
+    st.room = id; var sig = id + st.vid + st.t;
+    if (hiddenSig === sig) { reopen(true); return; } if (hiddenSig) hiddenSig = '';
+    if (shown !== sig) { if (shown) destroy(); mount(st); }
+  }
+  setInterval(tick, 700);
+  return {
+    parse: parse,
+    set: function (room, st) { states[room] = st && st.k ? st : null; tick(); }
+  };
+})();
+window.__vp = VP;
 
 
 /* ====== ДОШКА ПЕРЕГОВОРНОЇ І ГОЛОСОВИЙ ЧАТ ====== */
@@ -2101,7 +2203,17 @@ if (window.__hall) { window.__hall.sit = sitDown; window.__hall.meetCheck = meet
   /* ====== ТЕЛЕВІЗОР: дошка перетворюється на екран, на якому показують файл ====== */
   var TW = 1280, TH = 720, tvc = document.createElement('canvas'); tvc.width = TW; tvc.height = TH; var tvx = tvc.getContext('2d');
   var ttex = new THREE.CanvasTexture(tvc); ttex.anisotropy = 4; var tvState = null, myPages = null, myIdx = 0, myPdf = null, tvImg = null;
+  function drawPoster() {
+    tvx.fillStyle = '#05080c'; tvx.fillRect(0, 0, TW, TH); tvx.fillStyle = '#f2e2c0'; tvx.textAlign = 'center';
+    tvx.font = 'bold 120px Georgia'; tvx.fillText('▶', TW / 2, TH / 2 - 10); tvx.font = '44px Georgia'; tvx.fillText(tvState.ti || 'Відео', TW / 2, TH / 2 + 80);
+    tvx.font = '30px Georgia'; tvx.fillStyle = '#a89468'; tvx.fillText('Дивіться у вікні відео', TW / 2, TH / 2 + 130); ttex.needsUpdate = true;
+  }
   function showTv() {
+    if (tvState && tvState.k) {
+      drawPoster();
+      if (SEP) { tvPlane.material.map = ttex; tvPlane.material.needsUpdate = true; } else { plane.material.map = ttex; plane.material.needsUpdate = true; bg.scale.x = 0.72; }
+      return;
+    }
     if (SEP) {
       if (!tvState) { tvPlane.material.map = offTex; tvPlane.material.needsUpdate = true; return; }
       var im0 = new Image(); im0.onload = function () {
@@ -2122,7 +2234,7 @@ if (window.__hall) { window.__hall.sit = sitDown; window.__hall.meetCheck = meet
     if (!f) return;
     var r = f.db.ref('tv/' + KEY); r.onDisconnect().remove().catch(function () {}); r.set(rec).catch(function (e) { toast('Телевізор: ' + (e && e.code || 'помилка'), 4500); });
   }
-  function tvOff() { tvState = null; myPages = null; myPdf = null; showTv(); var f = fb(); if (f) f.db.ref('tv/' + KEY).remove().catch(function () {}); }
+  function tvOff() { tvState = null; myPages = null; myPdf = null; showTv(); VP.set(KEY, null); var f = fb(); if (f) f.db.ref('tv/' + KEY).remove().catch(function () {}); }
   function imgToJpeg(src, maxW, q) {
     var w = src.naturalWidth || src.width, h = src.naturalHeight || src.height, k = Math.min(1, maxW / w), c = document.createElement('canvas'); c.width = Math.round(w * k); c.height = Math.round(h * k);
     var x = c.getContext('2d'); x.fillStyle = '#fff'; x.fillRect(0, 0, c.width, c.height); x.drawImage(src, 0, 0, c.width, c.height);
@@ -2155,23 +2267,41 @@ if (window.__hall) { window.__hall.sit = sitDown; window.__hall.meetCheck = meet
       }; fr.readAsArrayBuffer(file);
     } else toast('Підтримуються зображення та PDF. Презентацію збережіть як PDF.', 5000);
   }
+  function startVideo(pr) {
+    var f = fb(), rec = { d: 'v', k: pr.k, vid: pr.vid, pos: pr.pos || 0, st: 'play', at: Date.now() + (window.__srvOff || 0), ti: pr.ti, by: NET && NET.who ? NET.who().name : 'Викладач', u: f ? f.uid : 'local', t: Date.now() };
+    myPages = null; myPdf = null; tvState = rec; showTv(); VP.set(KEY, rec);
+    if (!f) return; var r = f.db.ref('tv/' + KEY); r.onDisconnect().remove().catch(function () {});
+    r.set(Object.assign({}, rec, { at: firebase.database.ServerValue.TIMESTAMP })).catch(function (e) { toast('Телевізор: ' + (e && e.code || 'помилка'), 4500); });
+  }
+  function openVideoDialog() {
+    if (busy || modalOpen) return;
+    var b = modal('<h3>Відео за посиланням</h3><p class="muted">Вставте посилання: YouTube, файл із Google Диска, Документ чи Презентація (посилання з Google Класу теж підійде). Для файлів Диска студенти мають мати доступ.</p><input id="vurl" placeholder="https://…" autocomplete="off" style="width:100%;box-sizing:border-box;padding:10px;font-size:16px;font-family:inherit;background:#0f0b07;color:#f2e2c0;border:1px solid #8a7347"><div class="msg" id="vmsg"></div><button class="main" id="vgo" type="button">Показати на телевізорі</button>');
+    b.querySelector('#vgo').addEventListener('click', function () {
+      var pr = VP.parse(b.querySelector('#vurl').value);
+      if (!pr) { b.querySelector('#vmsg').textContent = 'Не вдалося розпізнати посилання. Підходять YouTube, Диск, Документи, Презентації.'; return; }
+      closeModal(); startVideo(pr);
+    });
+  }
   function openPanel() {
     if (busy || modalOpen) return;
     var f = fb(), me = f ? f.uid : 'local', own = tvState && tvState.u === me, tch = isTeacher();
     var h = '<h3>' + (SEP ? 'Телевізор' : 'Дошка і телевізор') + '</h3>';
     if (tvState) {
-      h += '<img id="tvimg" alt="" style="width:100%;border:1px solid #6d5a3c;background:#000">' +
+      if (!tvState.k) h += '<img id="tvimg" alt="" style="width:100%;border:1px solid #6d5a3c;background:#000">' +
         '<p class="muted">Показує: ' + String(tvState.by).replace(/</g, '') + (tvState.n > 1 ? ' · сторінка ' + tvState.i + ' із ' + tvState.n : '') + '</p>';
+      if (tvState.k) h += '<p class="muted">Показує відео: ' + String(tvState.ti || '').replace(/</g, '') + ' · ' + String(tvState.by).replace(/</g, '') + '. Воно відкрито у вікні відео.</p>';
       if (own && tvState.n > 1) h += '<button id="tvp" type="button">← Назад</button><button id="tvn" type="button">Далі →</button> ';
       if (own || tch) h += '<button id="tvoff" type="button">Вимкнути телевізор</button> ';
       h += '<button id="pf" type="button">Показати інший файл</button>';
     } else h += SEP ? '<p class="muted">Телевізор вимкнено. Можна вивести на нього файл (зображення чи PDF).</p><button class="main" id="pf" type="button">Показати файл на телевізорі</button>' : '<p class="muted">Зараз на стіні дошка. Можна малювати або вивести файл (зображення чи PDF) на телевізор.</p><button class="main" id="pb" type="button">Малювати на дошці</button> <button id="pf" type="button">Показати файл на телевізорі</button>';
+    if (tch) h += ' <button id="pv" type="button">Відео за посиланням</button>';
     h += '<input type="file" id="fi" accept="image/*,application/pdf" style="display:none">';
     var b = modal(h), im = b.querySelector('#tvimg'); if (im) im.src = tvState.d;
     function q(s) { return b.querySelector(s); }
     if (q('#pb')) q('#pb').addEventListener('click', function () { closeModal(); openBoard(); });
     if (q('#pf')) q('#pf').addEventListener('click', function () { q('#fi').click(); });
     q('#fi').addEventListener('change', function () { var fl = this.files && this.files[0]; closeModal(); loadFile(fl); });
+    if (q('#pv')) q('#pv').addEventListener('click', function () { closeModal(); openVideoDialog(); });
     if (q('#tvoff')) q('#tvoff').addEventListener('click', function () { closeModal(); tvOff(); });
     if (q('#tvp')) q('#tvp').addEventListener('click', function () { closeModal(); gotoPage(myIdx - 1); });
     if (q('#tvn')) q('#tvn').addEventListener('click', function () { closeModal(); gotoPage(myIdx + 1); });
@@ -2189,7 +2319,7 @@ if (window.__hall) { window.__hall.sit = sitDown; window.__hall.meetCheck = meet
   function wire() {
     var f = fb(); if (!f || wired) return; wired = true;
     f.db.ref('board/' + KEY + '/' + f.uid).onDisconnect().remove().catch(function () {});
-    f.db.ref('tv/' + KEY).on('value', function (s) { var v = s.val(); tvState = v && v.d ? v : null; if (!(tvState && myPages && tvState.u === f.uid)) { if (!tvState) { myPages = null; myPdf = null; } } showTv(); }, function () {});
+    f.db.ref('tv/' + KEY).on('value', function (s) { var v = s.val(); tvState = v && v.d ? v : null; VP.set(KEY, tvState); if (!(tvState && myPages && tvState.u === f.uid)) { if (!tvState) { myPages = null; myPdf = null; } } showTv(); }, function () {});
     f.db.ref('board/' + KEY).on('value', function (snap) {
       var r = []; snap.forEach(function (u) { if (u.key === f.uid) return; u.forEach(function (st) { var v = st.val(); if (v && v.c && v.p) r.push({ c: String(v.c).slice(0, 9), w: +v.w || 4, p: dec(v.p) }); }); });
       remote = r; renderAll();
@@ -2197,7 +2327,7 @@ if (window.__hall) { window.__hall.sit = sitDown; window.__hall.meetCheck = meet
   }
   var __wbApi = { mine: function () { return mine; }, openBoard: openBoard, renderAll: renderAll, setRemote: function (r) { remote = r; renderAll(); } };
   if (KEY === 'meet') window.__wb = __wbApi;
-  BOARDS.push({ key: KEY, wire: wire });
+  BOARDS.push({ key: KEY, wire: wire }); (window.__boardOffs = window.__boardOffs || {})[KEY] = tvOff; window.__boardOff = function (k) { if (window.__boardOffs[k]) window.__boardOffs[k](); };
   return { wire: wire };
   }
   var BOARDS = [];
