@@ -2091,16 +2091,17 @@ var VP = (function () {
       var w = Math.min(innerWidth * 0.92, 980), hh = w * 9 / 16; vtv.style.width = w + 'px'; vtv.style.height = hh + 'px'; vtv.style.transform = 'translate(' + ((innerWidth - w) / 2) + 'px,' + (innerHeight * 0.2) + 'px)';
       vtv.style.pointerEvents = 'auto'; vtv.style.opacity = 1; vtv.style.display = 'block'; return;
     }
-    var pls = scrPl[cur.id] || [], cand = [], best = null, bestA = 0, bestPl = null; if (!_v) { _v = new THREE.Vector3(); _n = new THREE.Vector3(); }
+    var pls = scrPl[cur.id] || [], cand = [], best = null, bestA = 0, bestD = 1e9, bestPl = null; if (!_v) { _v = new THREE.Vector3(); _n = new THREE.Vector3(); }
     var rect = renderer.domElement.getBoundingClientRect(); camera.updateMatrixWorld(true);
     pls.forEach(function (pl) {
       pl.updateWorldMatrix(true, false); var hs = pl.userData.hs || [1.35, 0.76], W = hs[0], H = hs[1], cs = [[-W, H], [W, H], [W, -H], [-W, -H]], pts = [], ok = true, i;
       for (i = 0; i < 4; i++) { _v.set(cs[i][0], cs[i][1], 0).applyMatrix4(pl.matrixWorld).project(camera); if (_v.z > 1 || _v.z < -1) { ok = false; break; } pts.push([(_v.x + 1) / 2 * rect.width + rect.left, (1 - _v.y) / 2 * rect.height + rect.top]); }
       if (!ok) return; var ar = 0; for (i = 0; i < 4; i++) { var q = pts[(i + 1) % 4]; ar += pts[i][0] * q[1] - q[0] * pts[i][1]; }
-      if (ar <= 0) return; cand.push({ pl: pl, pts: pts, ar: ar }); if (ar > bestA) { bestA = ar; best = pts; bestPl = pl; }
+      if (ar <= 0) return; var cx = (pts[0][0] + pts[2][0]) / 2 - (rect.left + rect.width / 2), cy = (pts[0][1] + pts[2][1]) / 2 - (rect.top + rect.height / 2), sc = Math.hypot(cx, cy);
+      cand.push({ pl: pl, pts: pts, ar: ar, sc: sc }); if (sc < bestD) { bestD = sc; bestA = ar; best = pts; bestPl = pl; }
     });
     var keep = cand.filter(function (c) { return c.pl === lastPl; })[0];
-    if (keep && bestPl !== lastPl && keep.ar * 1.35 > bestA) { best = keep.pts; bestA = keep.ar; bestPl = lastPl; }
+    if (keep && bestPl !== lastPl && keep.sc < bestD + 90) { best = keep.pts; bestA = keep.ar; bestPl = lastPl; }
     lastPl = bestPl;
     if (!best || bestA < 4000) { vtv.style.opacity = 0; vtv.style.pointerEvents = 'none'; return; }
     var tr = homog(640, 360, best); if (!tr) { vtv.style.opacity = 0; return; }
@@ -2112,7 +2113,7 @@ var VP = (function () {
     ro.style.display = on ? 'block' : 'none';
   }
   function destroy() {
-    clearInterval(loop); loop = null; try { if (ytP && ytP.destroy) ytP.destroy(); } catch (e) { /* ігноруємо */ } ytP = null; ytReady = false; shown = '';
+    clearInterval(loop); loop = null; if (pbig) pbig.style.display = 'none'; try { if (ytP && ytP.destroy) ytP.destroy(); } catch (e) { /* ігноруємо */ } ytP = null; ytReady = false; shown = '';
     if (vtv) { var f = vtv.querySelector('#vpf'); f.innerHTML = ''; var n = document.createElement('div'); n.id = 'vpf'; n.style.cssText = 'position:absolute;inset:0'; f.parentNode.replaceChild(n, f); }
   }
   function ytCmd(f, a) { try { var ifr = ytP && ytP.getIframe && ytP.getIframe(); if (ifr && ifr.contentWindow) ifr.contentWindow.postMessage(JSON.stringify({ event: 'command', func: f, args: a || [] }), '*'); } catch (e) { /* ігноруємо */ } }
@@ -2140,6 +2141,17 @@ var VP = (function () {
     var f = fbx(); if (!f || !st.room) return; lastPub = { play: play, pos: pos, at: Date.now() };
     f.db.ref('tv/' + st.room).update({ st: play ? 'play' : 'pause', pos: Math.round(pos * 10) / 10, at: firebase.database.ServerValue.TIMESTAMP }).catch(function () {});
   }
+
+  var pbig = null;
+  function playBtn(show) {
+    if (!pbig) {
+      pbig = document.createElement('button'); pbig.type = 'button'; pbig.textContent = 'Натисніть, щоб увімкнути відео разом з викладачем';
+      pbig.style.cssText = 'position:fixed;left:50%;transform:translateX(-50%);bottom:90px;z-index:8;padding:14px 18px;font:16px Georgia,serif;background:#7a5a1e;color:#fff4d8;border:2px solid #f2d9a0;cursor:pointer;display:none;max-width:90vw';
+      pbig.addEventListener('click', function () { var st = pbig._st; if (!st || !ytReady) return; try { ytP.unMute(); muted = false; applyVol(); var s0 = states[st.room] || st; var ex = (s0.pos || 0) + (s0.st !== 'pause' ? Math.max(0, (srv() - (s0.at || srv())) / 1000) : 0); ytP.seekTo(ex, true); if (s0.st !== 'pause') ytP.playVideo(); } catch (e) { /* ігноруємо */ } pbig.style.display = 'none'; });
+      document.body.appendChild(pbig);
+    }
+    pbig.style.display = show ? 'block' : 'none';
+  }
   function follow(st) {
     if (!ytReady) return; var s, cur;
     try { s = ytP.getPlayerState(); cur = ytP.getCurrentTime(); } catch (e) { return; }
@@ -2149,6 +2161,7 @@ var VP = (function () {
       if (play !== lastPub.play || Math.abs(cur - exp) > 1.6 || Date.now() - lastPub.at > 10000) publish(st, play, cur);
       return;
     }
+    if (st.st !== 'pause' && s !== 1 && s !== 3) { if (pbig) pbig._st = st; playBtn(true); if (!pbig._st) pbig._st = st; pbig._st = st; } else playBtn(false);
     var want = st.st !== 'pause', expected = (st.pos || 0) + (want ? Math.max(0, (srv() - (st.at || srv())) / 1000) : 0);
     if (want) { if (s !== 1 && s !== 3) ytP.playVideo(); if (Math.abs(cur - expected) > 2.2) ytP.seekTo(expected, true); }
     else { if (s === 1) ytP.pauseVideo(); if (Math.abs(cur - (st.pos || 0)) > 1) ytP.seekTo(st.pos || 0, true); }
