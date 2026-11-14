@@ -2312,6 +2312,12 @@ window.__vp = VP;
   var TW = 1280, TH = 720, tvc = document.createElement('canvas'); tvc.width = TW; tvc.height = TH; var tvx = tvc.getContext('2d');
   var ttex = new THREE.CanvasTexture(tvc); ttex.anisotropy = 4; var tvState = null, myPages = null, myIdx = 0, myPdf = null, tvImg = null;
   function drawPoster() {
+    if (tvState.d === 'l') {
+      tvx.fillStyle = '#f4efe2'; tvx.fillRect(0, 0, TW, TH); tvx.fillStyle = '#7a5a1e'; tvx.textAlign = 'center'; tvx.font = '40px Georgia'; tvx.fillText('Тема з сайту', TW / 2, 150);
+      tvx.fillStyle = '#17110b'; tvx.font = 'bold 62px Georgia'; var ws = String(tvState.ti || '').split(' '), ln = '', y = 290, i;
+      for (i = 0; i < ws.length; i++) { var t = ln ? ln + ' ' + ws[i] : ws[i]; if (tvx.measureText(t).width > TW - 160 && ln) { tvx.fillText(ln, TW / 2, y); y += 78; ln = ws[i]; } else ln = t; if (y > 520) break; }
+      tvx.fillText(ln, TW / 2, y); tvx.fillStyle = '#6d5a3c'; tvx.font = '34px Georgia'; tvx.fillText('Конспект, презентація, PDF · торкніться екрана, щоб відкрити', TW / 2, TH - 60); ttex.needsUpdate = true; return;
+    }
     tvx.fillStyle = '#05080c'; tvx.fillRect(0, 0, TW, TH); tvx.fillStyle = '#f2e2c0'; tvx.textAlign = 'center';
     var pl = tvState.st !== 'pause', pos = (tvState.pos || 0) + (pl && tvState.at ? Math.max(0, (Date.now() + (window.__srvOff || 0) - tvState.at) / 1000) : 0);
     function fm(x) { x = Math.floor(x); var m = Math.floor(x / 60), q = x % 60; return m + ':' + (q < 10 ? '0' : '') + q; }
@@ -2321,7 +2327,7 @@ window.__vp = VP;
   }
   setInterval(function () { if (tvState && tvState.k === 'yt') drawPoster(); }, 1000);
   function showTv() {
-    if (tvState && tvState.k) {
+    if (tvState && (tvState.k || tvState.d === 'l')) {
       drawPoster();
       if (SEP) { tvPlane.material.map = ttex; tvPlane.material.needsUpdate = true; } else { plane.material.map = ttex; plane.material.needsUpdate = true; bg.scale.x = 0.72; }
       return;
@@ -2345,6 +2351,26 @@ window.__vp = VP;
     myIdx = i; tvState = rec; showTv();
     if (!f) return;
     var r = f.db.ref('tv/' + KEY); r.onDisconnect().remove().catch(function () {}); r.set(rec).catch(function (e) { toast('Телевізор: ' + (e && e.code || 'помилка'), 4500); });
+  }
+  function tvLecture(id, title) {
+    var f = fb(), who = NET && NET.who ? NET.who().name : 'Викладач', rec = { d: 'l', lid: String(id), ti: String(title).slice(0, 120), by: who, u: f ? f.uid : 'local', t: Date.now() };
+    myPages = null; myPdf = null; tvState = rec; lecSeen = rec.t; showTv();
+    if (!f) return; var r = f.db.ref('tv/' + KEY); r.onDisconnect().remove().catch(function () {}); r.set(rec).catch(function (e) { toast('Телевізор: ' + (e && e.code || 'помилка'), 4500); });
+  }
+  var lecSeen = 0;
+  function lecPicker() {
+    if (!(NET && NET.lectures)) { toast('Теми доступні, коли хол відкрито з кабінету.', 4200); return; }
+    modal('<h3>Тема на телевізор</h3><p class="muted">Завантажуємо список…</p>');
+    NET.lectures().then(function (list) {
+      if (!modalOpen) return; var esc = function (t) { return String(t).replace(/[&<>"]/g, function (ch) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]; }); };
+      var bd = modal('<h3>Тема на телевізор</h3><p class="muted">Оберіть тему: у всіх відкриється її конспект, презентація і PDF.</p><input id="lpq" placeholder="Пошук за назвою…" autocomplete="off" style="width:100%;box-sizing:border-box;padding:10px;font-size:16px;font-family:inherit;background:#1a120a;color:#f2e2c0;border:1px solid #8a7347"><div id="lpl" style="max-height:48vh;overflow:auto;margin-top:8px"></div>');
+      var box = bd.querySelector('#lpl'), q = bd.querySelector('#lpq'), NM = { lec: 'Лекції', prac: 'Практичні роботи', extra: 'Додатково' };
+      function draw() { var fl = q.value.trim().toLowerCase(), out = '', any = false;
+        ['lec', 'prac', 'extra'].forEach(function (sec) { var ls = list.filter(function (i) { return i.section === sec && (!fl || i.title.toLowerCase().indexOf(fl) >= 0); }); if (!ls.length) return; any = true; out += '<p class="muted" style="margin:10px 0 4px">' + NM[sec] + '</p>'; ls.forEach(function (i) { out += '<button type="button" data-id="' + esc(i.id) + '" data-t="' + esc(i.title) + '" style="display:block;width:100%;text-align:left;margin:3px 0">' + esc(i.title) + '</button>'; }); });
+        box.innerHTML = any ? out : '<p class="muted">' + (list.length ? 'Нічого не знайдено.' : 'Тем поки немає.') + '</p>'; }
+      draw(); q.addEventListener('input', draw);
+      box.addEventListener('click', function (e) { var t = e.target.closest('button[data-id]'); if (!t) return; closeModal(); tvLecture(t.getAttribute('data-id'), t.getAttribute('data-t')); if (NET.openLecture) NET.openLecture(t.getAttribute('data-id')); });
+    }, function () { if (modalOpen) modal('<h3>Тема на телевізор</h3><p class="muted">Не вдалося завантажити список.</p>'); });
   }
   function tvOff() { tvState = null; myPages = null; myPdf = null; showTv(); VP.set(KEY, null); var f = fb(); if (f) f.db.ref('tv/' + KEY).remove().catch(function () {}); }
   function imgToJpeg(src, maxW, q) {
@@ -2399,7 +2425,8 @@ window.__vp = VP;
     var f = fb(), me = f ? f.uid : 'local', own = tvState && tvState.u === me, tch = isTeacher();
     var h = '<h3>' + (SEP ? 'Телевізор' : 'Дошка і телевізор') + '</h3>';
     if (tvState) {
-      if (!tvState.k) h += '<img id="tvimg" alt="" style="width:100%;border:1px solid #6d5a3c;background:#000">' +
+      if (tvState.d === 'l') h += '<p class="muted">Показує тему: ' + String(tvState.ti || '').replace(/</g, '') + ' · ' + String(tvState.by).replace(/</g, '') + '.</p><button type="button" id="lpo">Відкрити тему</button> ';
+      else if (!tvState.k) h += '<img id="tvimg" alt="" style="width:100%;border:1px solid #6d5a3c;background:#000">' +
         '<p class="muted">Показує: ' + String(tvState.by).replace(/</g, '') + (tvState.n > 1 ? ' · сторінка ' + tvState.i + ' із ' + tvState.n : '') + '</p>';
       if (tvState.k) h += '<p class="muted">Показує відео: ' + String(tvState.ti || '').replace(/</g, '') + ' · ' + String(tvState.by).replace(/</g, '') + '. Воно відкрито у вікні відео.</p>';
       if (own && tvState.n > 1) h += '<button id="tvp" type="button">← Назад</button><button id="tvn" type="button">Далі →</button> ';
@@ -2407,12 +2434,15 @@ window.__vp = VP;
       h += '<button id="pf" type="button">Показати інший файл</button>';
     } else h += SEP ? '<p class="muted">Телевізор вимкнено. Можна вивести на нього файл (зображення чи PDF).</p><button class="main" id="pf" type="button">Показати файл на телевізорі</button>' : '<p class="muted">Зараз на стіні дошка. Можна малювати або вивести файл (зображення чи PDF) на телевізор.</p><button class="main" id="pb" type="button">Малювати на дошці</button> <button id="pf" type="button">Показати файл на телевізорі</button>';
     if (tch) h += ' <button id="pv" type="button">Відео за посиланням</button>';
+    h += ' <button id="pl" type="button">Тема з сайту</button>';
     h += '<input type="file" id="fi" accept="image/*,application/pdf" style="display:none">';
     var b = modal(h), im = b.querySelector('#tvimg'); if (im) im.src = tvState.d;
     function q(s) { return b.querySelector(s); }
     if (q('#pb')) q('#pb').addEventListener('click', function () { closeModal(); openBoard(); });
     if (q('#pf')) q('#pf').addEventListener('click', function () { q('#fi').click(); });
     q('#fi').addEventListener('change', function () { var fl = this.files && this.files[0]; closeModal(); loadFile(fl); });
+    if (q('#pl')) q('#pl').addEventListener('click', function () { closeModal(); lecPicker(); });
+    if (q('#lpo')) q('#lpo').addEventListener('click', function () { closeModal(); if (NET && NET.openLecture) NET.openLecture(tvState.lid); });
     if (q('#pv')) q('#pv').addEventListener('click', function () { closeModal(); openVideoDialog(); });
     if (q('#tvoff')) q('#tvoff').addEventListener('click', function () { closeModal(); tvOff(); });
     if (q('#tvp')) q('#tvp').addEventListener('click', function () { closeModal(); gotoPage(myIdx - 1); });
@@ -2431,7 +2461,7 @@ window.__vp = VP;
   function wire() {
     var f = fb(); if (!f || wired) return; wired = true;
     f.db.ref('board/' + KEY + '/' + f.uid).onDisconnect().remove().catch(function () {});
-    f.db.ref('tv/' + KEY).on('value', function (s) { var v = s.val(); tvState = v && v.d ? v : null; VP.set(KEY, tvState); if (!(tvState && myPages && tvState.u === f.uid)) { if (!tvState) { myPages = null; myPdf = null; } } showTv(); }, function () {});
+    f.db.ref('tv/' + KEY).on('value', function (s) { var v = s.val(); tvState = v && v.d ? v : null; VP.set(KEY, tvState); if (tvState && tvState.d === 'l' && tvState.t !== lecSeen) { lecSeen = tvState.t; if (tvState.u !== f.uid && cur === MEET && Date.now() + (window.__srvOff || 0) - tvState.t < 45000 && NET && NET.openLecture) { toast('На телевізорі тема: ' + String(tvState.ti || ''), 3500); NET.openLecture(tvState.lid); } } if (!(tvState && myPages && tvState.u === f.uid)) { if (!tvState) { myPages = null; myPdf = null; } } showTv(); }, function () {});
     f.db.ref('board/' + KEY).on('value', function (snap) {
       var r = []; snap.forEach(function (u) { if (u.key === f.uid) return; u.forEach(function (st) { var v = st.val(); if (v && v.c && v.p) r.push({ c: String(v.c).slice(0, 9), w: +v.w || 4, p: dec(v.p) }); }); });
       remote = r; renderAll();
@@ -2448,15 +2478,15 @@ window.__vp = VP;
 
   /* ====== ГОЛОС ====== */
   var VOICE = { meet: 1, prak: 1, arch: 1, build: 1, road: 1, hall: 1, f2: 1 }, OPENV = { hall: 1, f2: 1 };
-  var peers = {}, localStream = null, micOn = false, sigOn = false, ICE = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }, { urls: 'stun:stun1.l.google.com:19302' }] };
+  var wantSince = {}, micInfo = '', peers = {}, localStream = null, micOn = false, sigOn = false, ICE = { iceCandidatePoolSize: 2, iceServers: [{ urls: 'stun:stun.l.google.com:19302' }, { urls: 'stun:stun1.l.google.com:19302' }, { urls: ['turn:openrelay.metered.ca:80', 'turn:openrelay.metered.ca:443', 'turn:openrelay.metered.ca:443?transport=tcp', 'turns:openrelay.metered.ca:443?transport=tcp'], username: 'openrelayproject', credential: 'openrelayproject' }] };
   window.__micOn = false;
   var micBtn = document.createElement('button'); micBtn.id = 'mic'; micBtn.type = 'button';
   micBtn.style.cssText = 'position:fixed;right:12px;top:64px;z-index:6;display:none;padding:9px 12px;font-family:inherit;font-size:14px;background:rgba(36,26,16,.92);color:#f2e2c0;border:1px solid #8a7347;cursor:pointer';
   document.body.appendChild(micBtn);
-  function micLabel() { micBtn.textContent = micOn ? 'Мікрофон: увімкнено' : 'Мікрофон: вимкнено'; micBtn.style.borderColor = micOn ? '#7ee08b' : '#8a7347'; }
+  function micLabel() { micBtn.textContent = (micOn ? 'Мікрофон: увімкнено' : 'Мікрофон: вимкнено') + (micInfo ? ' · зв’язок ' + micInfo : ''); micBtn.style.borderColor = micOn ? '#7ee08b' : '#8a7347'; }
   micLabel();
   function vloc() { return cur && VOICE[cur.id] ? cur.id : null; }
-  function send(to, type, data) { var f = fb(); if (!f) return; f.db.ref('rtc/' + to).push({ f: f.uid, t: type, d: JSON.stringify(data), ts: Date.now() }).catch(function () {}); }
+  function send(to, type, data) { var f = fb(); if (!f) return; f.db.ref('rtc/' + to).push({ f: f.uid, t: type, d: JSON.stringify(data), ts: Date.now() + (window.__srvOff || 0) }).catch(function () {}); }
   function track() { return localStream && localStream.getAudioTracks()[0]; }
   function attachMic(p) { var t = track(); if (t && p.tr && p.tr.sender) p.tr.sender.replaceTrack(t).catch(function () {}); }
   function closePeer(id) {
@@ -2480,11 +2510,11 @@ window.__vp = VP;
   }
   function flush(p) { while (p.pend.length) { p.pc.addIceCandidate(p.pend.shift()).catch(function () {}); } }
   function onSignal(m) {
-    if (!m || !m.f || !vloc() || Date.now() - (m.ts || 0) > 60000) return;
+    if (!m || !m.f || !vloc() || Date.now() + (window.__srvOff || 0) - (m.ts || 0) > 90000) return;
     var d; try { d = JSON.parse(m.d); } catch (e) { return; }
     var p = peers[m.f];
     if (m.t === 'o') {
-      if (p && p.pc.signalingState !== 'stable') return;
+      var fu = fb(); if (p && p.pc.signalingState !== 'stable' && fu && fu.uid < m.f) return;
       if (p) closePeer(m.f); p = makePeer(m.f, false);
       p.pc.setRemoteDescription(d).then(function () {
         var t = p.pc.getTransceivers()[0]; if (t) { t.direction = 'sendrecv'; p.tr = t; attachMic(p); }
@@ -2512,6 +2542,7 @@ window.__vp = VP;
     micOn = !!on; window.__micOn = micOn; var t = track(); if (t) t.enabled = micOn; micLabel(); if (window.__avChanged) window.__avChanged();
   }
   micBtn.addEventListener('click', function () { setMic(!micOn); });
+  ['pointerdown', 'touchend', 'keydown'].forEach(function (ev) { document.addEventListener(ev, function () { Object.keys(peers).forEach(function (id) { var el = peers[id].el; if (el && el.paused) { var pr = el.play(); if (pr && pr.catch) pr.catch(function () {}); } }); }, true); });
 
   setInterval(function () {
     BOARDS.forEach(function (b) { b.wire(); });
@@ -2527,8 +2558,10 @@ window.__vp = VP;
       });
       cand.sort(function (a, b) { return a[0] - b[0]; }); cand.slice(0, 6).forEach(function (a) { want[a[1]] = 1; });
     } else Object.keys(gh).forEach(function (id) { if (gh[id].userData.loc === l) want[id] = 1; });
-    Object.keys(peers).forEach(function (id) { if (!want[id]) closePeer(id); else if (peers[id].pc.connectionState === 'failed') closePeer(id); });
-    Object.keys(want).forEach(function (id) { if (!peers[id] && f.uid < id) makePeer(id, true); });
+    Object.keys(peers).forEach(function (id) { var pe = peers[id]; if (!want[id]) closePeer(id); else if (pe.pc.connectionState === 'failed' || pe.pc.connectionState === 'disconnected' && Date.now() - (pe.dis || (pe.dis = Date.now())) > 5000 || (pe.pc.connectionState !== 'connected' && Date.now() - pe.born > 10000)) closePeer(id); else if (pe.pc.connectionState === 'connected') pe.dis = 0; });
+    Object.keys(wantSince).forEach(function (id) { if (!want[id]) delete wantSince[id]; });
+    Object.keys(want).forEach(function (id) { if (!wantSince[id]) wantSince[id] = Date.now(); if (!peers[id] && (f.uid < id || Date.now() - wantSince[id] > 8000)) makePeer(id, true); });
+    var nw = Object.keys(want).length, nc = Object.keys(peers).filter(function (id) { return peers[id].pc.connectionState === 'connected'; }).length; micInfo = nw ? (nc + '/' + nw) : ''; micLabel();
   }, 1000);
   updaters.push(function () {
     var gh = (window.__pres && window.__pres.ghosts) || {}, p = camera.position;
