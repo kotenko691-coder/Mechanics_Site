@@ -1928,7 +1928,7 @@ if (window.__hall) { window.__hall.sit = sitDown; window.__hall.meetCheck = meet
       if (!d || now - d.t > 25000) return; seen[id] = 1;
       var g = ghosts[id];
       if (!g || g.userData.name !== d.n || g.userData.sub !== (d.g || '') || g.userData.key !== [d.s, d.c, d.h, d.l, d.r | 0].join()) { if (g && g.parent) g.parent.remove(g); if (Object.keys(ghosts).length > 40) return; g = ghosts[id] = makeGhost(id, d); }
-      g.userData.tx = d.x; g.userData.tz = d.z; g.userData.ty = d.y; g.userData.e = d.e | 0; g.userData.mic = d.v | 0;
+      g.userData.tx = d.x; g.userData.tz = d.z; g.userData.ty = d.y; g.userData.e = d.e | 0; g.userData.mic = d.v | 0; g.userData.pt = typeof d.pt === 'string' ? d.pt.slice(0, 40) : '';
       if (d.m && d.mt && d.mt > (seenMt[id] || 0)) { if (seenMt[id] !== undefined || now - d.mt < 20000) { say(g, String(d.m)); logMsg(d.n, String(d.m)); } seenMt[id] = d.mt; } else if (seenMt[id] === undefined) seenMt[id] = d.mt || 0;
     });
     Object.keys(ghosts).forEach(function (id) { if (!seen[id]) { if (ghosts[id].parent) ghosts[id].parent.remove(ghosts[id]); delete ghosts[id]; } });
@@ -1951,14 +1951,15 @@ if (window.__hall) { window.__hall.sit = sitDown; window.__hall.meetCheck = meet
     function send(force) {
       var inHall = !inRoom();
       if (!inHall) { if (last.x !== 1e9) { myRef.remove(); last.x = 1e9; } return; }
-      var p = camera.position, nowMs = Date.now(), moved = Math.abs(p.x - last.x) > 0.05 || Math.abs(p.z - last.z) > 0.05 || Math.abs(yaw - last.y) > 0.08;
+      var p = camera.position, nowMs = Date.now(), moved = Math.abs(p.x - last.x) > 0.05 || Math.abs(p.z - last.z) > 0.05 || Math.abs(yaw - last.y) > 0.08 || (window.__ptStr || '') !== (last.pt || '');
       if (!force && !moved && nowMs - lastSent < 8000) return;
-      lastSent = nowMs; last = { x: p.x, z: p.z, y: yaw };
+      lastSent = nowMs; last = { x: p.x, z: p.z, y: yaw, pt: window.__ptStr || '' };
       var rec = { n: w.name, g: w.group, s: AV.s, c: AV.c, h: AV.h, e: EMO, r: isTeacher() ? 1 : 0, l: cur.id, v: (window.__micOn ? 1 : 0), x: Math.round(p.x * 100) / 100, z: Math.round(p.z * 100) / 100, y: Math.round(yaw * 100) / 100, t: firebase.database.ServerValue.TIMESTAMP };
+      if (window.__ptStr) rec.pt = window.__ptStr;
       if (me.m && Date.now() + offset - me.mt < 30000) { rec.m = me.m; rec.mt = me.mt; }
       myRef.set(rec).catch(function (e) { if (!window.__perr) { window.__perr = 1; toast('Присутність: ' + (e && e.code || e), 6000); } });
     }
-    setInterval(send, 450);
+    setInterval(send, 450); window.__ptSend = send;
     window.__avChanged = function () { send(true); };
     function sendChat() {
       var inp = $('cin'), t = inp.value.replace(/\s+/g, ' ').trim().slice(0, 100); if (!t || Date.now() - lastChat < 1200) return;
@@ -2527,6 +2528,73 @@ window.__vp = VP;
       rr(sc, cam); p.set(ox, oy, oz); camera.updateMatrixWorld(true);
     } else rr(sc, cam);
   };
+})();
+
+
+/* ====== УКАЗКА: лежить на лотку дошки; викладач бере її й червоною крапкою показує на дошці чи телевізорі, усі в кабінеті бачать ====== */
+(function () {
+  var holding = false, dot = null, stickMine = null, putBtn = null, ray = new THREE.Raycaster(), props = {}, lastSend = 0, hitStr = '', tmpV = new THREE.Vector3();
+  function stickGeo(len, k) { k = k || 1; var g = new THREE.CylinderGeometry(0.008 * k, 0.012 * k, len, 8); g.rotateX(Math.PI / 2); g.translate(0, 0, len / 2); return g; }
+  function mkStick(len, k) {
+    var s = new THREE.Group(), body = new THREE.Mesh(stickGeo(len, k), new THREE.MeshStandardMaterial({ color: 0x8a5a2a, roughness: .6 })), tip = new THREE.Mesh(new THREE.SphereGeometry(0.018 * (k || 1), 8, 6), new THREE.MeshBasicMaterial({ color: 0xe02020 }));
+    tip.position.z = len; body.raycast = function () {}; tip.raycast = function () {}; s.add(body); s.add(tip); return s;
+  }
+  function mkDot() { var d = new THREE.Mesh(new THREE.SphereGeometry(0.045, 12, 10), new THREE.MeshBasicMaterial({ color: 0xff2020, depthTest: false, transparent: true, opacity: 0.95 })); d.renderOrder = 20; d.raycast = function () {}; d.visible = false; return d; }
+  dot = mkDot(); scene.add(dot);
+  // указка на лотку дошки в кабінетах і переговорній
+  ['meet', 'arch', 'build', 'road'].forEach(function (id) {
+    var L = LOC[id]; if (!L) return;
+    var g = new THREE.Group(); g.position.set(-2.2, 0.9, -L.D / 2 + 0.2); L.group.add(g);
+    var st = mkStick(0.9, 2.2); st.rotation.y = Math.PI / 2; st.position.set(-0.45, 0, 0); g.add(st); st.children[0].raycast = function () {};
+    var hitb = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.1, 0.12), new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false })); hitb.position.set(0, 0, 0); g.add(hitb);
+    act(hitb, 'Взяти указку', function () { take(); }, { reach: 6 }); props[id] = g;
+  });
+  function stop() { if (!holding) return; holding = false; window.__ptStr = ''; hitStr = ''; dot.visible = false; if (stickMine) stickMine.visible = false; if (putBtn) putBtn.style.display = 'none'; if (window.__ptSend) window.__ptSend(true); }
+  function take() {
+    if (holding) return; var gh = (window.__pres && window.__pres.ghosts) || {};
+    if (Object.keys(gh).some(function (k) { return gh[k].userData.pt && gh[k].userData.loc === cur.id; })) { toast('Указку вже взяв інший.', 2600); return; }
+    holding = true; window.__ptStr = 'h';
+    if (!stickMine) { stickMine = mkStick(0.85); stickMine.position.set(0.26, -0.24, -0.45); stickMine.rotation.set(-0.08, -0.18, 0); scene.add(camera); camera.add(stickMine); }
+    stickMine.visible = true;
+    if (!putBtn) { putBtn = document.createElement('button'); putBtn.type = 'button'; putBtn.textContent = 'Покласти указку'; putBtn.style.cssText = 'position:fixed;left:50%;transform:translateX(-50%);bottom:18px;z-index:6;display:none;padding:10px 16px;font:15px Georgia,serif;background:rgba(36,26,16,.92);color:#f2e2c0;border:1px solid #8a7347;cursor:pointer'; document.body.appendChild(putBtn); putBtn.addEventListener('click', function () { stop(); toast('Указку покладено.'); }); }
+    putBtn.style.display = 'block'; toast('Вмістіть центр екрана в потрібне місце на дошці чи телевізорі: усі побачать червону крапку.', 4200);
+  }
+  function planes() {
+    var out = []; (cur.zoomT || []).forEach(function (t) { if (t.objs) out.push.apply(out, t.objs); else if (t.obj) out.push(t.obj); }); return out;
+  }
+  updaters.push(function (s) {
+    var gh = (window.__pres && window.__pres.ghosts) || {}, other = false, id = cur.id;
+    // чужі указки: паличка в руці й крапка на екрані
+    var shownDot = false;
+    Object.keys(gh).forEach(function (k) {
+      var g = gh[k], u = g.userData, on = !!u.pt && u.loc === id;
+      if (on) other = true;
+      if (!u.stick) { u.stick = mkStick(0.9); u.stick.position.set(0.27, 1.0, -0.12); u.stick.visible = false; g.add(u.stick); u.stick.rotation.set(-0.1, 0, 0); }
+      u.stick.visible = on;
+      if (on && u.pt !== 'h') {
+        var a = u.pt.split(',').map(Number); if (a.length === 3 && a.every(isFinite)) {
+          tmpV.set(a[0], a[1], a[2]); cur.group.localToWorld(tmpV);
+          dot.position.copy(tmpV); dot.visible = true; shownDot = true;
+          var wp = new THREE.Vector3(); u.stick.getWorldPosition(wp); u.stick.lookAt(tmpV);
+        }
+      }
+    });
+    if (!holding && !shownDot) dot.visible = false;
+    Object.keys(props).forEach(function (k) { props[k].visible = (k === id) && !holding && !other; });
+    if (holding) {
+      if (!(id === 'meet' || id === 'arch' || id === 'build' || id === 'road') || modalOpen) { if (!(id === 'meet' || id === 'arch' || id === 'build' || id === 'road')) stop(); return; }
+      ray.setFromCamera({ x: 0, y: 0 }, camera); var hits = ray.intersectObjects(planes(), false), nw = null;
+      if (hits.length && hits[0].distance < 16) {
+        var h = hits[0], n = h.face.normal.clone().transformDirection(h.object.matrixWorld); nw = h.point.clone().addScaledVector(n, 0.025);
+        dot.position.copy(nw); dot.visible = true; var lp = cur.group.worldToLocal(nw.clone());
+        hitStr = lp.x.toFixed(2) + ',' + lp.y.toFixed(2) + ',' + lp.z.toFixed(2);
+      } else { hitStr = 'h'; dot.visible = false; }
+      window.__ptStr = hitStr;
+      if (Date.now() - lastSend > 110 && window.__ptSend) { lastSend = Date.now(); window.__ptSend(); }
+    }
+  });
+  addEventListener('keydown', function (e) { if (holding && e.key === 'Escape') stop(); });
+  window.__pointer = { take: take, stop: stop, holding: function () { return holding; } };
 })();
 
 })();
