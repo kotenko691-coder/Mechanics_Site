@@ -1138,6 +1138,7 @@ function openWardrobe() {
   act(hit, 'Шафа: змінити вигляд', openWardrobe, { reach: 4 });
   var wp = worldPos(g); blockBox(HALL, wp.x, wp.z - 0.35, 1.0, 0.42);
 })();
+if (window.__hall) { window.__hall.makeFigure = makeFigure; window.__hall.openWardrobe = openWardrobe; window.__hall.HALL = HALL; }
 
 
 /* ====== ПРИСУТНІСТЬ У ХОЛІ (Firebase Realtime Database) ====== */
