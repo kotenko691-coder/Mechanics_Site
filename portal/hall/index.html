@@ -2861,12 +2861,42 @@ var RB = (function () {
   var micBtn = document.createElement('button'); micBtn.id = 'mic'; micBtn.type = 'button';
   micBtn.style.cssText = 'position:fixed;right:12px;top:64px;z-index:6;display:none;padding:9px 12px;font-family:inherit;font-size:14px;background:rgba(36,26,16,.92);color:#f2e2c0;border:1px solid #8a7347;cursor:pointer';
   document.body.appendChild(micBtn);
-  function micLabel() { micBtn.textContent = (micOn ? 'Мікрофон: увімкнено' : 'Мікрофон: вимкнено') + (micInfo ? ' · зв’язок ' + micInfo : ''); micBtn.style.borderColor = micOn ? '#7ee08b' : '#8a7347'; }
+  /* дозвіл на мікрофон: за замовчуванням студентам заборонено; викладач дозволяє всім або окремим (board/mic: {a:1, l:{uid:1}}) */
+  var permAll = false, permList = {}, permOn = false;
+  function canMic() { var f = fb(); return isTeacher() || permAll || !!(f && permList[f.uid]); }
+  function micLabel() { var den = !micOn && !canMic(); micBtn.textContent = (micOn ? 'Мікрофон: увімкнено' : den ? 'Мікрофон: заборонено викладачем' : 'Мікрофон: вимкнено') + (micInfo ? ' · зв’язок ' + micInfo : ''); micBtn.style.borderColor = micOn ? '#7ee08b' : den ? '#a35252' : '#8a7347'; }
+  function startPerm() {
+    var f = fb(); if (!f || permOn) return; permOn = true;
+    f.db.ref('board/mic').on('value', function (sn) {
+      var v = sn.val() || {}; permAll = !!v.a; permList = v.l || {};
+      if (micOn && !canMic()) { setMic(false); toast('Викладач вимкнув вам мікрофон.', 3500); }
+      micLabel();
+    }, function () {});
+  }
+  var permBtn = document.createElement('button'); permBtn.type = 'button'; permBtn.textContent = 'Мікрофони студентів';
+  permBtn.style.cssText = 'position:fixed;right:12px;top:106px;z-index:6;display:none;padding:9px 12px;font-family:inherit;font-size:14px;background:rgba(36,26,16,.92);color:#f2e2c0;border:1px solid #8a7347;cursor:pointer';
+  document.body.appendChild(permBtn);
+  function permSave() {
+    var f = fb(); if (!f) return; var pa = document.getElementById('pa'), l = {}, gh = (window.__pres && window.__pres.ghosts) || {}, l0 = vloc();
+    Object.keys(permList).forEach(function (id) { if (!gh[id] || gh[id].userData.loc !== l0) l[id] = 1; });
+    Array.prototype.forEach.call(document.querySelectorAll('.pmc'), function (c) { if (c.checked) l[c.getAttribute('data-id')] = 1; });
+    var rec = { a: pa && pa.checked ? 1 : 0 }; if (Object.keys(l).length) rec.l = l;
+    f.db.ref('board/mic').set(rec).catch(function (e) { toast('Не вдалося зберегти: ' + (e && e.code || 'помилка'), 4000); });
+  }
+  permBtn.addEventListener('click', function () {
+    var gh = (window.__pres && window.__pres.ghosts) || {}, l0 = vloc(), ids = Object.keys(gh).filter(function (id) { return gh[id].userData.loc === l0 && !gh[id].userData.teach; });
+    var h = '<h3>Мікрофони студентів</h3><p class="muted">За замовчуванням у студентів мікрофон вимкнений. Відмітьте тих, кому можна говорити. Решта слухають.</p>' +
+      '<p><label><input type="checkbox" id="pa"' + (permAll ? ' checked' : '') + '> Дозволити всім</label></p><div id="pl">' +
+      (ids.length ? ids.map(function (id) { var u = gh[id].userData; return '<p><label><input type="checkbox" class="pmc" data-id="' + esc(id) + '"' + (permList[id] ? ' checked' : '') + '> ' + esc(u.name || 'Гість') + (u.sub ? ' <span class="muted">' + esc(u.sub) + '</span>' : '') + '</label></p>'; }).join('') : '<p class="muted">Поруч нікого немає.</p>') + '</div>';
+    modal(h);
+    var pa = document.getElementById('pa'); if (pa) pa.addEventListener('change', permSave);
+    Array.prototype.forEach.call(document.querySelectorAll('.pmc'), function (c) { c.addEventListener('change', permSave); });
+  });
   micLabel();
   function vloc() { return cur && VOICE[cur.id] ? cur.id : null; }
   function send(to, type, data) { var f = fb(); if (!f) return; f.db.ref('rtc/' + to).push({ f: f.uid, t: type, d: JSON.stringify(data), ts: Date.now() + (window.__srvOff || 0) }).catch(function () {}); }
   function track() { return localStream && localStream.getAudioTracks()[0]; }
-  function attachMic(p) { var t = track(); if (t && p.tr && p.tr.sender) p.tr.sender.replaceTrack(t).catch(function () {}); }
+  function attachMic(p) { var t = micOn ? track() : null; if (p.tr && p.tr.sender) p.tr.sender.replaceTrack(t).catch(function () {}); }
   function closePeer(id) {
     var p = peers[id]; if (!p) return; delete peers[id];
     try { p.pc.close(); } catch (e) {} if (p.el && p.el.parentNode) p.el.parentNode.removeChild(p.el);
@@ -2956,6 +2986,7 @@ var RB = (function () {
     f.db.ref('rtc/' + f.uid).onDisconnect().remove().catch(function () {});
   }
   function setMic(on) {
+    if (on && !canMic()) { toast('Мікрофон вимкнено викладачем. Підніміть руку, щоб вам дозволили говорити.', 4500); return; }
     if (on && !localStream) {
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) { toast('Цей браузер не дає доступу до мікрофона.', 4500); return; }
       navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } }).then(function (st) {
@@ -2963,14 +2994,14 @@ var RB = (function () {
       }, function () { toast('Мікрофон не дозволено. Дозвольте доступ у браузері й спробуйте ще раз.', 5500); });
       return;
     }
-    micOn = !!on; window.__micOn = micOn; var t = track(); if (t) t.enabled = micOn; micLabel(); if (window.__avChanged) window.__avChanged();
+    micOn = !!on; window.__micOn = micOn; var t = track(); if (t) t.enabled = micOn; Object.keys(peers).forEach(function (id) { attachMic(peers[id]); }); micLabel(); if (window.__avChanged) window.__avChanged();
   }
   micBtn.addEventListener('click', function () { setMic(!micOn); });
   ['pointerdown', 'touchend', 'keydown'].forEach(function (ev) { document.addEventListener(ev, function () { actx(); Object.keys(peers).forEach(function (id) { var el = peers[id].el; if (el && el.paused) { var pr = el.play(); if (pr && pr.catch) pr.catch(function () {}); } }); }, true); });
 
   setInterval(function () {
     BOARDS.forEach(function (b) { b.wire(); });
-    var l = vloc(), f = fb(); micBtn.style.display = (l && !modalOpen) ? 'block' : 'none';
+    var l = vloc(), f = fb(); micBtn.style.display = (l && !modalOpen) ? 'block' : 'none'; permBtn.style.display = (l && !modalOpen && isTeacher()) ? 'block' : 'none'; if (f) startPerm();
     if (!f || !window.RTCPeerConnection) return; startSignals();
     if (!l) { Object.keys(peers).forEach(closePeer); relayTo = {}; if (micOn) setMic(false); return; }
     var gh = (window.__pres && window.__pres.ghosts) || {}, want = {};
