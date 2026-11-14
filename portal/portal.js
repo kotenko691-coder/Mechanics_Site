@@ -1007,7 +1007,7 @@
       document.body.appendChild(ov);
     }
     ov.hidden = false; ov.style.display = 'block';
-    document.getElementById('hall-frame').src = 'hall/?v=34';
+    document.getElementById('hall-frame').src = 'hall/?v=35';
     // повний екран: запит іде з кліку студента; там, де браузер не дозволяє (iPhone), хол і так займає весь екран
     try { var rq = ov.requestFullscreen || ov.webkitRequestFullscreen; if (rq) { var pr = rq.call(ov); if (pr && pr.catch) pr.catch(function () {}); } } catch (e) { /* ігноруємо */ }
   }

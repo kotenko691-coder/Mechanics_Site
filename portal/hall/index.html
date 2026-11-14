@@ -2818,8 +2818,7 @@ var RB = (function () {
   ['arch', 'build', 'road'].forEach(function (id) { var L = LOC[id]; makeBoard({ loc: L, key: id, sep: true, tvx: L.W / 2 - 0.12, tvz: -2.4 }); });
 
   /* ====== ГОЛОС ====== */
-  var VOICE = { meet: 1, prak: 1, arch: 1, build: 1, road: 1, hall: 1, f2: 1 }, OPENV = { hall: 1, f2: 1 };
-  var wantSince = {}, micInfo = '', peers = {}, localStream = null, micOn = false, sigOn = false, ICE = { iceCandidatePoolSize: 2, iceServers: [{ urls: 'stun:stun.l.google.com:19302' }, { urls: 'stun:stun1.l.google.com:19302' }, { urls: ['turn:openrelay.metered.ca:80', 'turn:openrelay.metered.ca:443', 'turn:openrelay.metered.ca:443?transport=tcp', 'turns:openrelay.metered.ca:443?transport=tcp'], username: 'openrelayproject', credential: 'openrelayproject' }] };
+  var VOICE = { iceCandidatePoolSize: 2, iceServers: [{ urls: 'stun:stun.l.google.com:19302' }, { urls: 'stun:stun.relay.metered.ca:80' }, { urls: 'turn:global.relay.metered.ca:80', username: '1da72adb9d53a048f44b29e3', credential: 'nPo+9md928Z/QJM+' }, { urls: 'turn:global.relay.metered.ca:80?transport=tcp', username: '1da72adb9d53a048f44b29e3', credential: 'nPo+9md928Z/QJM+' }, { urls: 'turn:global.relay.metered.ca:443', username: '1da72adb9d53a048f44b29e3', credential: 'nPo+9md928Z/QJM+' }, { urls: 'turns:global.relay.metered.ca:443?transport=tcp', username: '1da72adb9d53a048f44b29e3', credential: 'nPo+9md928Z/QJM+' }] };
   window.__micOn = false;
   var micBtn = document.createElement('button'); micBtn.id = 'mic'; micBtn.type = 'button';
   micBtn.style.cssText = 'position:fixed;right:12px;top:64px;z-index:6;display:none;padding:9px 12px;font-family:inherit;font-size:14px;background:rgba(36,26,16,.92);color:#f2e2c0;border:1px solid #8a7347;cursor:pointer';
