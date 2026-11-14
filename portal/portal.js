@@ -950,7 +950,7 @@
     token: function () { return token; },
     who: function () {
       var st = me && me.student;
-      return { name: String((st && st.name) || 'Викладач').slice(0, 40), group: String((st && st.group) || '').slice(0, 12) };
+      return { name: String((st && st.name) || 'Викладач').slice(0, 40), group: String((st && st.group) || '').slice(0, 12), owner: !!(me && me.isOwner) };
     }
   };
   function openHall() {
@@ -958,11 +958,11 @@
     if (!ov) {
       ov = document.createElement('div'); ov.id = 'hall-ov';
       ov.style.cssText = 'position:fixed;inset:0;z-index:9999;background:#000';
-      ov.innerHTML = '<iframe id="hall-frame" title="Хол" allow="fullscreen" style="display:block;width:100%;height:100%;border:0"></iframe>';
+      ov.innerHTML = '<iframe id="hall-frame" title="Хол" allow="fullscreen; microphone" style="display:block;width:100%;height:100%;border:0"></iframe>';
       document.body.appendChild(ov);
     }
     ov.hidden = false; ov.style.display = 'block';
-    document.getElementById('hall-frame').src = 'hall/?v=2';
+    document.getElementById('hall-frame').src = 'hall/?v=3';
   }
   function closeHall() {
     var ov = document.getElementById('hall-ov');

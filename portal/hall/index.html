@@ -498,14 +498,13 @@ function blue(x, w, h) { x.fillStyle = '#0f2236'; x.fillRect(0, 0, w, h); x.stro
   act(ck.children[0], 'Годинник', say('Годинник тикає. Він показує час, але не показує, скільки балів залишилося.'), { reach: 4 });
   blockBox(HALL, -5.0, 5.0, 0.5, 0.5);
   // крісла NE та NW із торшером
-  [[4.9, -4.7, -0.75], [-4.9, -4.7, 0.75]].forEach(function (a, i) {
+  [[-4.9, -4.7, 0.75]].forEach(function (a, i) {
     var ch = grp(a[0], 0, a[1], hallG, a[2]);
     box(0.9, 0.4, 0.9, mat(0x4a2a2a), 0, 0.3, 0, ch); box(0.9, 0.7, 0.2, mat(0x4a2a2a), 0, 0.85, -0.35, ch); box(0.2, 0.3, 0.8, mat(0x3a2020), -0.45, 0.6, 0, ch); box(0.2, 0.3, 0.8, mat(0x3a2020), 0.45, 0.6, 0, ch);
     act(ch.children[0], 'Крісло', say('М’яке крісло. Сісти нема коли: двері чекають.'), { reach: 4 }); blockBox(HALL, a[0], a[1], 0.6, 0.6);
   });
   var fl = grp(-4.2, 0, -5.2, hallG); cyl(0.2, 0.25, 0.04, M.brass, 0, 0.02, 0, fl); cyl(0.025, 0.025, 1.6, M.brass, 0, 0.8, 0, fl); var shade = cyl(0.14, 0.3, 0.3, mat(0xe0c080, { rough: .7, emissive: 0x6a4a10 }), 0, 1.7, 0, fl, 16);
   act(shade, 'Торшер', say('Торшер світить тепло, як у кабінеті викладача.'), { reach: 4 }); blockBox(HALL, -4.2, -5.2, 0.25, 0.25);
-  var fl2 = grp(4.2, 0, -5.2, hallG); cyl(0.2, 0.25, 0.04, M.brass, 0, 0.02, 0, fl2); cyl(0.025, 0.025, 1.6, M.brass, 0, 0.8, 0, fl2); var sh2 = cyl(0.14, 0.3, 0.3, mat(0xe0c080, { rough: .7, emissive: 0x6a4a10 }), 0, 1.7, 0, fl2, 16); act(sh2, 'Торшер', say('Торшер. Лампочка звичайна, не з майстерні.'), { reach: 4 });
   // бюст на постаменті (SE) та рослини
   var bs = grp(5.1, 0, 4.7, hallG); box(0.6, 1.0, 0.6, mat(0x777770, { map: TX.concrete, tint: 0xbbbbb0 }), 0, 0.5, 0, bs); var head = sph(0.22, mat(0xcfc9b8, { rough: .6 }), 0, 1.25, 0, bs); box(0.34, 0.22, 0.24, mat(0xcfc9b8, { rough: .6 }), 0, 1.0 + 0.04, 0, bs).position.y = 1.08; bs.rotation.y = -2.3;
   act(head, 'Бюст', say('Бюст інженера. Табличка стерта, видно лише: «…Ейлер».'), { reach: 4 }); blockBox(HALL, 5.1, 4.7, 0.4, 0.4);
@@ -921,6 +920,245 @@ function dark(loc) { return !loc.lit; }
   box(0.001, 0.001, 0.001, M.black, 0, 0, 0, G);
 })();
 
+
+/* ====== 2 ПОВЕРХ: сходи, п'ять кабінетів, переговорна зі столом на 20 місць ====== */
+ROOMX.f2 = 240; ROOMX.meet = 280; ROOMX.prak = 320; ROOMX.arch = 360; ROOMX.build = 400; ROOMX.road = 440;
+var DEFAULT_MEET = '1234';
+function isTeacher() { try { return !!(NET && NET.who && NET.who().owner); } catch (e) { return false; } }
+
+function pubLoc(loc, title, back) { loc.pub = true; loc.title = title; loc.back = back; return loc; }
+function walkIn(leaf, cb) {
+  var tp = worldPos(leaf); tp.y = EYE;
+  var dir = tp.clone().sub(camera.position), stop = tp.clone().sub(dir.clone().normalize().multiplyScalar(1.4)); stop.y = EYE;
+  var ty = Math.atan2(-dir.x, -dir.z);
+  tween(850, { yaw: yaw, pitch: pitch, pos: camera.position.clone() }, { yaw: yaw + norm(ty - yaw), pitch: 0, pos: stop }, cb);
+}
+function pdoor(loc, wi, lx, lines, fn) {
+  var g = wallAt(loc, wi, lx);
+  box(1.9, 2.8, 0.18, M.darkwood, 0, 1.4, 0.09, g);
+  var leaf = grp(0, 0, 0.16, g);
+  box(1.5, 2.5, 0.1, mat(0x4a3220), 0, 1.25, 0, leaf);
+  box(1.1, 0.95, 0.04, M.darkwood, 0, 1.8, 0.05, leaf); box(1.1, 0.95, 0.04, M.darkwood, 0, 0.66, 0.05, leaf);
+  sph(0.06, M.brass, 0.55, 1.15, 0.1, leaf);
+  var strip = box(1.34, 0.035, 0.04, basic(0xffb050), 0, 0.03, 0.2, g);
+  var lab = signPlane(lines, 1.9, 0.7, { bg: '#17110b', fg: '#f2d9a0', px: 140 }); lab.position.set(0, 3.12, 0.2); g.add(lab);
+  [leaf, g.children[0]].forEach(function (o) { act(o, lines.join(' '), fn, { reach: 4.6 }); });
+  return { g: g, leaf: leaf, strip: strip };
+}
+function spiral(parent, x, z, name, fn) {
+  var g = grp(x, 0, z, parent), H = 3.55, n = 15, objs = [];
+  objs.push(cyl(0.13, 0.13, H, M.darksteel, 0, H / 2, 0, g, 12));
+  for (var i = 0; i < n; i++) {
+    var y = 0.2 + i * (H - 0.35) / (n - 1), st = grp(0, y, 0, g, -i * 0.42);
+    objs.push(box(0.8, 0.07, 0.32, M.wood, 0.46, 0, 0, st));
+    cyl(0.014, 0.014, 0.85, M.brass, 0.83, 0.45, 0, st, 6);
+  }
+  objs.push(hit(g, 2.0, 3.4, 2.0, 0, 1.7, 0));
+  objs.forEach(function (o) { act(o, name, fn, { reach: 4.2 }); });
+  return g;
+}
+function chair(parent, x, z, ry, col) {
+  var c = grp(x, 0, z, parent, ry), m = mat(col || 0x4a2a2a);
+  box(0.46, 0.06, 0.46, m, 0, 0.46, 0, c); box(0.46, 0.52, 0.05, m, 0, 0.75, -0.2, c);
+  [[-0.2, -0.2], [0.2, -0.2], [-0.2, 0.2], [0.2, 0.2]].forEach(function (p) { box(0.04, 0.44, 0.04, M.darkwood, p[0], 0.22, p[1], c); });
+  return c;
+}
+function tbl(parent, x, z, w, d, h, m) {
+  var t = grp(x, 0, z, parent); box(w, 0.07, d, m || M.wood, 0, h, 0, t);
+  [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(function (p) { box(0.07, h, 0.07, M.darkwood, p[0] * (w / 2 - 0.08), h / 2, p[1] * (d / 2 - 0.08), t); });
+  return t;
+}
+function helmet(parent, x, y, z, col) {
+  var h = new THREE.Mesh(new THREE.SphereGeometry(0.13, 12, 8, 0, 6.2832, 0, 1.57), mat(col, { rough: .5 })); h.position.set(x, y, z); parent.add(h);
+  cyl(0.15, 0.15, 0.015, mat(col, { rough: .5 }), x, y, z, parent, 14); return h;
+}
+function ppaint(loc, wi, lx, ly, w, h, draw, name, hint) {
+  var g = wallAt(loc, wi, lx, ly); box(w + 0.16, h + 0.16, 0.07, M.brass, 0, 0, 0.035, g);
+  var t = canvasTex(Math.round(w * 200), Math.round(h * 200), draw);
+  var p = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshStandardMaterial({ map: t, roughness: .8, emissive: 0x222222, emissiveMap: t })); p.position.z = 0.075; g.add(p);
+  act(p, name, say(hint), { reach: 4.6 }); return g;
+}
+function plant(loc, lx, lz) {
+  var pt = grp(lx, 0, lz, loc.group); cyl(0.26, 0.2, 0.45, mat(0x6a3a22), 0, 0.22, 0, pt);
+  for (var k = 0; k < 9; k++) { var a = k / 9 * 6.28; box(0.07, 0.5, 0.22, M.green, Math.cos(a) * 0.18, 0.75, Math.sin(a) * 0.18, pt).rotation.y = -a; }
+  act(pt.children[0], 'Рослина', say('Живий фікус.'), { reach: 4 }); obs(loc, lx, lz, 0.3, 0.3);
+}
+function sysDraw(txt, sub) { return function (x, w, h) { blue(x, w, h); x.fillStyle = '#e8f0ff'; x.textAlign = 'center'; x.font = 'bold 26px Georgia'; x.fillText(txt, w / 2, h / 2 - 4); x.font = '18px Georgia'; x.fillText(sub || '', w / 2, h / 2 + 26); }; }
+
+/* ---------- 2 поверх: коридор із п'ятьма дверима ---------- */
+var F2 = newRoom('f2', 12, 9, 3.5, { floor: TX.planks, wall: TX.wallpaper, ceil: 0x2a221b, amb: 0xffe2b8, ambI: 0.5, bg: 0x0b0907 });
+var CABS = [
+  { id: 'meet', lx: -4.8, lines: ['Переговорна'], title: 'Переговорна' },
+  { id: 'prak', lx: -2.4, lines: ['Практика'], title: 'Практика' },
+  { id: 'arch', lx: 0, lines: ['Кабінет', 'архітекторів'], title: 'Кабінет для архітекторів' },
+  { id: 'build', lx: 2.4, lines: ['Кабінет', 'будівельників'], title: 'Кабінет для будівельників' },
+  { id: 'road', lx: 4.8, lines: ['Кабінет', 'дорожників'], title: 'Кабінет для дорожників' }
+];
+var f2Door = {};
+(function () {
+  F2.spawn = { x: F2.X + 4.2, z: 1.2, yaw: Math.PI * 0.5 };
+  pubLoc(F2, '2 поверх', { id: 'hall', sp: { x: 3.6, z: -2.8, yaw: 0 } });
+  pl(F2, 0xffc680, 0.9, 9, 0, 3.0, 0); pl(F2, 0xffc680, 0.8, 8, -4, 3.0, 2); pl(F2, 0xffc680, 0.8, 8, 4, 3.0, -2);
+  var G = F2.group;
+  var rug = new THREE.Mesh(new THREE.PlaneGeometry(9.4, 2.2), mat(0x5a1f1f)); rug.rotation.x = -Math.PI / 2; rug.position.set(0, 0.012, -2.2); G.add(rug);
+  var rug2 = new THREE.Mesh(new THREE.PlaneGeometry(9.6, 0.1), mat(0xb08d3c)); rug2.rotation.x = -Math.PI / 2; rug2.position.set(0, 0.014, -1.05); G.add(rug2);
+  CABS.forEach(function (c) {
+    var d = pdoor(F2, 0, c.lx, c.lines, function () {
+      if (c.id === 'meet') return meetDoor(d);
+      walkIn(d.leaf, function () { teleport(c.id, LOC[c.id].spawn); });
+    });
+    f2Door[c.id] = d;
+  });
+  // лавки, лампи, рослини
+  [-3.6, 0].forEach(function (lx) {
+    var b = tbl(G, lx, 3.9, 2.4, 0.5, 0.45, M.wood);
+    act(b.children[0], 'Лавка', say('Лавка для очікування.'), { reach: 4 }); obs(F2, lx, 3.9, 1.2, 0.3);
+  });
+  plant(F2, -5.2, -3.7); plant(F2, 5.2, -3.7); plant(F2, -5.2, 3.8);
+  ppaint(F2, 3, 0, 1.9, 1.3, 0.9, sysDraw('2 поверх', 'Тут кабінети груп і переговорна'), 'Схема поверху', 'На схемі п’ять дверей: переговорна, практика та три кабінети за спеціальностями.');
+  // сходи вниз
+  spiral(G, 4.6, 3.0, 'Спуститися в хол', function () { teleport('hall', { x: 3.6, z: -2.8, yaw: 0 }); });
+  obs(F2, 4.6, 3.0, 0.4, 0.4);
+})();
+/* у холі: сходи нагору (північно-східний кут) */
+spiral(hallG, 5.0, -4.3, 'Піднятися на 2 поверх', function () { teleport('f2', F2.spawn); });
+blockBox(HALL, 5.0, -4.3, 0.4, 0.4);
+(function () { // табличка біля сходів
+  var s = signPlane(['2 поверх ▲'], 1.3, 0.4, { bg: '#17110b', fg: '#f2d9a0', px: 120 }); s.position.set(5.6, 2.2, -4.3); s.rotation.y = -Math.PI / 2; hallG.add(s);
+})();
+
+/* допоміжне: кабінет із вихідними дверима (південна стіна) */
+function cabinet(id, W, D, o) {
+  var loc = newRoom(id, W, D, 3.5, o), c = CABS.filter(function (q) { return q.id === id; })[0];
+  var back = { id: 'f2', sp: { x: F2.X + c.lx, z: -F2.D / 2 + 2.3, yaw: Math.PI } };
+  pubLoc(loc, c.title, back);
+  var d = pdoor(loc, 2, 0, ['Вихід'], function () { walkIn(d.leaf, function () { teleport('f2', back.sp); }); });
+  pl(loc, 0xffe0b0, 0.8, 11, -W / 4, 3.0, 0); pl(loc, 0xffe0b0, 0.8, 11, W / 4, 3.0, 0);
+  return loc;
+}
+
+/* ---------- Переговорна ---------- */
+var MEET = null, meetOpened = false;
+(function () {
+  var loc = MEET = cabinet('meet', 12, 10, { floor: TX.planks, wall: TX.wallpaper, ceil: 0x2a221b, amb: 0xffe2b8, ambI: 0.5, bg: 0x0b0907 }), G = loc.group;
+  var tb = grp(0, 0, 0, G); box(7.8, 0.08, 1.5, mat(0x3a2414, { rough: .5 }), 0, 0.78, 0, tb); box(7.6, 0.04, 1.3, mat(0x4a2e1a, { rough: .4 }), 0, 0.83, 0, tb);
+  [-3.4, 3.4].forEach(function (lx) { [-0.55, 0.55].forEach(function (lz) { box(0.12, 0.78, 0.12, M.darkwood, lx, 0.39, lz, tb); }); });
+  obs(loc, 0, 0, 3.95, 0.72);
+  act(tb.children[0], 'Стіл переговорів', say('Стіл на 20 місць. Клікніть по стільцю, щоб сісти.'), { reach: 4 });
+  loc.seats = [];
+  for (var side = 0; side < 2; side++) for (var i = 0; i < 10; i++) {
+    (function (side, i) {
+      var x = (i - 4.5) * 0.76, z = side ? 1.25 : -1.25, ry = side ? Math.PI : 0, cols = [0x4a2a2a, 0x2a3a4a];
+      var c = chair(G, x, z, ry, cols[side]);
+      var seat = { x: loc.X + x, z: z, yaw: side ? 0 : Math.PI };
+      loc.seats.push(seat);
+      act(c.children[0], 'Сісти', function () { sitDown(seat); }, { reach: 4.2 }); act(c.children[1], 'Сісти', function () { sitDown(seat); }, { reach: 4.2 });
+    })(side, i);
+  }
+  plant(loc, -5.3, -4.2); plant(loc, 5.3, -4.2); plant(loc, -5.3, 3.4);
+  // замок біля дверей у 2 поверсі
+  var lk = wallAt(F2, 0, -3.65, 1.3); box(0.3, 0.45, 0.06, M.darksteel, 0, 0, 0.08, lk);
+  var led = box(0.18, 0.08, 0.02, basic(0xd03030), 0, 0.1, 0.12, lk); loc.led = led;
+  [0, -0.08, -0.16].forEach(function (dy) { [-0.06, 0.06].forEach(function (dx) { box(0.04, 0.04, 0.02, M.brass, dx, dy - 0.04, 0.12, lk); }); });
+  act(lk.children[0], 'Кодовий замок переговорної', function () { meetDoor(f2Door.meet); }, { reach: 4.2 });
+})();
+function sitDown(seat) {
+  if (busy || EMO === 4) { if (EMO === 4) toast('Ви вже сидите. Щоб встати, натисніть «Дії» → «Встати» або просто рушайте.'); return; }
+  if (window.__seatTaken && window.__seatTaken(seat.x, seat.z)) { toast('Це місце зайняте.'); return; }
+  var from = camera.position.clone(), to = new THREE.Vector3(seat.x, EYE, seat.z + (seat.yaw === 0 ? 0.05 : -0.05));
+  tween(700, { yaw: yaw, pitch: pitch, pos: from }, { yaw: yaw + norm(seat.yaw - yaw), pitch: 0, pos: to }, function () { emoPos.x = camera.position.x; emoPos.z = camera.position.z; setEmo(4); });
+}
+
+/* код замка: зберігається в базі як хеш, змінює тільки викладач */
+function sha(s) {
+  if (window.crypto && crypto.subtle && window.TextEncoder) return crypto.subtle.digest('SHA-256', new TextEncoder().encode('hall-meet:' + s)).then(function (b) { return Array.prototype.map.call(new Uint8Array(b), function (x) { return ('0' + x.toString(16)).slice(-2); }).join(''); });
+  return Promise.resolve('p' + s);
+}
+function getMeetHash() {
+  if (window.__fb) return window.__fb.get('config/meet/h').then(function (v) { return v || sha(DEFAULT_MEET); }, function () { return sha(DEFAULT_MEET); });
+  return sha(DEFAULT_MEET);
+}
+function meetCheck(c) { return Promise.all([sha(c), getMeetHash()]).then(function (r) { return r[0] === r[1]; }); }
+function setMeetCode(c) {
+  if (!window.__fb) return Promise.reject();
+  return sha(c).then(function (h) { return window.__fb.set('config/meet', { h: h, t: Date.now() }); });
+}
+function enterMeet(d) { MEET.led.material.color.set(0x30d060); walkIn(d.leaf, function () { teleport('meet', LOC.meet.spawn); }); }
+function meetDoor(d) {
+  if (meetOpened) { enterMeet(d); return; }
+  var ask = function () {
+    keypad('Переговорна', '<p class="muted">Введіть код доступу (4 цифри). Код дає викладач.</p>', 4, meetCheck, function () { meetOpened = true; enterMeet(d); });
+  };
+  if (!isTeacher()) { ask(); return; }
+  var b = modal('<h3>Переговорна</h3><p class="muted">Ви викладач. Можна зайти без коду або змінити код для студентів.</p><button class="main" id="mt1" type="button">Зайти</button> <button id="mt2" type="button">Ввести код</button> <button id="mt3" type="button">Змінити код</button>');
+  b.querySelector('#mt1').addEventListener('click', function () { closeModal(); meetOpened = true; enterMeet(d); });
+  b.querySelector('#mt2').addEventListener('click', function () { closeModal(); ask(); });
+  b.querySelector('#mt3').addEventListener('click', function () {
+    closeModal();
+    keypad('Новий код переговорної', '<p class="muted">Введіть новий код із 4 цифр. Студенти будуть заходити за ним.</p>', 4, function (c) { return setMeetCode(c).then(function () { return true; }); }, function () { toast('Код змінено. Повідомте його студентам.', 4500); });
+  });
+}
+
+/* ---------- Практика ---------- */
+(function () {
+  var loc = cabinet('prak', 10, 8, { floor: TX.concrete, wall: TX.brick, ceil: 0x2a2622, amb: 0xffe2b8, ambI: 0.5, bg: 0x0b0907 }), G = loc.group;
+  [-2.6, 0, 2.6].forEach(function (x) {
+    var t = tbl(G, x, -1.2, 2.0, 0.9, 0.9, mat(0x5a4630)); box(0.25, 0.18, 0.2, M.darksteel, x - 0.6, 1.04, -1.2, G); box(0.5, 0.04, 0.35, M.paper, x + 0.3, 0.97, -1.2, G);
+    act(t.children[0], 'Верстак', say('Верстак для практичних робіт: штукатурка, цегла, кладка.'), { reach: 4 }); obs(loc, x, -1.2, 1.05, 0.5);
+  });
+  var rk = wallAt(loc, 0, 0, 0); box(5.2, 0.06, 0.4, M.wood, 0, 1.8, 0.22, rk);
+  [0xe8b020, 0xd8442a, 0xeeeeee, 0x2f5d9a, 0x3f8a4f, 0xe8742a].forEach(function (c, i) { var h = helmet(rk, -2.1 + i * 0.84, 1.83, 0.22, c); act(h, 'Каска', say('Без каски на практиці нікуди.'), { reach: 4.5 }); });
+  ppaint(loc, 0, -3.6, 1.9, 1.5, 1.0, sysDraw('ТЕХНІКА БЕЗПЕКИ', 'Каска · рукавиці · чисте робоче місце'), 'Правила', 'Техніка безпеки: каска, рукавиці, інструмент на місці.');
+  ppaint(loc, 0, 3.6, 1.9, 1.5, 1.0, sysDraw('ПЛАН ПРАКТИКИ', 'Група · бригада · завдання'), 'План практики', 'Тут буде графік практики вашої групи.');
+  [[-4.2, 2.0], [4.2, 2.0]].forEach(function (p) { var br = cyl(0.3, 0.3, 0.8, mat(0x3a4a5a, { rough: .5, metal: .4 }), p[0], 0.4, p[1], G, 14); act(br, 'Бочка з розчином', say('Розчин. Не чіпати без дозволу майстра.'), { reach: 4 }); obs(loc, p[0], p[1], 0.35, 0.35); });
+})();
+
+/* ---------- Кабінет архітекторів ---------- */
+(function () {
+  var loc = cabinet('arch', 10, 8, { floor: TX.planks, wall: TX.wallpaper, ceil: 0x2a2622, amb: 0xfff0d8, ambI: 0.6, bg: 0x0b0907 }), G = loc.group;
+  [[-3.2, -1.8], [-1.1, -1.8], [1.1, -1.8], [3.2, -1.8]].forEach(function (p, i) {
+    var t = tbl(G, p[0], p[1], 1.6, 1.0, 0.95, M.white); var bd = box(1.4, 0.03, 0.9, mat(0xeae6da), p[0], 1.08, p[1], G); bd.rotation.x = -0.25;
+    act(t.children[0], 'Креслярський стіл', say('Креслярський стіл: рейсшина, ватман, олівці.'), { reach: 4 }); act(bd, 'Креслення', say('Недороблений фасад будинку. Лінії тонкі, олівцем.'), { reach: 4 }); obs(loc, p[0], p[1], 0.9, 0.55);
+  });
+  var mt = tbl(G, 0, 1.2, 2.6, 1.3, 0.8, mat(0x6a5238));
+  [[-0.7, 0.2, 0.5, 0.3], [0, 0.3, 0.4, 0.45], [0.7, 0.15, 0.5, 0.25]].forEach(function (b, i) { var m = box(0.6, b[1] * 2, 0.6, mat([0xd8cdb4, 0xc9bfa6, 0xb8ad94][i]), b[0], 0.84 + b[1], 1.2, G); act(m, 'Макет будинку', say('Макет мікрорайону. Будинки з картону й пінопласту.'), { reach: 4 }); });
+  obs(loc, 0, 1.2, 1.4, 0.7);
+  ppaint(loc, 0, -3.6, 1.9, 1.6, 1.0, function (x, w, h) { blue(x, w, h); x.strokeStyle = '#cfe4ff'; x.lineWidth = 3; x.strokeRect(24, 40, w - 48, h - 70); for (var i = 0; i < 4; i++) for (var k = 0; k < 3; k++) x.strokeRect(46 + i * 62, 60 + k * 32, 36, 20); }, 'Фасад', 'Креслення фасаду: вікна, ритм, пропорції.');
+  ppaint(loc, 0, 3.6, 1.9, 1.6, 1.0, sysDraw('ГЕНПЛАН', 'Ділянка · будівля · благоустрій'), 'Генплан', 'Генеральний план ділянки.');
+  plant(loc, -4.4, 2.6); plant(loc, 4.4, 2.6);
+})();
+
+/* ---------- Кабінет будівельників ---------- */
+(function () {
+  var loc = cabinet('build', 10, 8, { floor: TX.concrete, wall: TX.brick, ceil: 0x2a2622, amb: 0xffe8c8, ambI: 0.5, bg: 0x0b0907 }), G = loc.group;
+  var bp = grp(-3.6, 0, -1.5, G); // стос цегли
+  for (var r = 0; r < 5; r++) for (var c = 0; c < 4; c++) box(0.25, 0.07, 0.12, mat(0x9a4a32), -0.4 + c * 0.27, 0.04 + r * 0.075, ((r % 2) ? 0.07 : -0.07), bp).rotation.y = (r % 2) * 0.1;
+  act(bp.children[0], 'Цегла', say('Повнотіла керамічна цегла. Розмір 250×120×65.'), { reach: 4 }); obs(loc, -3.6, -1.5, 0.7, 0.4);
+  var sd = cyl(0.05, 0.8, 0.8, mat(0xc8b078, { rough: 1 }), 3.5, 0.4, -1.4, G, 16); act(sd, 'Пісок', say('Пісок для розчину. Просіяний.'), { reach: 4 }); obs(loc, 3.5, -1.4, 0.8, 0.8);
+  var sc = grp(0, 0, -2.6, G); // риштування
+  [-1.4, 1.4].forEach(function (x) { for (var y = 0; y < 2; y++) { cyl(0.025, 0.025, 1.5, M.steel, x, 0.75 + y * 1.5, 0, sc, 8); } cyl(0.02, 0.02, 2.8, M.steel, 0, 1.5, 0, sc, 8).rotation.z = Math.PI / 2; cyl(0.02, 0.02, 2.8, M.steel, 0, 3.0, 0, sc, 8).rotation.z = Math.PI / 2; });
+  box(2.9, 0.05, 0.6, M.wood, 0, 1.5, 0, sc); act(sc.children[sc.children.length - 1], 'Риштування', say('Фасадне риштування. Настил, стійки, зв’язки.'), { reach: 4 }); obs(loc, 0, -2.6, 1.5, 0.4);
+  var t = tbl(G, 3.3, 1.2, 1.8, 0.9, 0.85, M.wood); var lv = box(0.7, 0.05, 0.08, mat(0xe8b020), 3.3, 0.92, 1.2, G); helmet(G, 2.8, 0.96, 1.4, 0xe8b020);
+  act(lv, 'Рівень', say('Будівельний рівень. Бульбашка по центру: стіна рівна.'), { reach: 4 }); obs(loc, 3.3, 1.2, 1.0, 0.55);
+  ppaint(loc, 0, -3.6, 1.9, 1.6, 1.0, sysDraw('ПЛАН ПОВЕРХУ', 'Стіни · прорізи · розміри'), 'План', 'Креслення плану поверху.');
+  ppaint(loc, 0, 3.6, 1.9, 1.6, 1.0, sysDraw('КЛАДКА', 'Перев’язка швів: ложки й тички'), 'Кладка', 'Схема перев’язки швів цегляної кладки.');
+})();
+
+/* ---------- Кабінет дорожників ---------- */
+(function () {
+  var loc = cabinet('road', 10, 8, { floor: TX.concrete, wall: TX.wall2, ceil: 0x2a2622, amb: 0xeaf0f4, ambI: 0.55, bg: 0x0b0e10 }), G = loc.group;
+  var t = tbl(G, 0, -1.4, 4.4, 1.2, 0.85, M.white);
+  [[0x6b4a2a, 'Ґрунт'], [0xb0a898, 'Щебінь'], [0x8a8a86, 'Пісок'], [0x2a2a2c, 'Асфальт']].forEach(function (L, i) {
+    var b = box(4.0, 0.07, 0.9 - i * 0.12, mat(L[0], { rough: 1 }), 0, 0.9 + i * 0.07, -1.4, G); act(b, 'Шар: ' + L[1], say('Шар дорожнього одягу: ' + L[1].toLowerCase() + '.'), { reach: 4 });
+  });
+  obs(loc, 0, -1.4, 2.3, 0.65);
+  for (var i = 0; i < 5; i++) { var cn = cyl(0.03, 0.17, 0.6, mat(0xe8742a, { rough: .6 }), -3.6 + i * 0.6, 0.3, 2.2, G, 12); cyl(0.12, 0.12, 0.06, M.white, -3.6 + i * 0.6, 0.38, 2.2, G, 12); act(cn, 'Конус', say('Дорожній конус огороджує місце робіт.'), { reach: 4 }); }
+  var sg = grp(3.8, 0, 2.2, G); cyl(0.03, 0.03, 2.0, M.steel, 0, 1.0, 0, sg, 8); var disc = cyl(0.3, 0.3, 0.03, mat(0xd8d8d0), 0, 2.1, 0, sg, 24); disc.rotation.x = Math.PI / 2; var ring = new THREE.Mesh(new THREE.TorusGeometry(0.27, 0.03, 8, 24), mat(0xc02a22)); ring.position.set(0, 2.1, 0.02); sg.add(ring);
+  act(disc, 'Дорожній знак', say('Знак обмеження швидкості. Дорожники ставлять їх за ДБН.'), { reach: 4 }); obs(loc, 3.8, 2.2, 0.3, 0.3);
+  ppaint(loc, 0, -3.6, 1.9, 1.6, 1.0, function (x, w, h) { blue(x, w, h); x.fillStyle = '#2a2a2c'; x.fillRect(30, 50, w - 60, 20); x.fillStyle = '#b0a898'; x.fillRect(30, 70, w - 60, 28); x.fillStyle = '#8a8a86'; x.fillRect(30, 98, w - 60, 28); x.fillStyle = '#6b4a2a'; x.fillRect(30, 126, w - 60, 30); x.fillStyle = '#fff'; x.font = '14px Georgia'; x.textAlign = 'center'; x.fillText('Конструкція дорожнього одягу', w / 2, 36); }, 'Дорожній одяг', 'Шари зверху вниз: асфальт, щебінь, пісок, ґрунт.');
+  ppaint(loc, 0, 3.6, 1.9, 1.6, 1.0, sysDraw('ПОПЕРЕЧНИЙ ПРОФІЛЬ', 'Проїзна частина · узбіччя · кювет'), 'Профіль', 'Поперечний профіль дороги.');
+})();
+
 var CODES={};
 /* ====== СТАН ГРИ, ТАЙМЕРИ, БАЛИ, ПЕРЕХОДИ, ЗВ'ЯЗОК ІЗ САЙТОМ ====== */
 /* У кабінеті (iframe) бали й час рахує сервер сайту: ті самі завдання z1..z5.
@@ -933,7 +1171,7 @@ function roomDef(id) { return ROOMS.filter(function (r) { return r.id === id; })
 function elapsed(id) { return RS[id].t0 ? (Date.now() - RS[id].t0) / 1000 : 0; }
 function pts(id, sec) { var r = roomDef(id); if (sec <= 60) return 100; if (sec > r.limit) return 0; return Math.round(100 - 90 * (sec - 60) / (r.limit - 60)); }
 function mmss(n) { n = Math.max(0, Math.floor(n)); var m = Math.floor(n / 60), s = n % 60; return (m < 10 ? '0' : '') + m + ':' + (s < 10 ? '0' : '') + s; }
-function inRoom() { return cur && cur.id !== 'hall' ? cur.id : null; }
+function inRoom() { return cur && /^z[1-5]$/.test(cur.id) ? cur.id : null; }
 function give(id, k, label) { RS[id].inv[k] = label; updateHud(); }
 function has(id, k) { return !!RS[id].inv[k]; }
 function F(id) { return RS[id].flags; }
@@ -943,9 +1181,10 @@ function updateHud() {
   var id = inRoom(), hb = $('hbtn');
   if (!id) {
     var done = 0, total = 0; ROOMS.forEach(function (r) { if (SAVE[r.id]) { done++; total += SAVE[r.id].points || 0; } });
-    $('hl').textContent = 'Хол'; $('hl2').textContent = ready ? 'Кімнат: ' + ROOMS.length + ' · пройдено ' + done + ' · ваші бали ' + total : 'Завантаження результатів…';
+    $('hl').textContent = cur && cur.title || 'Хол'; $('hl2').textContent = cur && cur.pub && cur.id !== 'hall' ? 'Тут можна бути разом: чат і голос' : ready ? 'Кімнат: ' + ROOMS.length + ' · пройдено ' + done + ' · ваші бали ' + total : 'Завантаження результатів…';
     $('hr').textContent = '';
-    if (NET) { hb.style.display = 'inline-block'; hb.textContent = '← До кабінету'; hb.dataset.m = 'exit'; }
+    if (cur && cur.back) { hb.style.display = 'inline-block'; hb.textContent = '← Назад'; hb.dataset.m = 'back'; }
+    else if (NET) { hb.style.display = 'inline-block'; hb.textContent = '← До кабінету'; hb.dataset.m = 'exit'; }
     else { hb.style.display = 'inline-block'; hb.textContent = 'Скинути прогрес (перегляд)'; hb.dataset.m = 'reset'; }
   } else {
     var r = roomDef(id), e = elapsed(id), inv = Object.keys(RS[id].inv).map(function (k) { return RS[id].inv[k]; });
@@ -958,7 +1197,7 @@ function updateHud() {
 }
 $('hbtn').addEventListener('click', function () {
   var m = this.dataset.m;
-  if (m === 'leave') leaveRoom();
+  if (m === 'leave' || m === 'back') leaveRoom();
   else if (m === 'exit') { try { window.parent.postMessage({ hallExit: 1 }, location.origin); } catch (e) {} }
   else { try { localStorage.removeItem('hall-v1'); } catch (e) {} location.reload(); }
 });
@@ -1014,7 +1253,9 @@ function enterRoom(id) {
   }, function () { RS[id].entering = false; toast('Немає зв’язку із сервером. Спробуйте ще раз.'); });
 }
 function leaveRoom() {
-  var id = inRoom(); if (!id || busy) return;
+  var id = inRoom();
+  if (!id) { if (cur && cur.back && !busy) { closeModal(); teleport(cur.back.id, cur.back.sp); } return; }
+  if (busy) return;
   closeModal(); teleport('hall', doorSpawn(roomDef(id)));
 }
 function backBtn(html, again) {
@@ -1056,7 +1297,7 @@ updaters.push(function (s) {
 showLoc('hall'); camera.position.set(0, EYE, 1.8); yaw = 0; pitch = 0; updateHud();
 var q = /[?&]room=(z[1-5])/.exec(location.search);
 if (q && !NET) { RS[q[1]].t0 = Date.now(); teleport(q[1], LOC[q[1]].spawn, true); }
-window.__hall = { hitAt: hitAt, pick: pick, RS: RS, LOC: LOC, enterRoom: enterRoom, camera: camera, setYaw: function (y, p) { yaw = y; pitch = p || 0; }, SAVE: SAVE, go: function (x, z, y) { camera.position.set(x, EYE, z); yaw = y || 0; } };
+window.__hall = { teleport: teleport, hitAt: hitAt, pick: pick, RS: RS, LOC: LOC, enterRoom: enterRoom, camera: camera, setYaw: function (y, p) { yaw = y; pitch = p || 0; }, SAVE: SAVE, go: function (x, z, y) { camera.position.set(x, EYE, z); yaw = y || 0; } };
 syncAll();
 requestAnimationFrame(loop);
 
@@ -1157,18 +1398,20 @@ function drawEmo() {
   if (EMO) { var s = document.createElement('button'); s.type = 'button'; s.textContent = 'Встати'; s.addEventListener('click', function () { setEmo(0); }); el.appendChild(s); }
 }
 drawEmo();
-var emoPos = { x: 0, z: 0 };
+var emoPos = { x: 0, z: 0 }, emoLoc = 'hall';
 updaters.push(function (s) {
   var vis = !inRoom() && !modalOpen; $('emo').style.display = vis ? 'block' : 'none';
   var p = camera.position;
+  if (cur.id !== emoLoc) { emoLoc = cur.id; if (EMO) { EMO = 0; drawEmo(); } }
   if (inRoom()) { if (EMO) { EMO = 0; drawEmo(); } return; }
   if (EMO && Math.hypot(p.x - emoPos.x, p.z - emoPos.z) > 0.05) { setEmo(0); }
   if (!EMO) { emoPos.x = p.x; emoPos.z = p.z; }
   var ty = EYE, k = 0.12;
-  if (EMO === 1) ty = 0.95; else if (EMO === 2) ty = EYE + Math.abs(Math.sin(s * 7)) * 0.08; else if (EMO === 3) ty = EYE + Math.abs(Math.sin(s * 6)) * 0.12;
+  if (EMO === 1) ty = 0.95; else if (EMO === 2) ty = EYE + Math.abs(Math.sin(s * 7)) * 0.08; else if (EMO === 3) ty = EYE + Math.abs(Math.sin(s * 6)) * 0.12; else if (EMO === 4) ty = 1.12;
   if (EMO || camLow) { p.y += (ty - p.y) * k; camLow = Math.abs(p.y - EYE) > 0.01; if (!camLow && !EMO) p.y = EYE; }
 });
 if (window.__hall) { window.__hall.makeFigure = makeFigure; window.__hall.openWardrobe = openWardrobe; window.__hall.HALL = HALL; }
+if (window.__hall) { window.__hall.sit = sitDown; window.__hall.meetCheck = meetCheck; window.__hall.EMO = function () { return EMO; }; }
 
 
 /* ====== ПРИСУТНІСТЬ У ХОЛІ (Firebase Realtime Database) ====== */
@@ -1209,8 +1452,8 @@ if (window.__hall) { window.__hall.makeFigure = makeFigure; window.__hall.openWa
   function makeGhost(id, d) {
     var g = makeFigure({ s: d.s, c: d.c == null ? (id.charCodeAt(0) + id.charCodeAt(id.length - 1)) % SHIRTS.length : d.c, h: d.h == null ? id.charCodeAt(1) % HAIRS.length : d.h });
     var sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: labelTex(d.n, d.g || ''), transparent: true, depthTest: false })); sp.scale.set(0.75, 0.1875, 1); sp.position.y = 2.05; sp.renderOrder = 10; g.add(sp);
-    Object.assign(g.userData, { e: d.e | 0, tx: d.x, tz: d.z, ty: d.y, name: d.n, sub: d.g || '', key: [d.s, d.c, d.h].join(), ph: 0, amp: 0 });
-    g.position.set(d.x, 0, d.z); g.rotation.y = d.y; HALL.group.add(g); return g;
+    Object.assign(g.userData, { e: d.e | 0, tx: d.x, tz: d.z, ty: d.y, name: d.n, sub: d.g || '', key: [d.s, d.c, d.h, d.l].join(), ph: 0, amp: 0 });
+    g.position.set(d.x, 0, d.z); g.rotation.y = d.y; (LOC[d.l] || HALL).group.add(g); return g;
   }
   function logMsg(who, text, mine) {
     var el = document.createElement('div'); el.style.cssText = 'background:rgba(10,7,4,.68);padding:3px 8px;margin-top:3px;font-size:14px;color:' + (mine ? '#a5d6a7' : '#f2e2c0') + ';transition:opacity 1s;word-break:break-word';
@@ -1224,15 +1467,16 @@ if (window.__hall) { window.__hall.makeFigure = makeFigure; window.__hall.openWa
       if (id === uid) return; var d = v[id];
       if (!d || now - d.t > 25000) return; seen[id] = 1;
       var g = ghosts[id];
-      if (!g || g.userData.name !== d.n || g.userData.sub !== (d.g || '') || g.userData.key !== [d.s, d.c, d.h].join()) { if (g) HALL.group.remove(g); if (Object.keys(ghosts).length > 40) return; g = ghosts[id] = makeGhost(id, d); }
+      if (!g || g.userData.name !== d.n || g.userData.sub !== (d.g || '') || g.userData.key !== [d.s, d.c, d.h, d.l].join()) { if (g && g.parent) g.parent.remove(g); if (Object.keys(ghosts).length > 40) return; g = ghosts[id] = makeGhost(id, d); }
       g.userData.tx = d.x; g.userData.tz = d.z; g.userData.ty = d.y; g.userData.e = d.e | 0;
       if (d.m && d.mt && d.mt > (seenMt[id] || 0)) { if (seenMt[id] !== undefined || now - d.mt < 20000) { say(g, String(d.m)); logMsg(d.n, String(d.m)); } seenMt[id] = d.mt; } else if (seenMt[id] === undefined) seenMt[id] = d.mt || 0;
     });
-    Object.keys(ghosts).forEach(function (id) { if (!seen[id]) { HALL.group.remove(ghosts[id]); delete ghosts[id]; } });
+    Object.keys(ghosts).forEach(function (id) { if (!seen[id]) { if (ghosts[id].parent) ghosts[id].parent.remove(ghosts[id]); delete ghosts[id]; } });
   }
   function angDiff(a, b) { var d = (b - a) % (2 * Math.PI); if (d > Math.PI) d -= 2 * Math.PI; if (d < -Math.PI) d += 2 * Math.PI; return d; }
 
   window.__pres = { onData: onData };
+  window.__seatTaken = function (x, z) { return Object.keys(ghosts).some(function (id) { var u = ghosts[id].userData; return u.e === 4 && Math.hypot(ghosts[id].position.x - x, ghosts[id].position.z - z) < 0.5; }); };
   Promise.all([load(V + 'firebase-app-compat.js'), load(V + 'firebase-auth-compat.js'), load(V + 'firebase-database-compat.js')]).then(function () {
     firebase.initializeApp(FB);
     var cred = firebase.auth.GoogleAuthProvider.credential(NET.token());
@@ -1240,6 +1484,7 @@ if (window.__hall) { window.__hall.makeFigure = makeFigure; window.__hall.openWa
   }).then(function (r) {
     uid = r.user.uid; var db = firebase.database(), w = NET.who();
     db.ref('.info/serverTimeOffset').on('value', function (s) { offset = s.val() || 0; });
+    window.__fb = { db: db, uid: uid, get: function (path) { return db.ref(path).once('value').then(function (s) { return s.val(); }); }, set: function (path, v) { return db.ref(path).set(v); } };
     myRef = db.ref('presence/' + uid);
     myRef.onDisconnect().remove();
     db.ref('presence').on('value', onData);
@@ -1249,7 +1494,7 @@ if (window.__hall) { window.__hall.makeFigure = makeFigure; window.__hall.openWa
       var p = camera.position, nowMs = Date.now(), moved = Math.abs(p.x - last.x) > 0.05 || Math.abs(p.z - last.z) > 0.05 || Math.abs(yaw - last.y) > 0.08;
       if (!force && !moved && nowMs - lastSent < 8000) return;
       lastSent = nowMs; last = { x: p.x, z: p.z, y: yaw };
-      var rec = { n: w.name, g: w.group, s: AV.s, c: AV.c, h: AV.h, e: EMO, x: Math.round(p.x * 100) / 100, z: Math.round(p.z * 100) / 100, y: Math.round(yaw * 100) / 100, t: firebase.database.ServerValue.TIMESTAMP };
+      var rec = { n: w.name, g: w.group, s: AV.s, c: AV.c, h: AV.h, e: EMO, l: cur.id, x: Math.round(p.x * 100) / 100, z: Math.round(p.z * 100) / 100, y: Math.round(yaw * 100) / 100, t: firebase.database.ServerValue.TIMESTAMP };
       if (me.m && Date.now() + offset - me.mt < 30000) { rec.m = me.m; rec.mt = me.mt; }
       myRef.set(rec).catch(function (e) { if (!window.__perr) { window.__perr = 1; toast('Присутність: ' + (e && e.code || e), 6000); } });
     }
@@ -1276,6 +1521,7 @@ if (window.__hall) { window.__hall.makeFigure = makeFigure; window.__hall.openWa
         var ts = nowMs / 1000, ee = u.e | 0; if (u.amp > 0.1) ee = 0;
         var ty0 = 0;
         if (ee === 1) { ty0 = -0.7; u.legs[0].rotation.x = u.legs[1].rotation.x = 1.5; u.arms[0].rotation.x = u.arms[1].rotation.x = 0.7; }
+        else if (ee === 4) { ty0 = -0.32; u.legs[0].rotation.x = u.legs[1].rotation.x = 1.4; u.arms[0].rotation.x = u.arms[1].rotation.x = 0.6; }
         else if (ee === 2) { var dd = Math.sin(ts * 7); ty0 = Math.abs(dd) * 0.07; u.legs[0].rotation.x = dd * 0.55; u.legs[1].rotation.x = -dd * 0.55; u.arms[0].rotation.x = 2.6 + Math.sin(ts * 7) * 0.5; u.arms[1].rotation.x = 2.6 - Math.sin(ts * 7) * 0.5; u.arms[0].rotation.z = 0.35; u.arms[1].rotation.z = -0.35; g.rotation.z = Math.sin(ts * 3.5) * 0.06; }
         else if (ee === 3) { ty0 = Math.abs(Math.sin(ts * 6)) * 0.1; u.arms[0].rotation.x = u.arms[1].rotation.x = 3.0; u.arms[0].rotation.z = 0.28 + Math.sin(ts * 6) * 0.1; u.arms[1].rotation.z = -0.28 - Math.sin(ts * 6) * 0.1; }
         if (ee !== 2) g.rotation.z = 0;
