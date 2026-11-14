@@ -41,6 +41,9 @@ svg.dr{width:100%;height:auto;background:#fff;border:1px solid #6d5a3c;margin:8p
 .row{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
 #chat{position:fixed;right:12px;bottom:12px;width:min(340px,58vw);z-index:6;display:none}
 #clog{pointer-events:none}
+#emo{position:fixed;left:12px;bottom:170px;z-index:6;display:none}
+#emo button{display:block;margin-top:4px;padding:8px 12px;font-family:inherit;font-size:14px;background:rgba(36,26,16,.92);color:#f2e2c0;border:1px solid #8a7347;cursor:pointer;min-width:120px;text-align:left}
+#emo button.on{background:#6b4a1f;border-color:#f2e2c0}
 #crow{display:flex;gap:4px;margin-top:6px}
 #cin{flex:1;min-width:0;padding:8px;font-size:16px;font-family:inherit;background:rgba(20,14,8,.9);color:#f2e2c0;border:1px solid #8a7347;-webkit-user-select:text;user-select:text}
 #csend{padding:8px 10px;font-family:inherit;font-size:14px;background:#6b4a1f;color:#f2e2c0;border:1px solid #8a7347;cursor:pointer}
@@ -54,6 +57,7 @@ svg.dr{width:100%;height:auto;background:#fff;border:1px solid #6d5a3c;margin:8p
 <div id="tip"></div>
 <div id="stick"><div id="knob"></div></div>
 <div id="chat"><div id="clog"></div><div id="crow"><input id="cin" maxlength="100" placeholder="Чат холу…" autocomplete="off"><button id="csend" type="button">Надіслати</button></div></div>
+<div id="emo"></div>
 <div id="fade"></div>
 <div id="modal"><div id="mcard"><button id="mclose" type="button" aria-label="Закрити">×</button><div id="mbody"></div></div></div>
 <script>/**
@@ -1138,6 +1142,32 @@ function openWardrobe() {
   act(hit, 'Шафа: змінити вигляд', openWardrobe, { reach: 4 });
   var wp = worldPos(g); blockBox(HALL, wp.x, wp.z - 0.35, 1.0, 0.42);
 })();
+/* ---- дії: сидіти, танцювати, руки вгору ---- */
+var EMO = 0, emoOpen = false, camLow = false;
+var EMOS = [[1, 'Сидіти'], [2, 'Танцювати'], [3, 'Руки вгору']];
+function setEmo(n) { EMO = n; drawEmo(); if (window.__avChanged) window.__avChanged(); }
+function drawEmo() {
+  var el = $('emo'); el.innerHTML = '';
+  var b0 = document.createElement('button'); b0.type = 'button'; b0.textContent = emoOpen || EMO ? 'Дії ▾' : 'Дії ▸';
+  b0.addEventListener('click', function () { if (EMO) setEmo(0); else { emoOpen = !emoOpen; drawEmo(); } }); el.appendChild(b0);
+  if (emoOpen || EMO) EMOS.forEach(function (e) {
+    var b = document.createElement('button'); b.type = 'button'; b.textContent = e[1]; if (EMO === e[0]) b.className = 'on';
+    b.addEventListener('click', function () { setEmo(EMO === e[0] ? 0 : e[0]); }); el.appendChild(b);
+  });
+  if (EMO) { var s = document.createElement('button'); s.type = 'button'; s.textContent = 'Встати'; s.addEventListener('click', function () { setEmo(0); }); el.appendChild(s); }
+}
+drawEmo();
+var emoPos = { x: 0, z: 0 };
+updaters.push(function (s) {
+  var vis = !inRoom() && !modalOpen; $('emo').style.display = vis ? 'block' : 'none';
+  var p = camera.position;
+  if (inRoom()) { if (EMO) { EMO = 0; drawEmo(); } return; }
+  if (EMO && Math.hypot(p.x - emoPos.x, p.z - emoPos.z) > 0.05) { setEmo(0); }
+  if (!EMO) { emoPos.x = p.x; emoPos.z = p.z; }
+  var ty = EYE, k = 0.12;
+  if (EMO === 1) ty = 0.95; else if (EMO === 2) ty = EYE + Math.abs(Math.sin(s * 7)) * 0.08; else if (EMO === 3) ty = EYE + Math.abs(Math.sin(s * 6)) * 0.12;
+  if (EMO || camLow) { p.y += (ty - p.y) * k; camLow = Math.abs(p.y - EYE) > 0.01; if (!camLow && !EMO) p.y = EYE; }
+});
 if (window.__hall) { window.__hall.makeFigure = makeFigure; window.__hall.openWardrobe = openWardrobe; window.__hall.HALL = HALL; }
 
 
@@ -1176,7 +1206,7 @@ if (window.__hall) { window.__hall.makeFigure = makeFigure; window.__hall.openWa
   function makeGhost(id, d) {
     var g = makeFigure({ s: d.s, c: d.c == null ? (id.charCodeAt(0) + id.charCodeAt(id.length - 1)) % SHIRTS.length : d.c, h: d.h == null ? id.charCodeAt(1) % HAIRS.length : d.h });
     var sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: labelTex(d.n, d.g || ''), transparent: true, depthTest: false })); sp.scale.set(0.75, 0.1875, 1); sp.position.y = 2.05; sp.renderOrder = 10; g.add(sp);
-    Object.assign(g.userData, { tx: d.x, tz: d.z, ty: d.y, name: d.n, sub: d.g || '', key: [d.s, d.c, d.h].join(), ph: 0, amp: 0 });
+    Object.assign(g.userData, { e: d.e | 0, tx: d.x, tz: d.z, ty: d.y, name: d.n, sub: d.g || '', key: [d.s, d.c, d.h].join(), ph: 0, amp: 0 });
     g.position.set(d.x, 0, d.z); g.rotation.y = d.y; HALL.group.add(g); return g;
   }
   function logMsg(who, text, mine) {
@@ -1192,7 +1222,7 @@ if (window.__hall) { window.__hall.makeFigure = makeFigure; window.__hall.openWa
       if (!d || now - d.t > 25000) return; seen[id] = 1;
       var g = ghosts[id];
       if (!g || g.userData.name !== d.n || g.userData.sub !== (d.g || '') || g.userData.key !== [d.s, d.c, d.h].join()) { if (g) HALL.group.remove(g); if (Object.keys(ghosts).length > 40) return; g = ghosts[id] = makeGhost(id, d); }
-      g.userData.tx = d.x; g.userData.tz = d.z; g.userData.ty = d.y;
+      g.userData.tx = d.x; g.userData.tz = d.z; g.userData.ty = d.y; g.userData.e = d.e | 0;
       if (d.m && d.mt && d.mt > (seenMt[id] || 0)) { if (seenMt[id] !== undefined || now - d.mt < 20000) { say(g, String(d.m)); logMsg(d.n, String(d.m)); } seenMt[id] = d.mt; } else if (seenMt[id] === undefined) seenMt[id] = d.mt || 0;
     });
     Object.keys(ghosts).forEach(function (id) { if (!seen[id]) { HALL.group.remove(ghosts[id]); delete ghosts[id]; } });
@@ -1216,7 +1246,7 @@ if (window.__hall) { window.__hall.makeFigure = makeFigure; window.__hall.openWa
       var p = camera.position, nowMs = Date.now(), moved = Math.abs(p.x - last.x) > 0.05 || Math.abs(p.z - last.z) > 0.05 || Math.abs(yaw - last.y) > 0.08;
       if (!force && !moved && nowMs - lastSent < 8000) return;
       lastSent = nowMs; last = { x: p.x, z: p.z, y: yaw };
-      var rec = { n: w.name, g: w.group, s: AV.s, c: AV.c, h: AV.h, x: Math.round(p.x * 100) / 100, z: Math.round(p.z * 100) / 100, y: Math.round(yaw * 100) / 100, t: firebase.database.ServerValue.TIMESTAMP };
+      var rec = { n: w.name, g: w.group, s: AV.s, c: AV.c, h: AV.h, e: EMO, x: Math.round(p.x * 100) / 100, z: Math.round(p.z * 100) / 100, y: Math.round(yaw * 100) / 100, t: firebase.database.ServerValue.TIMESTAMP };
       if (me.m && Date.now() + offset - me.mt < 30000) { rec.m = me.m; rec.mt = me.mt; }
       myRef.set(rec).catch(function (e) { if (!window.__perr) { window.__perr = 1; toast('Присутність: ' + (e && e.code || e), 6000); } });
     }
@@ -1240,6 +1270,13 @@ if (window.__hall) { window.__hall.makeFigure = makeFigure; window.__hall.openWa
         u.legs[0].rotation.x = w; u.legs[1].rotation.x = -w; u.arms[0].rotation.x = -w; u.arms[1].rotation.x = w;
         var idle = 1 - Math.min(1, u.amp * 3), br = Math.sin(nowMs / 520 + g.id) * 0.025 * idle;
         g.scale.y = 1 + br; u.arms[0].rotation.z = 0.04 + br * 2; u.arms[1].rotation.z = -0.04 - br * 2;
+        var ts = nowMs / 1000, ee = u.e | 0; if (u.amp > 0.1) ee = 0;
+        var ty0 = 0;
+        if (ee === 1) { ty0 = -0.7; u.legs[0].rotation.x = u.legs[1].rotation.x = 1.5; u.arms[0].rotation.x = u.arms[1].rotation.x = 0.7; }
+        else if (ee === 2) { var dd = Math.sin(ts * 7); ty0 = Math.abs(dd) * 0.07; u.legs[0].rotation.x = dd * 0.55; u.legs[1].rotation.x = -dd * 0.55; u.arms[0].rotation.x = 2.6 + Math.sin(ts * 7) * 0.5; u.arms[1].rotation.x = 2.6 - Math.sin(ts * 7) * 0.5; u.arms[0].rotation.z = 0.35; u.arms[1].rotation.z = -0.35; g.rotation.z = Math.sin(ts * 3.5) * 0.06; }
+        else if (ee === 3) { ty0 = Math.abs(Math.sin(ts * 6)) * 0.1; u.arms[0].rotation.x = u.arms[1].rotation.x = 3.0; u.arms[0].rotation.z = 0.28 + Math.sin(ts * 6) * 0.1; u.arms[1].rotation.z = -0.28 - Math.sin(ts * 6) * 0.1; }
+        if (ee !== 2) g.rotation.z = 0;
+        g.position.y = ty0;
         if (u.bub) { var wv = Math.sin(nowMs / 130); u.arms[1].rotation.x = -2.5; u.arms[1].rotation.z = -0.3 + wv * 0.35; }
         if (u.bub && nowMs > u.bubUntil) { g.remove(u.bub); u.bub = null; }
       });
