@@ -1114,7 +1114,7 @@ function meetDoor(d) {
   [0xe8b020, 0xd8442a, 0xeeeeee, 0x2f5d9a, 0x3f8a4f, 0xe8742a].forEach(function (c, i) { var h = helmet(rk, -2.1 + i * 0.84, 1.83, 0.22, c); act(h, 'Каска', say('Без каски на практиці нікуди.'), { reach: 4.5 }); });
   ppaint(loc, 0, -3.6, 1.9, 1.5, 1.0, sysDraw('ТЕХНІКА БЕЗПЕКИ', 'Каска · рукавиці · чисте робоче місце'), 'Правила', 'Техніка безпеки: каска, рукавиці, інструмент на місці.');
   ppaint(loc, 0, 3.6, 1.9, 1.5, 1.0, sysDraw('ПЛАН ПРАКТИКИ', 'Група · бригада · завдання'), 'План практики', 'Тут буде графік практики вашої групи.');
-  [[-4.2, 2.0], [4.2, 2.0]].forEach(function (p) { var br = cyl(0.3, 0.3, 0.8, mat(0x3a4a5a, { rough: .5, metal: .4 }), p[0], 0.4, p[1], G, 14); act(br, 'Бочка з розчином', say('Розчин. Не чіпати без дозволу майстра.'), { reach: 4 }); obs(loc, p[0], p[1], 0.35, 0.35); });
+  [[-4.2, -3.2], [4.2, -3.2]].forEach(function (p) { var br = cyl(0.3, 0.3, 0.8, mat(0x3a4a5a, { rough: .5, metal: .4 }), p[0], 0.4, p[1], G, 14); act(br, 'Бочка з розчином', say('Розчин. Не чіпати без дозволу майстра.'), { reach: 4 }); obs(loc, p[0], p[1], 0.35, 0.35); });
 })();
 
 /* ---------- Кабінет архітекторів ---------- */
@@ -1171,6 +1171,7 @@ function meetDoor(d) {
   function r2(v) { return Math.round(v * 100) / 100; }
   function fmt(v) { return String(r2(v)).replace('.', ','); }
   function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+  function clp(v, m) { return Math.max(-m, Math.min(m, v)); }
   function tolOf(t) { return Math.max(0.05, 0.01 * Math.abs(t)); }
 
   /* ---------- малювання ---------- */
@@ -1186,10 +1187,9 @@ function meetDoor(d) {
   }
   function stateCol(ok) { return ok === true ? '#1b8a3a' : ok === false ? '#c62828' : '#6a6a6a'; }
 
-  var B = {
-    L: '6', xA: '0', xB: '6', loads: [], ans: { VA: { v: '', d: '1' }, HA: { v: '', d: '1' }, VB: { v: '', d: '1' } }, res: null
-  };
-  var R = { a1: '180', a2: '135', loads: [], ans: { N1: { v: '', s: '1' }, N2: { v: '', s: '1' } }, res: null };
+  function newB() { return { L: '6', xA: '0', xB: '6', loads: [], ans: { VA: { v: '', d: '1' }, HA: { v: '', d: '1' }, VB: { v: '', d: '1' } }, res: null }; }
+  function newR() { return { a1: '180', a2: '135', loads: [], ans: { N1: { v: '', s: '1' }, N2: { v: '', s: '1' } }, res: null }; }
+  var B = newB(), R = newR(), curSt = null;
   var BV = [
     { L: '6', xA: '0', xB: '6', loads: [{ t: 'F', x: '2', F: '10', a: '270' }, { t: 'q', x1: '3', x2: '6', q: '4' }] },
     { L: '8', xA: '0', xB: '6', loads: [{ t: 'F', x: '3', F: '12', a: '270' }, { t: 'F', x: '8', F: '8', a: '270' }, { t: 'M', x: '4', M: '10', ccw: '1' }] },
@@ -1202,7 +1202,6 @@ function meetDoor(d) {
   ];
   function setB(i) { var v = BV[i]; B.L = v.L; B.xA = v.xA; B.xB = v.xB; B.loads = JSON.parse(JSON.stringify(v.loads)); B.res = null; B.ans = { VA: { v: '', d: '1' }, HA: { v: '', d: '1' }, VB: { v: '', d: '1' } }; }
   function setR(i) { var v = RV[i]; R.a1 = v.a1; R.a2 = v.a2; R.loads = JSON.parse(JSON.stringify(v.loads)); R.res = null; R.ans = { N1: { v: '', s: '1' }, N2: { v: '', s: '1' } }; }
-  setB(0); setR(0);
 
   function drawBeam(c, S) {
     var x = c.getContext('2d'), W = c.width, H = c.height; x.fillStyle = '#fff'; x.fillRect(0, 0, W, H);
@@ -1257,7 +1256,7 @@ function meetDoor(d) {
       else if (l.t === 'q') { var x1 = num(l.x1), x2 = num(l.x2), q = num(l.q); if (isNaN(x1) || isNaN(x2) || isNaN(q) || x2 <= x1) return { err: 'Перевірте розподілене навантаження q' + (i + 1) + ' (початок менший за кінець).' }; var Q = -q * (x2 - x1); fy += Q; mA += ((x1 + x2) / 2 - xA) * Q; }
       else { var Xm = num(l.x), Mv = num(l.M); if (isNaN(Xm) || isNaN(Mv)) return { err: 'Заповніть поля моменту M' + (i + 1) + '.' }; mA += (l.ccw === '0' ? -1 : 1) * Mv; }
     }
-    var VB = -mA / (xB - xA), VA = -fy - VB, HA = -fx; return { HA: HA, VA: VA, VB: VB, fx: fx, fy: fy };
+    var VB = -mA / (xB - xA), VA = -fy - VB, HA = -fx; return { HA: HA, VA: VA, VB: VB, fx: fx, fy: fy, mA: mA };
   }
   function rodSolve(S) {
     var a1 = num(S.a1), a2 = num(S.a2), fx = 0, fy = 0; if (isNaN(a1) || isNaN(a2)) return { err: 'Введіть кути обох стержнів.' };
@@ -1281,8 +1280,7 @@ function meetDoor(d) {
   function sel(k, opts, cur, i) { return '<select data-k="' + k + '"' + (i !== undefined ? ' data-i="' + i + '"' : '') + ' style="' + selCss + '">' + opts.map(function (o) { return '<option value="' + o[0] + '"' + (String(cur) === o[0] ? ' selected' : '') + '>' + o[1] + '</option>'; }).join('') + '</select>'; }
   var ANGS = '<button type="button" data-ang="270" style="padding:5px 9px;margin:0 2px">↓</button><button type="button" data-ang="90" style="padding:5px 9px;margin:0 2px">↑</button><button type="button" data-ang="0" style="padding:5px 9px;margin:0 2px">→</button><button type="button" data-ang="180" style="padding:5px 9px;margin:0 2px">←</button>';
 
-  var standCv = {}, standTex = {};
-  function refreshStand(kind) { var c = standCv[kind]; if (!c) return; if (kind === 'beam') drawBeam(c, B); else drawRods(c, R); standTex[kind].needsUpdate = true; }
+    function refreshStand() { if (curSt) build3D(curSt); }
 
   function openBeam(msg) {
     var h = '<h3>Двоопорна балка</h3><p class="muted">Складіть свою задачу: довжина, положення опор, сили. Опора A нерухома шарнірна (дає вертикальну V і горизонтальну H реакції), опора B рухома (дає тільки V). Знайдіть реакції та введіть їх зі своїм напрямком.</p>' +
@@ -1310,7 +1308,7 @@ function meetDoor(d) {
         else if (i !== undefined) B.loads[+i][k] = e.value; else B[k] = e.value;
       });
     }
-    function live() { readAll(); B.res = null; drawBeam(cv, B); refreshStand('beam'); }
+    function live() { readAll(); B.res = null; drawBeam(cv, B); refreshStand(); }
     b.addEventListener('input', live); b.addEventListener('change', live);
     b.addEventListener('click', function (e) {
       var t = e.target.closest('button'); if (!t) return;
@@ -1336,8 +1334,12 @@ function meetDoor(d) {
       HA: judge('HA', sv.HA, s.HA, 'Спроєктуйте всі сили на вісь x: ΣX = 0.'),
       VB: judge('VB', sv.VB, s.VB, 'Складіть суму моментів відносно опори A: ΣM(A) = 0, перевірте плечі й знаки.')
     };
-    B.res = { VA: j.VA.ok, HA: j.HA.ok, VB: j.VB.ok }; drawBeam(cv, B); refreshStand('beam');
+    B.res = { VA: j.VA.ok, HA: j.HA.ok, VB: j.VB.ok }; drawBeam(cv, B); refreshStand();
     var all = j.VA.ok && j.HA.ok && j.VB.ok, h = '';
+    var rx0 = sv.HA + s.fx, ry0 = sv.VA + sv.VB + s.fy, mr = s.mA + sv.VB * (num(B.xB) - num(B.xA));
+    curSt.ok = all; curSt.checked = true; curSt.anim = all ? { dx: 0, dy: 0, th: 0 } : { dx: clp(rx0 * 0.03, 0.35), dy: clp(ry0 * 0.03, 0.4), th: clp(mr * 0.015, 0.7) };
+    if (!all && Math.hypot(curSt.anim.dx, curSt.anim.dy, curSt.anim.th) < 0.03) curSt.anim.dy = 0.07;
+    build3D(curSt);
     [j.VA, j.HA, j.VB].forEach(function (r) { h += '<div style="color:' + (r.ok ? '#a5d6a7' : '#f2b0a0') + '">' + esc(r.msg) + '</div>'; });
     var ry = sv.VA + sv.VB + s.fy, rx = sv.HA + s.fx;
     if (!all) {
@@ -1345,6 +1347,7 @@ function meetDoor(d) {
       if (Math.abs(rx) > tolOf(s.fx)) h += '<div style="color:#f2b0a0">Горизонтальні сили не врівноважені: ΣX ≠ 0, різниця ' + fmt(rx) + ' кН.</div>';
       h = '<div style="font-weight:700;color:#f2b0a0;margin-bottom:4px">Тут є проблема.</div>' + h;
     } else h = '<div style="font-weight:700;color:#a5d6a7;margin-bottom:4px">Усе правильно, ти молодець!</div>' + h;
+    h += '<div class="muted" style="margin-top:6px">Закрийте вікно й подивіться на макет: якщо реакції знайдено неправильно, він рухатиметься.</div>';
     out.innerHTML = h;
   }
 
@@ -1368,7 +1371,7 @@ function meetDoor(d) {
         else if (i !== undefined) R.loads[+i][k] = e.value; else R[k] = e.value;
       });
     }
-    function live() { readAll(); R.res = null; drawRods(cv, R); refreshStand('rods'); }
+    function live() { readAll(); R.res = null; drawRods(cv, R); refreshStand(); }
     b.addEventListener('input', live); b.addEventListener('change', live);
     b.addEventListener('click', function (e) {
       var t = e.target.closest('button'); if (!t) return;
@@ -1388,35 +1391,109 @@ function meetDoor(d) {
     var sv1 = n1 * (+R.ans.N1.s), sv2 = n2 * (+R.ans.N2.s);
     var j1 = judge('N1', sv1, s.N1, 'Складіть рівняння рівноваги вузла ΣX = 0 і ΣY = 0, проєктуючи на осі з урахуванням кутів.'),
       j2 = judge('N2', sv2, s.N2, 'Складіть рівняння рівноваги вузла ΣX = 0 і ΣY = 0, проєктуючи на осі з урахуванням кутів.');
-    R.res = { N1: j1.ok, N2: j2.ok }; drawRods(cv, R); refreshStand('rods');
+    R.res = { N1: j1.ok, N2: j2.ok }; drawRods(cv, R); refreshStand();
     var all = j1.ok && j2.ok, h = '';
+    var qx = sv1 * s.u1[0] + sv2 * s.u2[0] + s.fx, qy = sv1 * s.u1[1] + sv2 * s.u2[1] + s.fy;
+    curSt.ok = all; curSt.checked = true; curSt.anim = all ? { dx: 0, dy: 0 } : { dx: clp(qx * 0.02, 0.3), dy: clp(qy * 0.02, 0.3) };
+    if (!all && Math.hypot(curSt.anim.dx, curSt.anim.dy) < 0.03) curSt.anim.dy = -0.07;
+    build3D(curSt);
     [j1, j2].forEach(function (r) { h += '<div style="color:' + (r.ok ? '#a5d6a7' : '#f2b0a0') + '">' + esc(r.msg) + '</div>'; });
     if (!all) {
       var rx = sv1 * s.u1[0] + sv2 * s.u2[0] + s.fx, ry = sv1 * s.u1[1] + sv2 * s.u2[1] + s.fy;
       if (Math.hypot(rx, ry) > 0.1) h += '<div style="color:#f2b0a0">З вашими зусиллями вузол не в рівновазі: залишок по x ' + fmt(rx) + ' кН, по y ' + fmt(ry) + ' кН.</div>';
       h = '<div style="font-weight:700;color:#f2b0a0;margin-bottom:4px">Тут є проблема.</div>' + h;
     } else h = '<div style="font-weight:700;color:#a5d6a7;margin-bottom:4px">Усе правильно, ти молодець!</div>' + h;
+    h += '<div class="muted" style="margin-top:6px">Закрийте вікно й подивіться на макет: якщо зусилля знайдено неправильно, він рухатиметься.</div>';
     out.innerHTML = h;
   }
 
-  /* ---------- стенди в кімнаті ---------- */
-  function stand(kind, lx, title, fn) {
-    var g = grp(lx, 0, 0.8, G, 0);
-    box(1.5, 0.8, 0.6, mat(0x5a4630), 0, 0.4, 0, g);
-    box(1.6, 0.05, 0.7, M.darkwood, 0, 0.82, 0, g);
-    box(0.08, 0.7, 0.08, M.steel, -0.65, 1.2, 0.15, g); box(0.08, 0.7, 0.08, M.steel, 0.65, 1.2, 0.15, g);
-    var c = document.createElement('canvas'); c.width = 640; c.height = 260; standCv[kind] = c;
-    var tex = standTex[kind] = new THREE.CanvasTexture(c); tex.anisotropy = 4;
-    var pnl = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 0.61), new THREE.MeshBasicMaterial({ map: tex, color: 0xeeeeee })); pnl.position.set(0, 1.45, 0.22); g.add(pnl);
-    box(1.58, 0.69, 0.04, M.brass, 0, 1.45, 0.19, g);
-    var sg = signPlane([title], 1.5, 0.3, { bg: '#17110b', fg: '#f2d9a0', px: 120 }); sg.position.set(0, 1.98, 0.22); g.add(sg);
-    refreshStand(kind);
-    [pnl, g.children[0]].forEach(function (o) { act(o, title, fn, { reach: 4.4 }); });
-    obs(loc, lx, 0.8, 0.85, 0.4);
+  /* ---------- 3D-стенди: по три однакових кожного виду ---------- */
+  var STS = [], ARM = new THREE.Vector3(0, 1, 0);
+  function lab3(text, col, w) {
+    var c = document.createElement('canvas'); c.width = 256; c.height = 64; var x = c.getContext('2d'); x.fillStyle = 'rgba(255,255,255,.88)'; x.fillRect(0, 0, 256, 64);
+    x.fillStyle = col; x.font = 'bold 30px Georgia,serif'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText(text, 128, 34);
+    var sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(c), transparent: true, depthTest: false })); sp.scale.set(w || 0.34, (w || 0.34) / 4, 1); sp.renderOrder = 8; return sp;
   }
-  stand('beam', -2.3, 'Двоопорна балка', function () { openBeam(); });
-  stand('rods', 2.3, 'Реакції в стержнях', function () { openRods(); });
-  window.__prak = { openBeam: openBeam, openRods: openRods, B: B, R: R, beamSolve: beamSolve, rodSolve: rodSolve, check: function (k) { return k === 'beam' ? checkBeam() : checkRods(); } };
+  function arr3(parent, fx, fy, tx, ty, col, rad) {
+    var d = new THREE.Vector3(tx - fx, ty - fy, 0), len = d.length(); if (len < 0.02) return; d.normalize();
+    var g = new THREE.Group(); g.position.set(fx, fy, 0.03); g.quaternion.setFromUnitVectors(ARM, d); parent.add(g);
+    var m = new THREE.MeshStandardMaterial({ color: col, roughness: .5, emissive: col, emissiveIntensity: .25 }), r = rad || 0.014;
+    var sh = new THREE.Mesh(new THREE.CylinderGeometry(r, r, len - 0.07, 8), m); sh.position.y = (len - 0.07) / 2; g.add(sh);
+    var hd = new THREE.Mesh(new THREE.ConeGeometry(r * 2.6, 0.07, 10), m); hd.position.y = len - 0.035; g.add(hd);
+  }
+  function colSt(ok) { return ok === true ? 0x1b8a3a : ok === false ? 0xc62828 : 0x808080; }
+  function hexCss(n) { return '#' + ('000000' + n.toString(16)).slice(-6); }
+  function clear3(g) { while (g.children.length) g.remove(g.children[0]); }
+  function loadArr3(par, px, py, ang, len, col) {
+    var dx = Math.cos(ang * DEG), dy = Math.sin(ang * DEG);
+    if (dy < -0.2) arr3(par, px - dx * len, py - dy * len, px, py, col); else arr3(par, px, py, px + dx * len, py + dy * len, col);
+  }
+  function build3D(st) {
+    clear3(st.root); st.body = null; st.node = null; st.rods = null; var S = st.S, root = st.root, lampCol = !st.checked ? 0x808080 : st.ok ? 0x2ecc40 : 0xe53935;
+    st.lamp.material.color.set(lampCol); st.lamp.material.emissive.set(lampCol);
+    if (st.kind === 'beam') {
+      var L = num(S.L), xA = num(S.xA), xB = num(S.xB); if (!(L > 0) || isNaN(xA) || isNaN(xB)) return;
+      var sc = 1.3 / Math.max(L, xA, xB), ox = -0.65, Ax = ox + xA * sc, Ay = 1.3, Bx = ox + xB * sc, res = S.res || {};
+      var hinge = new THREE.Mesh(new THREE.ConeGeometry(0.08, 0.17, 4), mat(0x3c4147, { metal: .5 })); hinge.position.set(Ax, Ay - 0.14, 0.03); hinge.rotation.y = PI / 4; root.add(hinge);
+      box(0.22, 0.03, 0.12, M.darksteel, Ax, Ay - 0.235, 0.03, root);
+      var rl = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.055, 0.12, 14), mat(0x8a9099, { metal: .6 })); rl.rotation.x = PI / 2; rl.position.set(Bx, Ay - 0.11, 0.03); root.add(rl);
+      box(0.24, 0.03, 0.12, M.darksteel, Bx, Ay - 0.19, 0.03, root);
+      box(0.6, 0.03, 0.12, M.darksteel, (Ax + Bx) / 2, Ay - 0.235, 0.03, root).scale.x = Math.max(0.5, Math.abs(Bx - Ax) / 0.6 + 0.6);
+      var body = st.body = grp(Ax, Ay, 0.03, root); st.pose = { x: Ax, y: Ay };
+      box(L * sc, 0.075, 0.13, mat(0x7a5a38, { rough: .7 }), (L * sc) / 2 - xA * sc, 0, 0, body);
+      S.loads.forEach(function (l, i) {
+        if (l.t === 'F') { var X = num(l.x), F = num(l.F), a = num(l.a); if (isNaN(X) || isNaN(F) || isNaN(a)) return; var px = (X - xA) * sc; loadArr3(body, px, 0.04, a, 0.3, 0x1f4fd8); var s1 = lab3('F' + (i + 1) + '=' + fmt(F), '#1f4fd8'); s1.position.set(px + 0.1, 0.4, 0.05); body.add(s1); }
+        else if (l.t === 'q') { var x1 = num(l.x1), x2 = num(l.x2), q = num(l.q); if (isNaN(x1) || isNaN(x2) || isNaN(q) || x2 <= x1) return; var up = q < 0, yy = up ? -0.26 : 0.26; box((x2 - x1) * sc, 0.012, 0.012, mat(0x1f4fd8), ((x1 + x2) / 2 - xA) * sc, yy, 0.03, body); for (var k = x1; k <= x2 + 1e-6; k += Math.max(0.15 / sc, (x2 - x1) / 12)) arr3(body, (k - xA) * sc, yy, (k - xA) * sc, up ? 0.04 * -1 : 0.045, 0x1f4fd8, 0.008); var s2 = lab3('q' + (i + 1) + '=' + fmt(Math.abs(q)), '#1f4fd8'); s2.position.set(((x1 + x2) / 2 - xA) * sc, yy + (up ? -0.08 : 0.08), 0.05); body.add(s2); }
+        else { var Xm = num(l.x), Mv = num(l.M); if (isNaN(Xm) || isNaN(Mv)) return; var tor = new THREE.Mesh(new THREE.TorusGeometry(0.1, 0.014, 8, 20, 4.6), mat(0x7a3f98)); tor.position.set((Xm - xA) * sc, 0.26, 0.03); tor.rotation.z = l.ccw === '0' ? PI * 0.4 : -PI * 0.4; body.add(tor); var s3 = lab3('M' + (i + 1) + '=' + fmt(Mv), '#7a3f98'); s3.position.set((Xm - xA) * sc, 0.46, 0.05); body.add(s3); }
+      });
+      var A = S.ans, vA = num(A.VA.v), hA = num(A.HA.v), vB = num(A.VB.v);
+      if (!isNaN(vA) && vA !== 0) { var uA = A.VA.d === '1'; if (uA) arr3(body, 0, -0.3, 0, -0.045, colSt(res.VA), 0.018); else arr3(body, 0, -0.045 + 0.3, 0, -0.045, colSt(res.VA), 0.018); var l1 = lab3('VA=' + fmt(vA), hexCss(colSt(res.VA))); l1.position.set(-0.05, -0.45, 0.05); body.add(l1); }
+      if (!isNaN(hA) && hA !== 0) { var rA = A.HA.d === '1'; if (rA) arr3(body, -0.3, 0, -0.04, 0, colSt(res.HA), 0.018); else arr3(body, -0.04, 0, -0.3, 0, colSt(res.HA), 0.018); var l2 = lab3('HA=' + fmt(hA), hexCss(colSt(res.HA))); l2.position.set(-0.3, 0.1, 0.05); body.add(l2); }
+      if (!isNaN(vB) && vB !== 0) { var uB = A.VB.d === '1', bb = (xB - xA) * sc; if (uB) arr3(body, bb, -0.3, bb, -0.045, colSt(res.VB), 0.018); else arr3(body, bb, 0.255, bb, -0.045, colSt(res.VB), 0.018); var l3 = lab3('VB=' + fmt(vB), hexCss(colSt(res.VB))); l3.position.set(bb + 0.05, -0.45, 0.05); body.add(l3); }
+    } else {
+      var a1 = num(S.a1), a2 = num(S.a2); if (isNaN(a1) || isNaN(a2)) return; var n0 = { x: 0.1, y: 1.4 }, RL = 0.55, res2 = S.res || {};
+      var node = st.node = grp(n0.x, n0.y, 0.03, root), pts = [], rods = st.rods = [];
+      node.add(new THREE.Mesh(new THREE.SphereGeometry(0.05, 14, 12), mat(0x1c2a44, { metal: .4 })));
+      [[a1, 'N1', S.ans.N1, res2.N1], [a2, 'N2', S.ans.N2, res2.N2]].forEach(function (r) {
+        var ex = n0.x + Math.cos(r[0] * DEG) * RL, ey = n0.y + Math.sin(r[0] * DEG) * RL; pts.push([ex, ey]);
+        var rm = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, 1, 10), new THREE.MeshStandardMaterial({ color: r[3] === undefined ? 0x8a9099 : colSt(r[3]), roughness: .4, metalness: .5, emissive: r[3] === undefined ? 0x000000 : colSt(r[3]), emissiveIntensity: .25 })); root.add(rm); rods.push({ m: rm, ex: ex, ey: ey });
+        var pin = new THREE.Mesh(new THREE.SphereGeometry(0.04, 10, 8), mat(0x3c4147, { metal: .5 })); pin.position.set(ex, ey, 0.03); root.add(pin);
+        var v = num(r[2].v); if (!isNaN(v)) { var sl = lab3(r[1] + (r[2].s === '1' ? '=+' : '=−') + fmt(Math.abs(v)) + (r[2].s === '1' ? ' розт.' : ' стиск'), r[3] === undefined ? '#333333' : hexCss(colSt(r[3])), 0.5); sl.position.set((n0.x + ex) / 2 + (Math.cos(r[0] * DEG) < -0.3 ? -0.05 : 0.2), (n0.y + ey) / 2 + 0.07, 0.07); root.add(sl); }
+      });
+      S.loads.forEach(function (l, i) { var F = num(l.F), a = num(l.a); if (isNaN(F) || isNaN(a)) return; arr3(node, 0, 0, Math.cos(a * DEG) * 0.32, Math.sin(a * DEG) * 0.32, 0x1f4fd8); var fl = lab3('F' + (i + 1) + '=' + fmt(F), '#1f4fd8'); fl.position.set(Math.cos(a * DEG) * 0.4, Math.sin(a * DEG) * 0.4 - 0.03, 0.05); node.add(fl); });
+      placeRods(st, 0, 0);
+    }
+  }
+  function placeRods(st, dx, dy) {
+    if (!st.rods) return; var nx = 0.1 + dx, ny = 1.4 + dy; st.node.position.set(nx, ny, 0.03);
+    st.rods.forEach(function (r) {
+      var vx = nx - r.ex, vy = ny - r.ey, len = Math.hypot(vx, vy) || 0.01; r.m.position.set((nx + r.ex) / 2, (ny + r.ey) / 2, 0.03); r.m.scale.y = len; r.m.quaternion.setFromUnitVectors(ARM, new THREE.Vector3(vx / len, vy / len, 0));
+    });
+  }
+  function station(kind, i, wx, wz, ry) {
+    var title = (kind === 'beam' ? 'Двоопорна балка ' : 'Реакції в стержнях ') + (i + 1);
+    var g = grp(wx, 0, wz, G, ry), st = { kind: kind, i: i, S: null, root: null, body: null, anim: null, ok: false, checked: false };
+    box(1.7, 0.82, 0.6, mat(0x5a4630), 0, 0.41, 0.1, g); box(1.78, 0.04, 0.68, M.darkwood, 0, 0.84, 0.1, g);
+    box(1.7, 1.2, 0.05, mat(0xe8e2d2), 0, 1.45, -0.05, g); box(1.78, 1.28, 0.03, M.brass, 0, 1.45, -0.08, g);
+    var sg = signPlane([title], 1.7, 0.3, { bg: '#17110b', fg: '#f2d9a0', px: 110 }); sg.position.set(0, 2.2, -0.02); g.add(sg);
+    st.lamp = new THREE.Mesh(new THREE.SphereGeometry(0.045, 12, 10), new THREE.MeshStandardMaterial({ color: 0x808080, emissive: 0x808080, emissiveIntensity: .8 })); st.lamp.position.set(0.72, 0.9, 0.3); g.add(st.lamp);
+    st.root = grp(0, 0, 0, g);
+    var save = (kind === 'beam') ? B : R; if (kind === 'beam') { B = newB(); setB(0); st.S = B; } else { R = newR(); setR(0); st.S = R; }
+    curSt = st; build3D(st);
+    var h = hit(g, 1.7, 1.5, 0.6, 0, 1.4, 0.2);
+    [h, g.children[0]].forEach(function (o) { act(o, title, function () { curSt = st; if (kind === 'beam') { B = st.S; openBeam(); } else { R = st.S; openRods(); } }, { reach: 4.6 }); });
+    obs(loc, wx, wz, 0.5, 0.95); STS.push(st); return st;
+  }
+  [-1.6, 0.3, 2.2].forEach(function (z, i) { station('beam', i, -4.15, z, PI / 2); station('rods', i, 4.15, z, -PI / 2); });
+  updaters.push(function (s) {
+    if (cur.id !== 'prak') return;
+    STS.forEach(function (st) {
+      if (!st.anim) return; var ph = 0.5 + 0.5 * Math.sin(s * 2.4 - 1.57), a = st.anim;
+      if (st.kind === 'beam' && st.body) { st.body.position.set(st.pose.x + a.dx * ph, st.pose.y + a.dy * ph, 0.03); st.body.rotation.z = a.th * ph; }
+      else if (st.node) placeRods(st, a.dx * ph, a.dy * ph);
+    });
+  });
+  window.__prak = { openBeam: openBeam, openRods: openRods, STS: STS, beamSolve: beamSolve, rodSolve: rodSolve, check: function (st) { curSt = st; if (st.kind === 'beam') { B = st.S; openBeam(); checkBeam(); } else { R = st.S; openRods(); checkRods(); } } };
 })();
 
 var CODES={};
