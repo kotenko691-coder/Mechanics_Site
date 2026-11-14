@@ -945,7 +945,14 @@
     if (b) startTask(b.getAttribute('data-task'));
   });
   // Завдання 6: 3D-хол із п'яти кімнат. Бали й час рахує сервер так само, як у списку завдань вище.
-  window.PortalHall = { api: function (action, data) { return api(action, data, true); } };
+  window.PortalHall = {
+    api: function (action, data) { return api(action, data, true); },
+    token: function () { return token; },
+    who: function () {
+      var st = me && me.student;
+      return { name: String((st && st.name) || 'Викладач').slice(0, 40), group: String((st && st.group) || '').slice(0, 12) };
+    }
+  };
   function openHall() {
     var ov = document.getElementById('hall-ov');
     if (!ov) {
@@ -955,7 +962,7 @@
       document.body.appendChild(ov);
     }
     ov.hidden = false; ov.style.display = 'block';
-    document.getElementById('hall-frame').src = 'hall/?v=1';
+    document.getElementById('hall-frame').src = 'hall/?v=2';
   }
   function closeHall() {
     var ov = document.getElementById('hall-ov');

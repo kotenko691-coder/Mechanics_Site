@@ -1050,6 +1050,78 @@ window.__hall = { hitAt: hitAt, pick: pick, RS: RS, LOC: LOC, enterRoom: enterRo
 syncAll();
 requestAnimationFrame(loop);
 
+
+/* ====== ПРИСУТНІСТЬ У ХОЛІ (Firebase Realtime Database) ====== */
+/* Працює лише всередині кабінету. Кожен у холі бачить інших як фігурки з іменами. */
+(function () {
+  if (!NET || !NET.token || !NET.who) return;
+  var FB = { apiKey: 'AIzaSyC1J4G_RZJ7HjF1uVc5ceCz5D7TX_6zBpg', authDomain: 'mechanics-hall.firebaseapp.com', databaseURL: 'https://mechanics-hall-default-rtdb.europe-west1.firebasedatabase.app', projectId: 'mechanics-hall', appId: '1:216048313188:web:c003832219fcf1dd33d071' };
+  var V = 'https://www.gstatic.com/firebasejs/10.12.2/';
+  function load(src) { return new Promise(function (ok, no) { var s = document.createElement('script'); s.src = src; s.onload = ok; s.onerror = no; document.head.appendChild(s); }); }
+  var ghosts = {}, myRef = null, uid = null, offset = 0, lastSent = 0, last = { x: 1e9, z: 1e9, y: 1e9 };
+  var COLORS = [0x9a4a3a, 0x3a6a9a, 0x4a8a5a, 0x8a6a2a, 0x7a4a8a, 0x2a7a7a, 0xa05a7a, 0x5a5a5a];
+
+  function labelTex(name, sub) {
+    var c = document.createElement('canvas'); c.width = 512; c.height = 128; var x = c.getContext('2d');
+    x.fillStyle = 'rgba(16,12,8,.78)'; x.fillRect(0, 10, 512, 108); x.strokeStyle = '#b08d3c'; x.lineWidth = 4; x.strokeRect(2, 12, 508, 104);
+    x.fillStyle = '#f2e2c0'; x.textAlign = 'center'; x.textBaseline = 'middle';
+    var f = 46; x.font = 'bold ' + f + 'px Georgia,serif'; while (x.measureText(name).width > 480 && f > 20) { f -= 2; x.font = 'bold ' + f + 'px Georgia,serif'; }
+    x.fillText(name, 256, sub ? 48 : 64);
+    if (sub) { x.fillStyle = '#c9b88a'; x.font = '30px Georgia,serif'; x.fillText(sub, 256, 90); }
+    var t = new THREE.CanvasTexture(c); t.anisotropy = 4; return t;
+  }
+  function makeGhost(id, d) {
+    var g = new THREE.Group(), col = COLORS[(id.charCodeAt(0) + id.charCodeAt(id.length - 1)) % COLORS.length];
+    var body = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.26, 1.0, 14), new THREE.MeshStandardMaterial({ color: col, roughness: .7 })); body.position.y = 0.9;
+    var head = new THREE.Mesh(new THREE.SphereGeometry(0.17, 14, 12), new THREE.MeshStandardMaterial({ color: 0xe0c2a0, roughness: .7 })); head.position.y = 1.62;
+    var cap = new THREE.Mesh(new THREE.SphereGeometry(0.18, 14, 8, 0, 6.3, 0, 1.2), new THREE.MeshStandardMaterial({ color: 0xe8b020, roughness: .5 })); cap.position.y = 1.66;
+    var nose = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.05, 0.12), new THREE.MeshStandardMaterial({ color: 0xd0b090 })); nose.position.set(0, 1.6, -0.17);
+    var leg = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.45, 0.2), new THREE.MeshStandardMaterial({ color: 0x2a2f3a })); leg.position.y = 0.23;
+    [body, head, cap, nose, leg].forEach(function (m) { m.raycast = function () {}; g.add(m); });
+    var sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: labelTex(d.n, d.g || ''), transparent: true, depthTest: false })); sp.scale.set(1.5, 0.375, 1); sp.position.y = 2.15; sp.renderOrder = 10; g.add(sp);
+    g.userData = { tx: d.x, tz: d.z, ty: d.y, name: d.n, sub: d.g || '' };
+    g.position.set(d.x, 0, d.z); g.rotation.y = d.y; HALL.group.add(g); return g;
+  }
+  function onData(snap) {
+    var v = snap.val() || {}, now = Date.now() + offset, seen = {};
+    Object.keys(v).forEach(function (id) {
+      if (id === uid) return; var d = v[id];
+      if (!d || now - d.t > 25000) return; seen[id] = 1;
+      var g = ghosts[id];
+      if (!g || g.userData.name !== d.n || g.userData.sub !== (d.g || '')) { if (g) HALL.group.remove(g); if (Object.keys(ghosts).length > 40) return; g = ghosts[id] = makeGhost(id, d); }
+      g.userData.tx = d.x; g.userData.tz = d.z; g.userData.ty = d.y;
+    });
+    Object.keys(ghosts).forEach(function (id) { if (!seen[id]) { HALL.group.remove(ghosts[id]); delete ghosts[id]; } });
+  }
+  function angDiff(a, b) { var d = (b - a) % (2 * Math.PI); if (d > Math.PI) d -= 2 * Math.PI; if (d < -Math.PI) d += 2 * Math.PI; return d; }
+
+  window.__pres = { onData: onData };
+  Promise.all([load(V + 'firebase-app-compat.js'), load(V + 'firebase-auth-compat.js'), load(V + 'firebase-database-compat.js')]).then(function () {
+    firebase.initializeApp(FB);
+    var cred = firebase.auth.GoogleAuthProvider.credential(NET.token());
+    return firebase.auth().signInWithCredential(cred);
+  }).then(function (r) {
+    uid = r.user.uid; var db = firebase.database(), w = NET.who();
+    db.ref('.info/serverTimeOffset').on('value', function (s) { offset = s.val() || 0; });
+    myRef = db.ref('presence/' + uid);
+    myRef.onDisconnect().remove();
+    db.ref('presence').on('value', onData);
+    function send() {
+      var inHall = !inRoom();
+      if (!inHall) { if (last.x !== 1e9) { myRef.remove(); last.x = 1e9; } return; }
+      var p = camera.position, nowMs = Date.now(), moved = Math.abs(p.x - last.x) > 0.05 || Math.abs(p.z - last.z) > 0.05 || Math.abs(yaw - last.y) > 0.08;
+      if (!moved && nowMs - lastSent < 8000) return;
+      lastSent = nowMs; last = { x: p.x, z: p.z, y: yaw };
+      myRef.set({ n: w.name, g: w.group, x: Math.round(p.x * 100) / 100, z: Math.round(p.z * 100) / 100, y: Math.round(yaw * 100) / 100, t: firebase.database.ServerValue.TIMESTAMP }).catch(function () {});
+    }
+    setInterval(send, 450);
+    updaters.push(function (s, dt) {
+      var k = Math.min(1, (dt || 0.016) * 6);
+      Object.keys(ghosts).forEach(function (id) { var g = ghosts[id], u = g.userData; g.position.x += (u.tx - g.position.x) * k; g.position.z += (u.tz - g.position.z) * k; g.rotation.y += angDiff(g.rotation.y, u.ty) * k; });
+    });
+  }).catch(function () { /* без присутності хол працює як раніше */ });
+})();
+
 })();
 </script>
 </body>
