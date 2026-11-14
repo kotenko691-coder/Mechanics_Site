@@ -1163,6 +1163,262 @@ function meetDoor(d) {
   ppaint(loc, 0, 3.6, 1.9, 1.6, 1.0, sysDraw('ПОПЕРЕЧНИЙ ПРОФІЛЬ', 'Проїзна частина · узбіччя · кювет'), 'Профіль', 'Поперечний профіль дороги.');
 })();
 
+
+/* ====== ПРАКТИКА: два макети. Студент складає свою задачу й вводить знайдені реакції ====== */
+(function () {
+  var loc = LOC.prak, G = loc.group, PI = Math.PI, DEG = PI / 180;
+  function num(v) { var n = parseFloat(String(v).replace(',', '.')); return isFinite(n) ? n : NaN; }
+  function r2(v) { return Math.round(v * 100) / 100; }
+  function fmt(v) { return String(r2(v)).replace('.', ','); }
+  function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+  function tolOf(t) { return Math.max(0.05, 0.01 * Math.abs(t)); }
+
+  /* ---------- малювання ---------- */
+  function arrow(x, x1, y1, x2, y2, col, lw) {
+    x.strokeStyle = col; x.fillStyle = col; x.lineWidth = lw || 3; x.beginPath(); x.moveTo(x1, y1); x.lineTo(x2, y2); x.stroke();
+    var a = Math.atan2(y2 - y1, x2 - x1); x.beginPath(); x.moveTo(x2, y2); x.lineTo(x2 - 12 * Math.cos(a - 0.4), y2 - 12 * Math.sin(a - 0.4)); x.lineTo(x2 - 12 * Math.cos(a + 0.4), y2 - 12 * Math.sin(a + 0.4)); x.closePath(); x.fill();
+  }
+  function txt(x, t, px, py, col, size, al) { x.fillStyle = col || '#12284a'; x.font = (size || 15) + 'px Georgia,serif'; x.textAlign = al || 'center'; x.fillText(t, px, py); }
+  function loadArrow(x, px, py, ang, len, col, label) {
+    var dx = Math.cos(ang * DEG), dy = -Math.sin(ang * DEG), x1, y1, x2, y2;
+    if (dy > 0.2) { x1 = px - dx * len; y1 = py - dy * len; x2 = px; y2 = py; } else { x1 = px; y1 = py; x2 = px + dx * len; y2 = py + dy * len; }
+    arrow(x, x1, y1, x2, y2, col); txt(x, label, (x1 + x2) / 2 + (Math.abs(dx) > 0.5 ? 0 : 26), (y1 + y2) / 2 + (Math.abs(dx) > 0.5 ? -8 : 4), col, 14);
+  }
+  function stateCol(ok) { return ok === true ? '#1b8a3a' : ok === false ? '#c62828' : '#6a6a6a'; }
+
+  var B = {
+    L: '6', xA: '0', xB: '6', loads: [], ans: { VA: { v: '', d: '1' }, HA: { v: '', d: '1' }, VB: { v: '', d: '1' } }, res: null
+  };
+  var R = { a1: '180', a2: '135', loads: [], ans: { N1: { v: '', s: '1' }, N2: { v: '', s: '1' } }, res: null };
+  var BV = [
+    { L: '6', xA: '0', xB: '6', loads: [{ t: 'F', x: '2', F: '10', a: '270' }, { t: 'q', x1: '3', x2: '6', q: '4' }] },
+    { L: '8', xA: '0', xB: '6', loads: [{ t: 'F', x: '3', F: '12', a: '270' }, { t: 'F', x: '8', F: '8', a: '270' }, { t: 'M', x: '4', M: '10', ccw: '1' }] },
+    { L: '9', xA: '1.5', xB: '7.5', loads: [{ t: 'q', x1: '0', x2: '9', q: '5' }, { t: 'F', x: '4.5', F: '15', a: '300' }] }
+  ];
+  var RV = [
+    { a1: '180', a2: '135', loads: [{ F: '20', a: '270' }] },
+    { a1: '135', a2: '45', loads: [{ F: '30', a: '270' }] },
+    { a1: '180', a2: '225', loads: [{ F: '15', a: '270' }, { F: '5', a: '0' }] }
+  ];
+  function setB(i) { var v = BV[i]; B.L = v.L; B.xA = v.xA; B.xB = v.xB; B.loads = JSON.parse(JSON.stringify(v.loads)); B.res = null; B.ans = { VA: { v: '', d: '1' }, HA: { v: '', d: '1' }, VB: { v: '', d: '1' } }; }
+  function setR(i) { var v = RV[i]; R.a1 = v.a1; R.a2 = v.a2; R.loads = JSON.parse(JSON.stringify(v.loads)); R.res = null; R.ans = { N1: { v: '', s: '1' }, N2: { v: '', s: '1' } }; }
+  setB(0); setR(0);
+
+  function drawBeam(c, S) {
+    var x = c.getContext('2d'), W = c.width, H = c.height; x.fillStyle = '#fff'; x.fillRect(0, 0, W, H);
+    var L = num(S.L), xA = num(S.xA), xB = num(S.xB); if (!(L > 0) || isNaN(xA) || isNaN(xB)) { txt(x, 'Введіть довжину та положення опор', W / 2, H / 2, '#666', 18); return; }
+    var M0 = 70, sc = (W - 2 * M0) / Math.max(L, xA, xB), by = 140, px = function (v) { return M0 + v * sc; };
+    // навантаження
+    S.loads.forEach(function (l, i) {
+      if (l.t === 'F') { var X = num(l.x), F = num(l.F), a = num(l.a); if (isNaN(X) || isNaN(F) || isNaN(a)) return; loadArrow(x, px(X), by, a, 62, '#1f4fd8', 'F' + (i + 1) + '=' + fmt(F)); }
+      else if (l.t === 'q') {
+        var x1 = num(l.x1), x2 = num(l.x2), q = num(l.q); if (isNaN(x1) || isNaN(x2) || isNaN(q) || x2 <= x1) return;
+        var up = q < 0, y0 = up ? by + 6 : by - 6, y1 = up ? by + 40 : by - 40; x.strokeStyle = '#1f4fd8'; x.lineWidth = 2; x.beginPath(); x.moveTo(px(x1), y1); x.lineTo(px(x2), y1); x.stroke();
+        for (var k = px(x1); k <= px(x2) + 1; k += 20) arrow(x, k, y1, k, y0, '#1f4fd8', 2);
+        txt(x, 'q' + (i + 1) + '=' + fmt(Math.abs(q)) + ' кН/м', (px(x1) + px(x2)) / 2, up ? y1 + 16 : y1 - 6, '#1f4fd8', 14);
+      } else if (l.t === 'M') {
+        var Xm = num(l.x), Mv = num(l.M); if (isNaN(Xm) || isNaN(Mv)) return; var ccw = l.ccw !== '0';
+        x.strokeStyle = '#7a3f98'; x.lineWidth = 3; x.beginPath(); x.arc(px(Xm), by - 36, 20, ccw ? 0.4 : PI - 0.4, ccw ? PI * 1.6 : PI * 2.6, !ccw ? false : false); x.stroke();
+        txt(x, 'M' + (i + 1) + '=' + fmt(Mv) + (ccw ? ' ⟲' : ' ⟳'), px(Xm), by - 66, '#7a3f98', 14);
+      }
+    });
+    // балка й опори
+    x.strokeStyle = '#12284a'; x.lineWidth = 7; x.beginPath(); x.moveTo(px(0), by); x.lineTo(px(L), by); x.stroke();
+    x.lineWidth = 3; x.beginPath(); x.moveTo(px(xA), by + 3); x.lineTo(px(xA) - 16, by + 30); x.lineTo(px(xA) + 16, by + 30); x.closePath(); x.stroke();
+    x.beginPath(); x.arc(px(xB), by + 14, 11, 0, PI * 2); x.stroke(); x.beginPath(); x.moveTo(px(xB) - 18, by + 28); x.lineTo(px(xB) + 18, by + 28); x.stroke();
+    txt(x, 'A', px(xA), by + 52, '#12284a', 17); txt(x, 'B', px(xB), by + 52, '#12284a', 17);
+    // реакції студента
+    var res = S.res || {}, A = S.ans, vA = num(A.VA.v), hA = num(A.HA.v), vB = num(A.VB.v);
+    if (!isNaN(vA) && vA !== 0) { var up = A.VA.d === '1', ax = px(xA); if (up) arrow(x, ax, by + 30 + 56, ax, by + 30, stateCol(res.VA), 4); else arrow(x, ax, by - 56, ax, by, stateCol(res.VA), 4); txt(x, 'VA=' + fmt(vA), ax + (up ? 38 : 38), by + (up ? 78 : -34), stateCol(res.VA), 14); }
+    if (!isNaN(hA) && hA !== 0) { var rt = A.HA.d === '1', hx = px(xA); if (rt) arrow(x, hx - 54, by + 2, hx - 6, by + 2, stateCol(res.HA), 4); else arrow(x, hx - 6, by + 2, hx - 54, by + 2, stateCol(res.HA), 4); txt(x, 'HA=' + fmt(hA), hx - 30, by + 22, stateCol(res.HA), 14); }
+    if (!isNaN(vB) && vB !== 0) { var upB = A.VB.d === '1', bx = px(xB); if (upB) arrow(x, bx, by + 28 + 56, bx, by + 28, stateCol(res.VB), 4); else arrow(x, bx, by - 56, bx, by, stateCol(res.VB), 4); txt(x, 'VB=' + fmt(vB), bx + 38, by + (upB ? 78 : -34), stateCol(res.VB), 14); }
+  }
+  function drawRods(c, S) {
+    var x = c.getContext('2d'), W = c.width, H = c.height; x.fillStyle = '#fff'; x.fillRect(0, 0, W, H);
+    var a1 = num(S.a1), a2 = num(S.a2); if (isNaN(a1) || isNaN(a2)) { txt(x, 'Введіть кути стержнів', W / 2, H / 2, '#666', 18); return; }
+    var nx = 340, ny = 150, len = 170, res = S.res || {}, A = S.ans;
+    [[a1, 'N1', A.N1, res.N1], [a2, 'N2', A.N2, res.N2]].forEach(function (r) {
+      var dx = Math.cos(r[0] * DEG), dy = -Math.sin(r[0] * DEG), ex = nx + dx * len, ey = ny + dy * len, col = stateCol(r[3]);
+      x.strokeStyle = r[3] === undefined ? '#12284a' : col; x.lineWidth = 7; x.beginPath(); x.moveTo(nx, ny); x.lineTo(ex, ey); x.stroke();
+      x.fillStyle = '#12284a'; x.beginPath(); x.arc(ex, ey, 7, 0, PI * 2); x.fill();
+      var v = num(r[2].v); txt(x, r[1] + (isNaN(v) ? '' : ' = ' + (r[2].s === '1' ? '+' : '−') + fmt(Math.abs(v)) + (r[2].s === '1' ? ' (розтяг)' : ' (стиск)')), nx + dx * len * 0.55 + (dy < -0.3 ? 70 : 0) * (dx <= 0 ? -1 : 1) * (dx === 0 ? 0 : 0.5), ny + dy * len * 0.55 + (Math.abs(dy) < 0.3 ? -14 : 16), r[3] === undefined ? '#12284a' : col, 14);
+    });
+    x.fillStyle = '#12284a'; x.beginPath(); x.arc(nx, ny, 9, 0, PI * 2); x.fill();
+    S.loads.forEach(function (l, i) { var F = num(l.F), a = num(l.a); if (isNaN(F) || isNaN(a)) return; var dx = Math.cos(a * DEG), dy = -Math.sin(a * DEG); arrow(x, nx, ny, nx + dx * 75, ny + dy * 75, '#1f4fd8'); txt(x, 'F' + (i + 1) + '=' + fmt(F), nx + dx * 75 + (dx >= 0 ? 34 : -34), ny + dy * 75 + (dy > 0 ? 16 : -6), '#1f4fd8', 14); });
+  }
+
+  /* ---------- розрахунок ---------- */
+  function beamSolve(S) {
+    var L = num(S.L), xA = num(S.xA), xB = num(S.xB), fx = 0, fy = 0, mA = 0;
+    if (!(L > 0) || isNaN(xA) || isNaN(xB) || Math.abs(xB - xA) < 1e-6) return { err: 'Перевірте довжину балки та положення опор A і B.' };
+    for (var i = 0; i < S.loads.length; i++) {
+      var l = S.loads[i];
+      if (l.t === 'F') { var X = num(l.x), F = num(l.F), a = num(l.a); if (isNaN(X) || isNaN(F) || isNaN(a)) return { err: 'Заповніть усі поля сили F' + (i + 1) + ' числами.' }; var cx = F * Math.cos(a * DEG), cy = F * Math.sin(a * DEG); fx += cx; fy += cy; mA += (X - xA) * cy; }
+      else if (l.t === 'q') { var x1 = num(l.x1), x2 = num(l.x2), q = num(l.q); if (isNaN(x1) || isNaN(x2) || isNaN(q) || x2 <= x1) return { err: 'Перевірте розподілене навантаження q' + (i + 1) + ' (початок менший за кінець).' }; var Q = -q * (x2 - x1); fy += Q; mA += ((x1 + x2) / 2 - xA) * Q; }
+      else { var Xm = num(l.x), Mv = num(l.M); if (isNaN(Xm) || isNaN(Mv)) return { err: 'Заповніть поля моменту M' + (i + 1) + '.' }; mA += (l.ccw === '0' ? -1 : 1) * Mv; }
+    }
+    var VB = -mA / (xB - xA), VA = -fy - VB, HA = -fx; return { HA: HA, VA: VA, VB: VB, fx: fx, fy: fy };
+  }
+  function rodSolve(S) {
+    var a1 = num(S.a1), a2 = num(S.a2), fx = 0, fy = 0; if (isNaN(a1) || isNaN(a2)) return { err: 'Введіть кути обох стержнів.' };
+    for (var i = 0; i < S.loads.length; i++) { var F = num(S.loads[i].F), a = num(S.loads[i].a); if (isNaN(F) || isNaN(a)) return { err: 'Заповніть усі поля сили F' + (i + 1) + '.' }; fx += F * Math.cos(a * DEG); fy += F * Math.sin(a * DEG); }
+    var u1x = Math.cos(a1 * DEG), u1y = Math.sin(a1 * DEG), u2x = Math.cos(a2 * DEG), u2y = Math.sin(a2 * DEG), det = u1x * u2y - u1y * u2x;
+    if (Math.abs(det) < 1e-3) return { err: 'Стержні лежать на одній прямій, задача не має єдиного розв’язку. Змініть кут.' };
+    var bx = -fx, by = -fy; return { N1: (bx * u2y - u2x * by) / det, N2: (u1x * by - u1y * bx) / det, fx: fx, fy: fy, u1: [u1x, u1y], u2: [u2x, u2y] };
+  }
+  function judge(name, st, tr, hint, units) {
+    var tol = tolOf(tr);
+    if (Math.abs(st - tr) <= tol) return { ok: true, msg: name + ': правильно.' };
+    if (Math.abs(tr) <= tol) return { ok: false, msg: name + ': тут значення має бути нульовим. ' + hint };
+    if (Math.abs(Math.abs(st) - Math.abs(tr)) <= tol) return { ok: false, msg: name + ': за модулем правильно, але напрямок протилежний. Перевірте, куди спрямована ця реакція.' };
+    return { ok: false, msg: name + ': значення не збігається. ' + hint };
+  }
+
+  /* ---------- вікно ---------- */
+  var inpCss = 'width:74px;padding:6px;font-size:16px;font-family:inherit;background:#1a120a;color:#f2e2c0;border:1px solid #8a7347';
+  var selCss = 'padding:6px;font-size:15px;font-family:inherit;background:#1a120a;color:#f2e2c0;border:1px solid #8a7347';
+  function inp(k, v, i, w) { return '<input data-k="' + k + '"' + (i !== undefined ? ' data-i="' + i + '"' : '') + ' value="' + esc(v) + '" inputmode="decimal" style="' + inpCss + (w ? ';width:' + w : '') + '">'; }
+  function sel(k, opts, cur, i) { return '<select data-k="' + k + '"' + (i !== undefined ? ' data-i="' + i + '"' : '') + ' style="' + selCss + '">' + opts.map(function (o) { return '<option value="' + o[0] + '"' + (String(cur) === o[0] ? ' selected' : '') + '>' + o[1] + '</option>'; }).join('') + '</select>'; }
+  var ANGS = '<button type="button" data-ang="270" style="padding:5px 9px;margin:0 2px">↓</button><button type="button" data-ang="90" style="padding:5px 9px;margin:0 2px">↑</button><button type="button" data-ang="0" style="padding:5px 9px;margin:0 2px">→</button><button type="button" data-ang="180" style="padding:5px 9px;margin:0 2px">←</button>';
+
+  var standCv = {}, standTex = {};
+  function refreshStand(kind) { var c = standCv[kind]; if (!c) return; if (kind === 'beam') drawBeam(c, B); else drawRods(c, R); standTex[kind].needsUpdate = true; }
+
+  function openBeam(msg) {
+    var h = '<h3>Двоопорна балка</h3><p class="muted">Складіть свою задачу: довжина, положення опор, сили. Опора A нерухома шарнірна (дає вертикальну V і горизонтальну H реакції), опора B рухома (дає тільки V). Знайдіть реакції та введіть їх зі своїм напрямком.</p>' +
+      '<canvas id="pc" width="640" height="260" style="width:100%;height:auto;display:block;background:#fff;border:1px solid #6d5a3c"></canvas>' +
+      '<div style="margin:6px 0"><span class="muted">Готові варіанти:</span> <button type="button" data-v="0">1</button><button type="button" data-v="1">2</button><button type="button" data-v="2">3</button> <button type="button" id="clr">Очистити</button></div>' +
+      '<div class="row">L, м ' + inp('L', B.L) + ' A: x= ' + inp('xA', B.xA) + ' B: x= ' + inp('xB', B.xB) + '</div><div id="ld">';
+    B.loads.forEach(function (l, i) {
+      h += '<div class="row" style="margin-top:6px;border-top:1px solid #3a2c1a;padding-top:6px"><b>' + (l.t === 'F' ? 'F' : l.t === 'q' ? 'q' : 'M') + (i + 1) + '</b> ';
+      if (l.t === 'F') h += 'x= ' + inp('x', l.x, i) + ' F, кН ' + inp('F', l.F, i) + ' кут° ' + inp('a', l.a, i, '62px') + ANGS.replace(/data-ang/g, 'data-i="' + i + '" data-ang');
+      else if (l.t === 'q') h += 'від x= ' + inp('x1', l.x1, i) + ' до x= ' + inp('x2', l.x2, i) + ' q, кН/м ' + inp('q', l.q, i);
+      else h += 'x= ' + inp('x', l.x, i) + ' M, кН·м ' + inp('M', l.M, i) + ' ' + sel('ccw', [['1', '⟲ проти год.'], ['0', '⟳ за год.']], l.ccw, i);
+      h += ' <button type="button" data-del="' + i + '">Видалити</button></div>';
+    });
+    h += '</div><div style="margin-top:6px"><button type="button" id="aF">+ Сила</button><button type="button" id="aQ">+ Розподілене q</button><button type="button" id="aM">+ Момент</button></div>' +
+      '<p class="muted" style="margin:8px 0 2px">Кут сили відлічується від осі x проти годинникової стрілки: 270° це вниз, 90° вгору.</p>' +
+      '<h3 style="margin:10px 0 4px">Ваші реакції</h3><div class="row">VA ' + inp('VA', B.ans.VA.v, 'a', '80px') + ' ' + sel('VAd', [['1', '↑ вгору'], ['-1', '↓ вниз']], B.ans.VA.d, 'a') + '</div>' +
+      '<div class="row" style="margin-top:6px">HA ' + inp('HA', B.ans.HA.v, 'a', '80px') + ' ' + sel('HAd', [['1', '→ вправо'], ['-1', '← вліво']], B.ans.HA.d, 'a') + '</div>' +
+      '<div class="row" style="margin-top:6px">VB ' + inp('VB', B.ans.VB.v, 'a', '80px') + ' ' + sel('VBd', [['1', '↑ вгору'], ['-1', '↓ вниз']], B.ans.VB.d, 'a') + '</div>' +
+      '<button class="main" type="button" id="chk" style="margin-top:10px">Перевірити</button><div id="pres" style="margin-top:8px;line-height:1.5">' + (msg || '') + '</div>';
+    var b = modal(h), cv = b.querySelector('#pc'); drawBeam(cv, B);
+    function readAll() {
+      b.querySelectorAll('input[data-k],select[data-k]').forEach(function (e) {
+        var k = e.dataset.k, i = e.dataset.i;
+        if (i === 'a') { if (k.length === 3) B.ans[k.slice(0, 2)].d = e.value; else B.ans[k].v = e.value; }
+        else if (i !== undefined) B.loads[+i][k] = e.value; else B[k] = e.value;
+      });
+    }
+    function live() { readAll(); B.res = null; drawBeam(cv, B); refreshStand('beam'); }
+    b.addEventListener('input', live); b.addEventListener('change', live);
+    b.addEventListener('click', function (e) {
+      var t = e.target.closest('button'); if (!t) return;
+      if (t.dataset.ang !== undefined) { readAll(); B.loads[+t.dataset.i].a = t.dataset.ang; B.res = null; openBeam(); return; }
+      if (t.dataset.v !== undefined) { setB(+t.dataset.v); openBeam(); return; }
+      if (t.dataset.del !== undefined) { readAll(); B.loads.splice(+t.dataset.del, 1); B.res = null; openBeam(); return; }
+      if (t.id === 'clr') { B.loads = []; B.res = null; openBeam(); return; }
+      if (t.id === 'aF') { readAll(); B.loads.push({ t: 'F', x: '', F: '', a: '270' }); openBeam(); return; }
+      if (t.id === 'aQ') { readAll(); B.loads.push({ t: 'q', x1: '', x2: '', q: '' }); openBeam(); return; }
+      if (t.id === 'aM') { readAll(); B.loads.push({ t: 'M', x: '', M: '', ccw: '1' }); openBeam(); return; }
+      if (t.id === 'chk') checkBeam();
+    });
+  }
+  function checkBeam() {
+    var b = $('mbody'), out = b.querySelector('#pres'), cv = b.querySelector('#pc'), s = beamSolve(B);
+    if (s.err) { out.innerHTML = '<span style="color:#f2b0a0">' + esc(s.err) + '</span>'; return; }
+    var vals = {};
+    [['VA', 'VA', 1], ['HA', 'HA', 1], ['VB', 'VB', 1]].forEach(function (n) { vals[n[0]] = num(B.ans[n[0]].v); });
+    if (isNaN(vals.VA) || isNaN(vals.VB) || isNaN(vals.HA)) { out.innerHTML = '<span style="color:#f2b0a0">Введіть усі три реакції (якщо HA дорівнює нулю, введіть 0).</span>'; return; }
+    var sv = { VA: vals.VA * (+B.ans.VA.d), HA: vals.HA * (+B.ans.HA.d), VB: vals.VB * (+B.ans.VB.d) };
+    var j = {
+      VA: judge('VA', sv.VA, s.VA, 'Складіть суму моментів відносно опори B і перевірте плечі та знаки.'),
+      HA: judge('HA', sv.HA, s.HA, 'Спроєктуйте всі сили на вісь x: ΣX = 0.'),
+      VB: judge('VB', sv.VB, s.VB, 'Складіть суму моментів відносно опори A: ΣM(A) = 0, перевірте плечі й знаки.')
+    };
+    B.res = { VA: j.VA.ok, HA: j.HA.ok, VB: j.VB.ok }; drawBeam(cv, B); refreshStand('beam');
+    var all = j.VA.ok && j.HA.ok && j.VB.ok, h = '';
+    [j.VA, j.HA, j.VB].forEach(function (r) { h += '<div style="color:' + (r.ok ? '#a5d6a7' : '#f2b0a0') + '">' + esc(r.msg) + '</div>'; });
+    var ry = sv.VA + sv.VB + s.fy, rx = sv.HA + s.fx;
+    if (!all) {
+      if (Math.abs(ry) > tolOf(s.fy)) h += '<div style="color:#f2b0a0">Ваші VA і VB разом не врівноважують навантаження: ΣY ≠ 0, різниця ' + fmt(ry) + ' кН. Зробіть перевірку ΣY = 0.</div>';
+      if (Math.abs(rx) > tolOf(s.fx)) h += '<div style="color:#f2b0a0">Горизонтальні сили не врівноважені: ΣX ≠ 0, різниця ' + fmt(rx) + ' кН.</div>';
+      h = '<div style="font-weight:700;color:#f2b0a0;margin-bottom:4px">Тут є проблема.</div>' + h;
+    } else h = '<div style="font-weight:700;color:#a5d6a7;margin-bottom:4px">Усе правильно, ти молодець!</div>' + h;
+    out.innerHTML = h;
+  }
+
+  function openRods(msg) {
+    var h = '<h3>Реакції в стержнях</h3><p class="muted">Вузол утримують два стержні й навантажують сили. Складіть свою задачу: задайте кути стержнів (від осі x проти годинникової стрілки, у бік опори) і сили. Знайдіть зусилля в стержнях: розтяг чи стиск.</p>' +
+      '<canvas id="pc" width="640" height="260" style="width:100%;height:auto;display:block;background:#fff;border:1px solid #6d5a3c"></canvas>' +
+      '<div style="margin:6px 0"><span class="muted">Готові варіанти:</span> <button type="button" data-v="0">1</button><button type="button" data-v="1">2</button><button type="button" data-v="2">3</button> <button type="button" id="clr">Очистити</button></div>' +
+      '<div class="row">Стержень 1: кут° ' + inp('a1', R.a1) + ' Стержень 2: кут° ' + inp('a2', R.a2) + '</div><div id="ld">';
+    R.loads.forEach(function (l, i) {
+      h += '<div class="row" style="margin-top:6px;border-top:1px solid #3a2c1a;padding-top:6px"><b>F' + (i + 1) + '</b> F, кН ' + inp('F', l.F, i) + ' кут° ' + inp('a', l.a, i, '62px') + ANGS.replace(/data-ang/g, 'data-i="' + i + '" data-ang') + ' <button type="button" data-del="' + i + '">Видалити</button></div>';
+    });
+    h += '</div><div style="margin-top:6px"><button type="button" id="aF">+ Сила</button></div><p class="muted" style="margin:8px 0 2px">Кут сили теж від осі x проти годинникової: 270° вниз, 0° вправо.</p>' +
+      '<h3 style="margin:10px 0 4px">Ваші зусилля</h3><div class="row">N1 ' + inp('N1', R.ans.N1.v, 'a', '80px') + ' ' + sel('N1s', [['1', 'розтяг'], ['-1', 'стиск']], R.ans.N1.s, 'a') + '</div>' +
+      '<div class="row" style="margin-top:6px">N2 ' + inp('N2', R.ans.N2.v, 'a', '80px') + ' ' + sel('N2s', [['1', 'розтяг'], ['-1', 'стиск']], R.ans.N2.s, 'a') + '</div>' +
+      '<button class="main" type="button" id="chk" style="margin-top:10px">Перевірити</button><div id="pres" style="margin-top:8px;line-height:1.5">' + (msg || '') + '</div>';
+    var b = modal(h), cv = b.querySelector('#pc'); drawRods(cv, R);
+    function readAll() {
+      b.querySelectorAll('input[data-k],select[data-k]').forEach(function (e) {
+        var k = e.dataset.k, i = e.dataset.i;
+        if (i === 'a') { if (k.length === 3) R.ans[k.slice(0, 2)].s = e.value; else R.ans[k].v = e.value; }
+        else if (i !== undefined) R.loads[+i][k] = e.value; else R[k] = e.value;
+      });
+    }
+    function live() { readAll(); R.res = null; drawRods(cv, R); refreshStand('rods'); }
+    b.addEventListener('input', live); b.addEventListener('change', live);
+    b.addEventListener('click', function (e) {
+      var t = e.target.closest('button'); if (!t) return;
+      if (t.dataset.ang !== undefined) { readAll(); R.loads[+t.dataset.i].a = t.dataset.ang; R.res = null; openRods(); return; }
+      if (t.dataset.v !== undefined) { setR(+t.dataset.v); openRods(); return; }
+      if (t.dataset.del !== undefined) { readAll(); R.loads.splice(+t.dataset.del, 1); R.res = null; openRods(); return; }
+      if (t.id === 'clr') { R.loads = []; R.res = null; openRods(); return; }
+      if (t.id === 'aF') { readAll(); R.loads.push({ F: '', a: '270' }); openRods(); return; }
+      if (t.id === 'chk') checkRods();
+    });
+  }
+  function checkRods() {
+    var b = $('mbody'), out = b.querySelector('#pres'), cv = b.querySelector('#pc'), s = rodSolve(R);
+    if (s.err) { out.innerHTML = '<span style="color:#f2b0a0">' + esc(s.err) + '</span>'; return; }
+    var n1 = num(R.ans.N1.v), n2 = num(R.ans.N2.v);
+    if (isNaN(n1) || isNaN(n2)) { out.innerHTML = '<span style="color:#f2b0a0">Введіть зусилля в обох стержнях.</span>'; return; }
+    var sv1 = n1 * (+R.ans.N1.s), sv2 = n2 * (+R.ans.N2.s);
+    var j1 = judge('N1', sv1, s.N1, 'Складіть рівняння рівноваги вузла ΣX = 0 і ΣY = 0, проєктуючи на осі з урахуванням кутів.'),
+      j2 = judge('N2', sv2, s.N2, 'Складіть рівняння рівноваги вузла ΣX = 0 і ΣY = 0, проєктуючи на осі з урахуванням кутів.');
+    R.res = { N1: j1.ok, N2: j2.ok }; drawRods(cv, R); refreshStand('rods');
+    var all = j1.ok && j2.ok, h = '';
+    [j1, j2].forEach(function (r) { h += '<div style="color:' + (r.ok ? '#a5d6a7' : '#f2b0a0') + '">' + esc(r.msg) + '</div>'; });
+    if (!all) {
+      var rx = sv1 * s.u1[0] + sv2 * s.u2[0] + s.fx, ry = sv1 * s.u1[1] + sv2 * s.u2[1] + s.fy;
+      if (Math.hypot(rx, ry) > 0.1) h += '<div style="color:#f2b0a0">З вашими зусиллями вузол не в рівновазі: залишок по x ' + fmt(rx) + ' кН, по y ' + fmt(ry) + ' кН.</div>';
+      h = '<div style="font-weight:700;color:#f2b0a0;margin-bottom:4px">Тут є проблема.</div>' + h;
+    } else h = '<div style="font-weight:700;color:#a5d6a7;margin-bottom:4px">Усе правильно, ти молодець!</div>' + h;
+    out.innerHTML = h;
+  }
+
+  /* ---------- стенди в кімнаті ---------- */
+  function stand(kind, lx, title, fn) {
+    var g = grp(lx, 0, 0.8, G, 0);
+    box(1.5, 0.8, 0.6, mat(0x5a4630), 0, 0.4, 0, g);
+    box(1.6, 0.05, 0.7, M.darkwood, 0, 0.82, 0, g);
+    box(0.08, 0.7, 0.08, M.steel, -0.65, 1.2, 0.15, g); box(0.08, 0.7, 0.08, M.steel, 0.65, 1.2, 0.15, g);
+    var c = document.createElement('canvas'); c.width = 640; c.height = 260; standCv[kind] = c;
+    var tex = standTex[kind] = new THREE.CanvasTexture(c); tex.anisotropy = 4;
+    var pnl = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 0.61), new THREE.MeshBasicMaterial({ map: tex, color: 0xeeeeee })); pnl.position.set(0, 1.45, 0.22); g.add(pnl);
+    box(1.58, 0.69, 0.04, M.brass, 0, 1.45, 0.19, g);
+    var sg = signPlane([title], 1.5, 0.3, { bg: '#17110b', fg: '#f2d9a0', px: 120 }); sg.position.set(0, 1.98, 0.22); g.add(sg);
+    refreshStand(kind);
+    [pnl, g.children[0]].forEach(function (o) { act(o, title, fn, { reach: 4.4 }); });
+    obs(loc, lx, 0.8, 0.85, 0.4);
+  }
+  stand('beam', -2.3, 'Двоопорна балка', function () { openBeam(); });
+  stand('rods', 2.3, 'Реакції в стержнях', function () { openRods(); });
+  window.__prak = { openBeam: openBeam, openRods: openRods, B: B, R: R, beamSolve: beamSolve, rodSolve: rodSolve, check: function (k) { return k === 'beam' ? checkBeam() : checkRods(); } };
+})();
+
 var CODES={};
 /* ====== СТАН ГРИ, ТАЙМЕРИ, БАЛИ, ПЕРЕХОДИ, ЗВ'ЯЗОК ІЗ САЙТОМ ====== */
 /* У кабінеті (iframe) бали й час рахує сервер сайту: ті самі завдання z1..z5.
