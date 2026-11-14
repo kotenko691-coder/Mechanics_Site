@@ -1133,9 +1133,11 @@ function classroom(id, o, decor) {
       });
     });
   });
+  if (!o.noTeacher) {
   var td = tbl(G, -2.6, -4.9, 2.2, 0.8, 0.78, mat(0x4a2e1a, { rough: .5 })); obs(loc, -2.6, -4.9, 1.2, 0.5);
   act(td.children[0], 'Стіл викладача', say('Стіл викладача. Звідси він веде заняття.'), { reach: 5 });
   chair(G, -2.6, -5.5, 0, 0x4a2a2a);
+  }
   plant(loc, -6.3, 5.2); plant(loc, 6.3, 5.2);
   decor(loc, G);
   return loc;
@@ -1161,7 +1163,7 @@ classroom('build', { floor: TX.concrete, wall: TX.brick, ceil: 0x2a2622, amb: 0x
 });
 
 /* ---------- Кабінет дорожників ---------- */
-classroom('road', { floor: TX.concrete, wall: TX.wall2, ceil: 0x2a2622, amb: 0xeaf0f4, ambI: 0.7, bg: 0x0b0e10 }, function (loc, G) {
+classroom('road', { noTeacher: true, floor: TX.concrete, wall: TX.wall2, ceil: 0x2a2622, amb: 0xeaf0f4, ambI: 0.7, bg: 0x0b0e10 }, function (loc, G) {
   for (var i = 0; i < 5; i++) { var cn = cyl(0.03, 0.17, 0.6, mat(0xe8742a, { rough: .6 }), 4.6 + i * 0.45, 0.3, 5.3, G, 12); cyl(0.12, 0.12, 0.06, M.white, 4.6 + i * 0.45, 0.38, 5.3, G, 12); act(cn, 'Конус', say('Дорожній конус огороджує місце робіт.'), { reach: 4 }); }
   var sg = grp(-5.8, 0, 4.9, G); cyl(0.03, 0.03, 2.0, M.steel, 0, 1.0, 0, sg, 8); var disc = cyl(0.3, 0.3, 0.03, mat(0xd8d8d0), 0, 2.1, 0, sg, 24); disc.rotation.x = Math.PI / 2; var ring = new THREE.Mesh(new THREE.TorusGeometry(0.27, 0.03, 8, 24), mat(0xc02a22)); ring.position.set(0, 2.1, 0.02); sg.add(ring);
   act(disc, 'Дорожній знак', say('Знак обмеження швидкості. Дорожники ставлять їх за ДБН.'), { reach: 4 }); obs(loc, -5.8, 4.9, 0.3, 0.3);
@@ -1936,13 +1938,14 @@ if (window.__hall) { window.__hall.sit = sitDown; window.__hall.meetCheck = meet
   if (SEP) {
     act(plane, 'Дошка', function () { openBoard(); }, { reach: 7 });
     var tvMat = new THREE.MeshBasicMaterial({ color: 0xffffff }), tvPlanes = [];
-    [-5.0, 5.0].forEach(function (lx) {
-      var t = wallAt(MEET, 0, lx, 1.9);
+    function mkTv(t) {
       box(2.95, 1.75, 0.1, M.darksteel, 0, 0, 0.05, t); box(2.8, 1.62, 0.03, basic(0x000000), 0, 0, 0.1, t);
       var pl = new THREE.Mesh(new THREE.PlaneGeometry(2.7, 1.52), tvMat); pl.position.z = 0.13; t.add(pl); tvPlanes.push(pl);
       box(0.5, 0.05, 0.2, M.darksteel, 0, -0.95, 0.1, t); box(0.04, 0.04, 0.04, basic(0xd03030), 1.35, -0.84, 0.12, t);
-      act(pl, 'Телевізор', function () { openPanel(); }, { reach: 8 });
-    });
+      act(pl, 'Телевізор', function () { openPanel(); }, { reach: 9 });
+    }
+    [-5.0, 5.0].forEach(function (lx) { mkTv(wallAt(MEET, 0, lx, 1.9)); });
+    mkTv(grp(MEET.W / 2 - 0.06, 1.9, 1.6, MEET.group, -Math.PI / 2));
     tvPlane = tvPlanes[0];
     MEET.zoomT = MEET.zoomT || []; MEET.zoomT.push({ label: 'Дошка', obj: plane }, { label: 'Телевізор', obj: tvPlanes[1], objs: tvPlanes });
     var oc = document.createElement('canvas'); oc.width = 640; oc.height = 360; var ox2 = oc.getContext('2d'); ox2.fillStyle = '#05080c'; ox2.fillRect(0, 0, 640, 360); ox2.fillStyle = '#1d2a38'; ox2.font = '28px Georgia'; ox2.textAlign = 'center'; ox2.fillText('Телевізор вимкнено', 320, 190);

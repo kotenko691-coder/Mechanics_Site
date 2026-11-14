@@ -962,7 +962,7 @@
       document.body.appendChild(ov);
     }
     ov.hidden = false; ov.style.display = 'block';
-    document.getElementById('hall-frame').src = 'hall/?v=6';
+    document.getElementById('hall-frame').src = 'hall/?v=7';
   }
   function closeHall() {
     var ov = document.getElementById('hall-ov');
