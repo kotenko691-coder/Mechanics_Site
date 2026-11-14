@@ -983,7 +983,7 @@ function plant(loc, lx, lz) {
   for (var k = 0; k < 9; k++) { var a = k / 9 * 6.28; box(0.07, 0.5, 0.22, M.green, Math.cos(a) * 0.18, 0.75, Math.sin(a) * 0.18, pt).rotation.y = -a; }
   act(pt.children[0], 'Рослина', say('Живий фікус.'), { reach: 4 }); obs(loc, lx, lz, 0.3, 0.3);
 }
-function sysDraw(txt, sub) { return function (x, w, h) { blue(x, w, h); x.fillStyle = '#e8f0ff'; x.textAlign = 'center'; x.font = 'bold 26px Georgia'; x.fillText(txt, w / 2, h / 2 - 4); x.font = '18px Georgia'; x.fillText(sub || '', w / 2, h / 2 + 26); }; }
+function sysDraw(txt, sub) { return function (x, w, h) { blue(x, w, h); x.fillStyle = '#e8f0ff'; x.textAlign = 'center'; function fit(t, px, wt) { var s = px; x.font = wt + ' ' + s + 'px Georgia'; while (x.measureText(t).width > w - 24 && s > 8) { s -= 1; x.font = wt + ' ' + s + 'px Georgia'; } } fit(txt, 26, 'bold'); x.fillText(txt, w / 2, h / 2 - 8); if (sub) { fit(sub, 18, 'normal'); x.fillText(sub, w / 2, h / 2 + 22); } }; }
 
 /* ---------- 2 поверх: коридор із п'ятьма дверима ---------- */
 var F2 = newRoom('f2', 12, 9, 3.5, { floor: TX.planks, wall: TX.wallpaper, ceil: 0x2a221b, amb: 0xffe2b8, ambI: 0.5, bg: 0x0b0907 });
