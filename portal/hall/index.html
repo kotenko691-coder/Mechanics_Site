@@ -3386,6 +3386,48 @@ var RB = (function () {
   });
 })();
 
+
+/* ====== ТЕСТ НАВАНТАЖЕННЯ: локальні боти (лише у вас на екрані, у базу нічого не пишуть) ====== */
+(function () {
+  var ROOMS = { hall: 1, f2: 1, meet: 1, prak: 1, arch: 1, build: 1, road: 1 }, N = 15, bots = {}, on = false, fps = 0, fc = 0, ft = Date.now();
+  var btn = document.createElement('button'); btn.type = 'button';
+  btn.style.cssText = 'position:fixed;right:12px;top:150px;z-index:6;display:none;padding:9px 12px;font-family:inherit;font-size:14px;background:rgba(36,26,16,.92);color:#f2e2c0;border:1px solid #8a7347;cursor:pointer';
+  document.body.appendChild(btn);
+  function label() { btn.textContent = on ? ('Боти: ' + N + ' · ' + fps + ' FPS (вимкнути)') : 'Тест: ' + N + ' людей у кімнаті'; btn.style.borderColor = on ? '#7ee08b' : '#8a7347'; }
+  function free(L, x, z) { for (var i = 0; i < L.obst.length; i++) { var r = L.obst[i]; if (x > r.x1 - 0.4 && x < r.x2 + 0.4 && z > r.z1 - 0.4 && z < r.z2 + 0.4) return false; } return true; }
+  function pick(L, b) { var i, x, z; for (i = 0; i < 30; i++) { x = L.bounds.x1 + Math.random() * (L.bounds.x2 - L.bounds.x1); z = L.bounds.z1 + Math.random() * (L.bounds.z2 - L.bounds.z1); if (free(L, x, z)) { b.tx = x; b.tz = z; return; } } b.tx = b.g.position.x; b.tz = b.g.position.z; }
+  function spawn(L) {
+    var arr = [], i;
+    for (i = 0; i < N; i++) {
+      var s = Math.random() < 0.5 ? 'm' : 'f', g = makeFigure({ s: s, k: Math.floor(Math.random() * CH_N[s]), c: Math.floor(Math.random() * SHIRTS.length), h: Math.floor(Math.random() * HAIRS.length), r: 0 }), b = { g: g, ph: Math.random() * 6, wait: Math.random() * 2, mode: 0, mt: 0 }, p = { x: 0, z: 0 }, k;
+      for (k = 0; k < 30; k++) { p.x = L.bounds.x1 + Math.random() * (L.bounds.x2 - L.bounds.x1); p.z = L.bounds.z1 + Math.random() * (L.bounds.z2 - L.bounds.z1); if (free(L, p.x, p.z)) break; }
+      g.position.set(p.x, 0, p.z); g.rotation.y = Math.random() * 6.28; L.group.add(g); pick(L, b); arr.push(b);
+    }
+    bots[L.id] = arr;
+  }
+  function clear() { Object.keys(bots).forEach(function (id) { bots[id].forEach(function (b) { if (b.g.parent) b.g.parent.remove(b.g); }); }); bots = {}; }
+  btn.addEventListener('click', function () { on = !on; if (!on) clear(); label(); });
+  updaters.push(function () {
+    var now = Date.now(); fc++; if (now - ft > 1000) { fps = Math.round(fc * 1000 / (now - ft)); fc = 0; ft = now; label(); }
+    btn.style.display = (isTeacher() && !modalOpen && cur && ROOMS[cur.id]) ? 'block' : 'none';
+    if (!on || !cur || !ROOMS[cur.id]) return;
+    if (!bots[cur.id]) spawn(cur);
+    var dt = Math.min(0.1, (now - (updaters.__bt || now)) / 1000); updaters.__bt = now;
+    bots[cur.id].forEach(function (b) {
+      var g = b.g, u = g.userData, dx = b.tx - g.position.x, dz = b.tz - g.position.z, d = Math.hypot(dx, dz), amp = 0;
+      if (b.wait > 0) { b.wait -= dt; }
+      else if (d < 0.15) { b.wait = 0.5 + Math.random() * 2.5; b.mode = Math.random() < 0.15 ? 2 : 0; b.mt = b.mode ? 2.5 : 0; pick(cur, b); }
+      else { var sp = 1.3 * dt; g.position.x += dx / d * sp; g.position.z += dz / d * sp; var a = Math.atan2(-dx, -dz), da = a - g.rotation.y; da = Math.atan2(Math.sin(da), Math.cos(da)); g.rotation.y += da * Math.min(1, dt * 6); amp = 0.5; }
+      if (!u.legs || !u.arms) return;
+      b.ph += dt * (amp ? 8 : 0);
+      var w = Math.sin(b.ph) * amp, dance = b.wait > 0 && b.mode === 2;
+      if (dance) { var t = now / 180 + b.ph; u.legs[0].rotation.x = Math.sin(t) * 0.5; u.legs[1].rotation.x = -Math.sin(t) * 0.5; u.arms[0].rotation.x = 3.0 + Math.sin(t) * 0.2; u.arms[1].rotation.x = 3.0 - Math.sin(t) * 0.2; u.arms[0].rotation.z = 0.3; u.arms[1].rotation.z = -0.3; }
+      else { u.legs[0].rotation.x = w; u.legs[1].rotation.x = -w; u.arms[0].rotation.x = -w; u.arms[1].rotation.x = w; u.arms[0].rotation.z = 0.04; u.arms[1].rotation.z = -0.04; }
+    });
+  });
+  label();
+})();
+
 })();
 </script>
 </body>
