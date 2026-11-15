@@ -3265,6 +3265,7 @@ var RB = (function () {
     f.db.ref('board/mic').set(rec).catch(function (e) { toast('Не вдалося зберегти: ' + (e && e.code || 'помилка'), 4000); });
   }
   permBtn.addEventListener('click', function () {
+    var esc = function (t) { return String(t).replace(/[&<>"]/g, function (ch) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]; }); };
     var gh = (window.__pres && window.__pres.ghosts) || {}, l0 = vloc(), ids = Object.keys(gh).filter(function (id) { return gh[id].userData.loc === l0 && !gh[id].userData.teach; });
     var h = '<h3>Мікрофони студентів</h3><p class="muted">За замовчуванням у студентів мікрофон вимкнений. Відмітьте тих, кому можна говорити. Решта слухають.</p>' +
       '<p><label><input type="checkbox" id="pa"' + (permAll ? ' checked' : '') + '> Дозволити всім</label></p><div id="pl">' +
