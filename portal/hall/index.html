@@ -1078,6 +1078,7 @@ var MEET = null, meetOpened = false;
   for (var side = 0; side < 2; side++) for (var i = 0; i < 10; i++) {
     (function (side, i) {
       var x = (i - 4.5) * 0.76, z = side ? 1.25 : -1.25, ry = side ? Math.PI : 0, cols = [0x4a2a2a, 0x2a3a4a];
+      studySet(G, x, side ? 0.22 : -0.22, 0.87, side ? 1 : -1);
       var c = chair(G, x, z, ry, cols[side]);
       var seat = { x: loc.X + x, z: z, yaw: side ? 0 : Math.PI };
       loc.seats.push(seat);
@@ -1167,6 +1168,19 @@ function deskTopics() {
   }, function () { if (modalOpen) modal('<h3>Теми на парті</h3><p class="muted">Не вдалося завантажити список. Спробуйте ще раз.</p>'); });
 }
 
+/* набір студента на столі: зошит, ручка, олівець, калькулятор, лінійка. y — висота стільниці, s = +1/-1 — з якого боку студент */
+function studySet(G, x, z, y, s) {
+  var nb = box(0.21, 0.012, 0.29, mat(0x2f5d9a), x - 0.25, y + 0.006, z + s * 0.12, G); nb.rotation.y = -0.08 * s;
+  var pg = box(0.19, 0.004, 0.27, mat(0xf4f1e6), x - 0.25, y + 0.014, z + s * 0.12, G); pg.rotation.y = -0.08 * s;
+  for (var i = 0; i < 5; i++) { var ln = box(0.16, 0.001, 0.003, mat(0x7aa0d0), x - 0.25, y + 0.017, z + s * (0.12 - 0.1 + i * 0.05), G); ln.rotation.y = -0.08 * s; }
+  var pen = box(0.15, 0.011, 0.011, mat(0x1f3f8a), x + 0.23, y + 0.006, z + s * 0.2, G); pen.rotation.y = 0.35;
+  var pnc = box(0.17, 0.009, 0.009, mat(0xe0b020), x + 0.25, y + 0.005, z + s * 0.14, G); pnc.rotation.y = -0.25;
+  box(0.075, 0.014, 0.12, mat(0x25282c), x + 0.26, y + 0.007, z - s * 0.04, G);
+  box(0.06, 0.003, 0.02, mat(0x9ac08a, { rough: .3 }), x + 0.26, y + 0.0155, z - s * 0.08, G);
+  box(0.06, 0.003, 0.055, mat(0x6a6e74), x + 0.26, y + 0.0155, z - s * 0.02, G);
+  box(0.3, 0.003, 0.036, mat(0xd8c060), x + 0.0, y + 0.002, z - s * 0.2, G);
+}
+
 /* ---------- Навчальні кабінети: 22 місця за партами, дошка, стенд ліворуч, телевізор праворуч ---------- */
 function classroom(id, o, decor) {
   var loc = cabinet(id, 14, 12, o), G = loc.group, W = 14;
@@ -1178,6 +1192,7 @@ function classroom(id, o, decor) {
       var dk = tbl(G, cx, zd, 1.5, 0.6, 0.76, mat(0x8a6a44, { rough: .6 })); obs(loc, cx, zd, 0.8, 0.35);
       act(dk.children[0], 'Парта: теми, конспекти, презентації', deskTopics, { reach: 4.5 });
       [-0.38, 0.38].forEach(function (dx) { var bk = box(0.22, 0.03, 0.3, mat(0xe8e2d2), cx + dx, 0.795, zd + 0.05, G); bk.rotation.y = dx * 0.3; act(bk, 'Парта: теми, конспекти, презентації', deskTopics, { reach: 4.5 }); });
+      [-0.38, 0.38].forEach(function (dx) { studySet(G, cx + dx, zd - 0.02, 0.795, 1); });
       [-0.38, 0.38].forEach(function (dx) {
         var x = cx + dx, zc = zd + 0.68, ch = chair(G, x, zc, Math.PI, 0x2a3a4a), seat = { x: loc.X + x, z: zc, yaw: 0 };
         loc.seats.push(seat); n++;
