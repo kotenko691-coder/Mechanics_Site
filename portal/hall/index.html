@@ -1286,6 +1286,7 @@ function studySet(G, x, z, y, s) {
 var WSS = [];
 function wsStation(loc, G, x, zd, seat) {
   var g = grp(x, 0, zd, G), sw = 0.5948, sh = 0.3157, sx = -0.002, sy = 1.0876, sz = -0.104, w = { state: 'off', seat: seat, loc: loc, last: 0 };
+  g.position.set(x - 0.03, 0.077, zd); g.scale.setScalar(0.9);
   g.add(wsMesh('ws'));
   var cv = document.createElement('canvas'); cv.width = 640; cv.height = 340; var cx = cv.getContext('2d'), tex = new THREE.CanvasTexture(cv); tex.anisotropy = 4;
   var mc = new THREE.MeshBasicMaterial({ map: tex }), scr = new THREE.Mesh(new THREE.PlaneGeometry(sw, sh), mc); scr.position.set(sx, sy, sz); scr.userData.hs = [sw / 2, sh / 2]; g.add(scr);
