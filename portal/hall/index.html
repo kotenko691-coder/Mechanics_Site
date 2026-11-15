@@ -2227,6 +2227,7 @@ var VP = (function () {
     vtv.innerHTML = '<div id="vpf" style="position:absolute;inset:0"></div>'; document.body.appendChild(vtv);
     box = document.createElement('div'); box.id = 'vp';
     box.style.cssText = 'position:fixed;left:50%;transform:translateX(-50%);top:62px;width:min(92vw,560px);z-index:7;background:rgba(11,9,7,.92);border:1px solid #8a7347;display:none;color:#f2e2c0;font-family:Georgia,serif';
+    if (innerWidth < 820 || (window.matchMedia && matchMedia('(pointer:coarse)').matches)) { box.style.transform = 'translateX(-50%) scale(.55)'; box.style.transformOrigin = 'top center'; }
     box.innerHTML = '<div style="display:flex;gap:6px;align-items:center;padding:5px 8px;font-size:13px"><b id="vpt" style="flex:1;overflow:hidden;white-space:nowrap;text-overflow:ellipsis"></b><button type="button" id="vps">Окремим вікном</button><button type="button" id="vpx">Закрити</button></div>' +
       '<div id="vpc" style="display:flex;gap:8px;align-items:center;padding:6px 8px;font-size:13px;flex-wrap:wrap"></div>';
     document.body.appendChild(box);
@@ -2397,6 +2398,7 @@ var VP = (function () {
     if (!pbig) {
       pbig = document.createElement('button'); pbig.type = 'button'; pbig.textContent = 'Натисніть, щоб увімкнути відео разом з викладачем';
       pbig.style.cssText = 'position:fixed;left:50%;transform:translateX(-50%);bottom:90px;z-index:8;padding:14px 18px;font:16px Georgia,serif;background:#7a5a1e;color:#fff4d8;border:2px solid #f2d9a0;cursor:pointer;display:none;max-width:90vw';
+      if (innerWidth < 820 || (window.matchMedia && matchMedia('(pointer:coarse)').matches)) { pbig.style.transform = 'translateX(-50%) scale(.6)'; pbig.style.transformOrigin = 'bottom center'; }
       pbig.addEventListener('click', function () { var st = pbig._st; if (!st || !ytReady) return; try { ytP.unMute(); muted = false; applyVol(); var s0 = states[st.room] || st; var ex = (s0.pos || 0) + (s0.st !== 'pause' ? Math.max(0, (srv() - (s0.at || srv())) / 1000) : 0); ytP.seekTo(ex, true); if (s0.st !== 'pause') ytP.playVideo(); } catch (e) { /* ігноруємо */ } pbig.style.display = 'none'; });
       document.body.appendChild(pbig);
     }
@@ -2517,6 +2519,7 @@ var RB = (function () {
     document.body.appendChild(bar);
     speakBtn = document.createElement('button'); speakBtn.type = 'button'; speakBtn.textContent = 'Увімкнути голос викладача-робота';
     speakBtn.style.cssText = 'position:fixed;left:50%;transform:translateX(-50%);bottom:140px;z-index:8;padding:12px 16px;font:16px Georgia,serif;background:#7a5a1e;color:#fff4d8;border:2px solid #f2d9a0;cursor:pointer;display:none';
+    if (innerWidth < 820 || (window.matchMedia && matchMedia('(pointer:coarse)').matches)) { sub.style.transform = 'translateX(-50%) scale(.55)'; sub.style.transformOrigin = 'bottom center'; bar.style.transform = 'translateX(-50%) scale(.55)'; bar.style.transformOrigin = 'top center'; bar.style.top = '112px'; speakBtn.style.transform = 'translateX(-50%) scale(.6)'; speakBtn.style.transformOrigin = 'bottom center'; }
     document.body.appendChild(speakBtn);
   }
   function btn(t, fn) { var b = document.createElement('button'); b.type = 'button'; b.textContent = t; b.style.cssText = 'padding:5px 9px;font:13px Georgia,serif;background:#241a10;color:#f2e2c0;border:1px solid #8a7347;cursor:pointer'; b.addEventListener('click', fn); return b; }
