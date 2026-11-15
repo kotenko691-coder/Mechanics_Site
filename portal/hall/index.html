@@ -1291,8 +1291,8 @@ function wsStation(loc, G, x, zd, seat) {
   var cv = document.createElement('canvas'); cv.width = 640; cv.height = 340; var cx = cv.getContext('2d'), tex = new THREE.CanvasTexture(cv); tex.anisotropy = 4;
   var mc = new THREE.MeshBasicMaterial({ map: tex }), scr = new THREE.Mesh(new THREE.PlaneGeometry(sw, sh), mc); scr.position.set(sx, sy, sz); scr.userData.hs = [sw / 2, sh / 2]; g.add(scr);
   var bc = document.createElement('canvas'); bc.width = 200; bc.height = 80; var bx = bc.getContext('2d'); bx.fillStyle = '#1b2a3a'; bx.fillRect(0, 0, 200, 80); bx.strokeStyle = '#7aa8d8'; bx.lineWidth = 4; bx.strokeRect(2, 2, 196, 76); bx.fillStyle = '#e8f0ff'; bx.font = '34px Georgia'; bx.textAlign = 'center'; bx.fillText('\u2630 Меню', 100, 54);
-  var back = new THREE.Mesh(new THREE.PlaneGeometry(0.1, 0.04), new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(bc) })); back.position.set(sx - 0.2, sy - sh / 2 - 0.03, sz + 0.004); back.visible = false; g.add(back);
-  var hl = hit(g, sw / 2 - 0.01, sh - 0.03, sx - sw / 4, sy, sz + 0.004), hr = hit(g, sw / 2 - 0.01, sh - 0.03, sx + sw / 4, sy, sz + 0.004);
+  var back = new THREE.Mesh(new THREE.PlaneGeometry(0.13, 0.05), new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(bc) })); back.position.set(sx - 0.2, sy - sh / 2 - 0.03, sz + 0.004); back.visible = false; g.add(back);
+  var hl = hit(g, sw / 2 - 0.01, sh - 0.03, 0.02, sx - sw / 4, sy, sz + 0.012), hr = hit(g, sw / 2 - 0.01, sh - 0.03, 0.02, sx + sw / 4, sy, sz + 0.012);
   var matBoard = new THREE.MeshBasicMaterial({ color: 0xffffff });
   function draw(msg) {
     cx.fillStyle = '#050608'; cx.fillRect(0, 0, 640, 340);
@@ -1322,7 +1322,7 @@ updaters.push(function () {
   if (!WSS.length) return; var now = Date.now(), seated = EMO === 4 && cur && cur.id === 'build';
   WSS.forEach(function (w) {
     var mine = seated && Math.abs(camera.position.x - w.seat.x) < 0.3 && Math.abs(camera.position.z - w.seat.z) < 0.4;
-    if (mine && w.state === 'off') { w.set('menu'); pitch = -0.45; }
+    if (mine && w.state === 'off') { w.set('menu'); pitch = -0.45; yaw = w.seat.yaw + Math.round((yaw - w.seat.yaw) / 6.2832) * 6.2832; toast('Торкніться екрана монітора: «Телевізор» або «Дошка».'); }
     else if (!mine && w.state !== 'off') w.set('off');
     w.tick(now);
   });
