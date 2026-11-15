@@ -1596,6 +1596,8 @@ function console_(loc, wi, lx, w) {
     return { a: a, b: b };
   }
   ['arch', 'build', 'road'].forEach(function (id) { var L = LOC[id]; standSwitch(L, -L.W / 2 + 0.4, -1.2, PI / 2); });
+  /* окремий постійний стенд зі стержнями поруч із перемикним (у кожному кабінеті) */
+  ['arch', 'build', 'road'].forEach(function (id) { var L = LOC[id], wx = -L.W / 2 + 0.4; station('rods', -2, wx, 1.0, PI / 2, L); obs(L, wx, 1.0, 0.5, 0.95); });
   updaters.push(function (s) {
     if (!cur.pub) return;
     STS.forEach(function (st) {
