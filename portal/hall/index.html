@@ -1319,9 +1319,9 @@ function wsStation(loc, G, x, zd, seat) {
   w.set('off'); WSS.push(w); return w;
 }
 updaters.push(function () {
-  if (!WSS.length) return; var now = Date.now(), seated = EMO === 4 && cur && cur.id === 'build';
+  if (!WSS.length) return; var now = Date.now(), seated = EMO === 4 && cur;
   WSS.forEach(function (w) {
-    var mine = seated && Math.abs(camera.position.x - w.seat.x) < 0.3 && Math.abs(camera.position.z - w.seat.z) < 0.4;
+    var mine = seated && w.loc === cur && Math.abs(camera.position.x - w.seat.x) < 0.3 && Math.abs(camera.position.z - w.seat.z) < 0.4;
     if (mine && w.state === 'off') { w.set('menu'); pitch = -0.45; yaw = w.seat.yaw + Math.round((yaw - w.seat.yaw) / 6.2832) * 6.2832; toast('Торкніться екрана монітора: «Телевізор» або «Дошка».'); }
     else if (!mine && w.state !== 'off') w.set('off');
     w.tick(now);
@@ -1337,7 +1337,7 @@ function classroom(id, o, decor) {
     cols.forEach(function (cx, c) {
       if (r === 3 && c === 2) return; // 22 місця
       var dk = tbl(G, cx, zd, 1.5, 0.6, 0.76, mat(0x8a6a44, { rough: .6 })); obs(loc, cx, zd, 0.8, 0.35);
-      var WSR = id === 'build', DX = WSR ? 0.34 : 0.38;
+      var WSR = true, DX = WSR ? 0.34 : 0.38;
       if (id === 'arch') deskTex(dk);
       if (WSR) { dk.children.forEach(function (q) { q.material = HIDDEN; }); var dm = wsMesh('desk'); dm.position.set(cx, 0, zd); G.add(dm); }
       act(dk.children[0], 'Парта: теми, конспекти, презентації', deskTopics, { reach: 4.5 });
