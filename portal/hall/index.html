@@ -1947,7 +1947,7 @@ var CH_NAMES = {
 var CH_BASE = 'chars/', chCache = {}, chRigs = [], CH_MAT = null;
 function chLoad(id) {
   if (chCache[id]) return chCache[id];
-  return chCache[id] = fetch(CH_BASE + id + '.bin').then(function (r) { if (!r.ok) throw new Error('chars'); return r.arrayBuffer(); }).then(function (buf) {
+  return chCache[id] = fetch(CH_BASE + id + '.bin?v=2').then(function (r) { if (!r.ok) throw new Error('chars'); return r.arrayBuffer(); }).then(function (buf) {
     var dv = new DataView(buf), jl = dv.getUint32(0, true), meta = JSON.parse(new TextDecoder().decode(new Uint8Array(buf, 4, jl))), base = 4 + jl, A = {};
     var TT = { int16: Int16Array, int8: Int8Array, uint8: Uint8Array, uint16: Uint16Array };
     meta.arr.forEach(function (a) { A[a[0]] = new TT[a[1]](buf.slice(base + a[3], base + a[3] + a[4])); });
@@ -2026,6 +2026,10 @@ function chPose(r) {
     var lx = u.legs[i].rotation.x, l = r.legs[i]; q.copy(l.pwi).multiply(u.legs[i].quaternion).multiply(l.pw).multiply(l.qb); l.b.quaternion.copy(q);
     var t = Math.max(0, Math.min(1, (lx - 0.4) / 1.0)); if (t > sit) sit = t;
     var bend = lx > 0 ? -lx * (0.4 + 0.6 * t) : 0, sh = r.shins[i]; r.tmp2.setFromAxisAngle(CH_X, bend); q.copy(sh.pwi).multiply(r.tmp2).multiply(sh.pw).multiply(sh.qb); sh.b.quaternion.copy(q);
+  }
+  for (i = 0; i < 2; i++) { // лікті: легке згинання при русі рук уперед, прямі при піднятих руках
+    var ax = u.arms[i].rotation.x, fa = r.forearms[i], eb = ax > 2 ? 0 : 0.12 + 0.55 * Math.max(0, ax);
+    r.tmp2.setFromAxisAngle(CH_X, eb); q.copy(fa.pwi).multiply(r.tmp2).multiply(fa.pw).multiply(fa.qb); fa.b.quaternion.copy(q);
   }
   r.mg.position.y = -r.extra * sit;
 }
