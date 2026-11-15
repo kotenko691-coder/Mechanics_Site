@@ -953,7 +953,7 @@
     token: function () { return token; },
     who: function () {
       var st = me && me.student;
-      return { name: String((st && st.name) || 'Викладач').slice(0, 40), group: String((st && st.group) || '').slice(0, 12), owner: !!(me && me.isOwner) };
+      return { name: String((st && st.name) || 'Викладач').slice(0, 40), group: String((st && st.group) || '').slice(0, 12), owner: !!(me && me.isOwner), cam: !!(me && me.isOwner) || !!(me && String(me.email || '').toLowerCase() === 'vladislavaneznaiko@gmail.com') };
     },
     // теми для парт у кабінетах: назви лекцій і практичних групи поточного користувача
     lectures: function () {
@@ -1006,12 +1006,12 @@
     if (!ov) {
       ov = document.createElement('div'); ov.id = 'hall-ov';
       ov.style.cssText = 'position:fixed;inset:0;z-index:9999;background:#000';
-      ov.innerHTML = '<iframe id="hall-frame" title="Хол" allow="fullscreen; microphone" style="display:block;width:100%;height:100%;border:0"></iframe>';
+      ov.innerHTML = '<iframe id="hall-frame" title="Хол" allow="fullscreen; microphone; display-capture" style="display:block;width:100%;height:100%;border:0"></iframe>';
       document.body.appendChild(ov);
     }
     ov.hidden = false; ov.style.display = 'block';
     /* номер версії холу береться з файлу без кешу: нова версія підхоплюється одразу, без чекання і Ctrl+F5 */
-    var hv = 62, fr = document.getElementById('hall-frame'); fr.src = 'about:blank';
+    var hv = 63, fr = document.getElementById('hall-frame'); fr.src = 'about:blank';
     var go = function () { if (ov.style.display !== 'none') fr.src = 'hall/?v=' + hv; };
     try { fetch('hall-version.json?_=' + Date.now(), { cache: 'no-store' }).then(function (r) { return r.json(); }).then(function (j) { if (j && j.v) hv = j.v; }).catch(function () {}).then(go); } catch (e) { go(); }
     // повний екран: запит іде з кліку студента; там, де браузер не дозволяє (iPhone), хол і так займає весь екран

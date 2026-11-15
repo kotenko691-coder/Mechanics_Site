@@ -3634,6 +3634,90 @@ var RB = (function () {
 
 if (window.__hall) { window.__hall.setEmo = setEmo; window.__hall.WSS = WSS; }
 
+
+/* ====== КАМЕРА: запис картинки (разом з телевізором), голосів у кімнаті й свого мікрофона ======
+   Доступна лише викладачу та тому, кому портал дозволив (who().cam). Файл зберігається на пристрої, на сервер нічого не йде. */
+(function () {
+  function allowed() { try { var w = NET && NET.who && NET.who(); return !!(w && (w.owner || w.cam)); } catch (e) { return false; } }
+  var held = false, rec = null, recStream = null, chunks = [], t0 = 0, tmr = 0, hidden = [], cam3 = null, ctx = null, ownCleanup = [], mode = '';
+  var MAXS = 900;
+  var css = 'padding:9px 12px;font-family:inherit;font-size:14px;background:rgba(36,26,16,.92);color:#f2e2c0;border:1px solid #8a7347;cursor:pointer';
+  function mk(txt, st, fn) { var b = document.createElement('button'); b.type = 'button'; b.className = 'crk'; b.textContent = txt; b.style.cssText = css + ';' + st; b.addEventListener('click', fn); document.body.appendChild(b); return b; }
+  var take = mk('Взяти камеру', 'position:fixed;left:12px;bottom:70px;z-index:6;display:none', function () { held = !held; sync(); });
+  var rb = mk('● Запис', 'position:fixed;left:12px;bottom:118px;z-index:6;display:none;color:#ff9a9a', function () { if (rec) stop(); else start(); });
+  var vf = document.createElement('div'); vf.className = 'crk'; vf.style.cssText = 'position:fixed;inset:22px;z-index:4;pointer-events:none;display:none';
+  vf.innerHTML = ['left:0;top:0;border-left:3px solid #fff;border-top:3px solid #fff', 'right:0;top:0;border-right:3px solid #fff;border-top:3px solid #fff', 'left:0;bottom:0;border-left:3px solid #fff;border-bottom:3px solid #fff', 'right:0;bottom:0;border-right:3px solid #fff;border-bottom:3px solid #fff'].map(function (s) { return '<i style="position:absolute;width:34px;height:34px;opacity:.85;' + s + '"></i>'; }).join('') + '<b id="crt" style="position:absolute;left:44px;top:6px;color:#ff4a4a;font:bold 16px Georgia,serif;text-shadow:0 0 4px #000"></b>';
+  document.body.appendChild(vf);
+  function build3() {
+    var g = new THREE.Group(), dark = new THREE.MeshStandardMaterial({ color: 0x1b1b1d, roughness: 0.5 });
+    var b = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.1, 0.22), dark); g.add(b);
+    var l = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.045, 0.1, 16), new THREE.MeshStandardMaterial({ color: 0x0b0b0d, roughness: 0.2, metalness: 0.6 })); l.rotation.x = Math.PI / 2; l.position.z = -0.15; g.add(l);
+    var gl = new THREE.Mesh(new THREE.CircleGeometry(0.032, 16), new THREE.MeshStandardMaterial({ color: 0x2a3a6a, roughness: 0.1, metalness: 0.8 })); gl.position.z = -0.201; gl.rotation.y = Math.PI; g.add(gl);
+    var scr = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.06, 0.012), new THREE.MeshStandardMaterial({ color: 0x223344 })); scr.position.set(-0.09, 0.0, 0.02); g.add(scr);
+    var led = new THREE.Mesh(new THREE.SphereGeometry(0.012, 8, 8), new THREE.MeshBasicMaterial({ color: 0x551111 })); led.position.set(0.05, 0.06, -0.06); g.add(led); g.userData.led = led;
+    g.scale.setScalar(0.5); g.position.set(0.3, -0.22, -0.55); g.rotation.set(0.05, 0.25, 0); return g;
+  }
+  function sync() {
+    take.textContent = held ? 'Покласти камеру' : 'Взяти камеру';
+    if (held && !cam3) { cam3 = build3(); scene.add(camera); camera.add(cam3); }
+    if (cam3) cam3.visible = held;
+    if (!held && rec) stop();
+  }
+  function fmt(s) { return Math.floor(s / 60) + ':' + ('0' + (s % 60)).slice(-2); }
+  function pickMime() { var c = ['video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm', 'video/mp4'], i; if (!window.MediaRecorder) return ''; for (i = 0; i < c.length; i++) if (MediaRecorder.isTypeSupported(c[i])) return c[i]; return ''; }
+  function hideHud(on) {
+    if (on) { hidden = []; Array.prototype.forEach.call(document.body.children, function (e) { if (e.tagName === 'CANVAS' || e.id === 'vtv' || e.classList.contains('crk') || e.tagName === 'SCRIPT' || e.tagName === 'STYLE') return; hidden.push([e, e.style.visibility]); e.style.visibility = 'hidden'; }); }
+    else { hidden.forEach(function (h) { h[0].style.visibility = h[1]; }); hidden = []; }
+  }
+  function start() {
+    if (!window.MediaRecorder) { toast('Цей браузер не вміє записувати відео.', 4000); return; }
+    var useTab = !!(navigator.mediaDevices && navigator.mediaDevices.getDisplayMedia), mic = null, disp = null;
+    var getMic = function () { return (navigator.mediaDevices && navigator.mediaDevices.getUserMedia ? navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } }) : Promise.reject()).catch(function () { return null; }); };
+    var getVid = function () {
+      if (useTab) return navigator.mediaDevices.getDisplayMedia({ video: { frameRate: 30 }, audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false }, preferCurrentTab: true, selfBrowserSurface: 'include', systemAudio: 'include', surfaceSwitching: 'exclude' }).then(function (s) { mode = 'tab'; return s; });
+      mode = 'canvas'; return Promise.resolve(renderer.domElement.captureStream(30));
+    };
+    getVid().then(function (d) {
+      disp = d; return getMic();
+    }).then(function (m) {
+      mic = m; ctx = ctx || new (window.AudioContext || window.webkitAudioContext)(); var dest = ctx.createMediaStreamDestination(), n = 0, src;
+      if (disp.getAudioTracks().length) { src = ctx.createMediaStreamSource(new MediaStream(disp.getAudioTracks())); src.connect(dest); n++; ownCleanup.push(src); }
+      if (mic && mic.getAudioTracks().length) { src = ctx.createMediaStreamSource(mic); src.connect(dest); n++; ownCleanup.push(src); }
+      var tracks = disp.getVideoTracks().slice(); if (n) dest.stream.getAudioTracks().forEach(function (t) { tracks.push(t); });
+      recStream = new MediaStream(tracks); chunks = [];
+      var mt = pickMime(), opt = { videoBitsPerSecond: 1500000 }; if (mt) opt.mimeType = mt;
+      rec = new MediaRecorder(recStream, opt);
+      rec.ondataavailable = function (e) { if (e.data && e.data.size) chunks.push(e.data); };
+      rec.onstop = function () { finish(mt || rec.mimeType || 'video/webm'); };
+      disp.getVideoTracks()[0].addEventListener('ended', function () { if (rec) stop(); });
+      rec.start(1000); t0 = Date.now(); hideHud(true); vf.style.display = 'block'; rb.textContent = '■ Стоп'; rb.style.left = '12px';
+      if (cam3) cam3.userData.led.material.color.set(0xff2020);
+      tmr = setInterval(function () { var s = Math.round((Date.now() - t0) / 1000); $('crt').textContent = '● REC ' + fmt(s) + (mode === 'canvas' ? ' · без телевізора' : ''); if (s >= MAXS) stop(); }, 500);
+    }).catch(function (e) {
+      if (disp) disp.getTracks().forEach(function (t) { t.stop(); }); rec = null;
+      toast(e && e.name === 'NotAllowedError' ? 'Запис скасовано: треба дозволити показ цієї вкладки.' : 'Не вдалося почати запис' + (e && e.name ? ' (' + e.name + ')' : '') + '.', 5000);
+    });
+  }
+  function stop() { if (!rec) return; try { rec.stop(); } catch (e) { finish('video/webm'); } }
+  function finish(mt) {
+    clearInterval(tmr); hideHud(false); vf.style.display = 'none'; rb.textContent = '● Запис';
+    if (cam3) cam3.userData.led.material.color.set(0x551111);
+    if (recStream) recStream.getTracks().forEach(function (t) { t.stop(); }); recStream = null; rec = null;
+    ownCleanup.forEach(function (s) { try { s.disconnect(); } catch (e) {} }); ownCleanup = [];
+    if (!chunks.length) { toast('Запис порожній.', 3000); return; }
+    var blob = new Blob(chunks, { type: mt.split(';')[0] }), url = URL.createObjectURL(blob), ext = /mp4/.test(mt) ? 'mp4' : 'webm', d = new Date(), nm = 'hall-' + d.getFullYear() + ('0' + (d.getMonth() + 1)).slice(-2) + ('0' + d.getDate()).slice(-2) + '-' + ('0' + d.getHours()).slice(-2) + ('0' + d.getMinutes()).slice(-2) + '.' + ext;
+    modal('<h3>Запис готовий</h3><p class="muted">Файл збережеться на цьому пристрої. Розмір: ' + (blob.size / 1048576).toFixed(1) + ' МБ.</p><video id="crv" controls style="width:100%;max-height:50vh;background:#000"></video><p><a id="cra" download="' + nm + '" style="display:inline-block;padding:9px 14px;background:#6b4a1f;color:#f2e2c0;border:1px solid #8a7347;text-decoration:none">Зберегти файл</a></p>');
+    var v = document.getElementById('crv'), a = document.getElementById('cra'); if (v) v.src = url; if (a) a.href = url; chunks = [];
+  }
+  updaters.push(function () {
+    var ok = allowed(), show = ok && !modalOpen;
+    take.style.display = show ? 'block' : 'none'; rb.style.display = (show && held) || rec ? 'block' : 'none';
+    if (cam3 && cam3.visible && cam3.userData.led && rec) cam3.userData.led.visible = (Date.now() % 1000) < 700; else if (cam3) cam3.userData.led.visible = true;
+    if (held && !rec && !modalOpen) vf.style.display = 'block'; else if (!rec) vf.style.display = 'none';
+    if (!ok && (held || rec)) { held = false; sync(); }
+  });
+})();
+
 })();
 </script>
 </body>
