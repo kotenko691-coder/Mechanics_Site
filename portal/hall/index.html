@@ -3173,7 +3173,12 @@ var RB = (function () {
   var wired = false;
   function wire() {
     var f = fb(); if (!f || wired) return; wired = true;
-    f.db.ref('board/' + KEY + '/' + f.uid).onDisconnect().remove().catch(function () {});
+    if (SEP) f.db.ref('board/' + KEY + '/' + f.uid).onDisconnect().remove().catch(function () {});
+    else f.db.ref('board/' + KEY + '/' + f.uid).orderByChild('t').limitToLast(150).once('value').then(function (sn) {
+      /* переговорна: дошка зберігається, власні штрихи повертаються після повторного входу */
+      var arr = []; sn.forEach(function (st) { var v = st.val(); if (v && v.c && v.p) arr.push({ c: String(v.c).slice(0, 9), w: +v.w || 4, p: dec(v.p) }); });
+      if (arr.length && !mine.length) { mine = arr; renderAll(); }
+    }).catch(function () {});
     f.db.ref('tv/' + KEY).on('value', function (s) { var v = s.val(); tvState = v && v.d ? v : null; VP.set(KEY, tvState); if (tvState && tvState.d === 'l' && !tvState.k && tvState.t !== lecSeen) { lecSeen = tvState.t; if (tvState.u !== f.uid && cur === MEET && Date.now() + (window.__srvOff || 0) - tvState.t < 45000 && NET && NET.openLecture) { toast('На телевізорі тема: ' + String(tvState.ti || ''), 3500); NET.openLecture(tvState.lid); } } if (!(tvState && myPages && tvState.u === f.uid)) { if (!tvState) { myPages = null; myPdf = null; } } showTv(); }, function () {});
     f.db.ref('board/' + KEY).on('value', function (snap) {
       var r = []; snap.forEach(function (u) { if (u.key === f.uid) return; u.forEach(function (st) { var v = st.val(); if (v && v.c && v.p) r.push({ c: String(v.c).slice(0, 9), w: +v.w || 4, p: dec(v.p) }); }); });
