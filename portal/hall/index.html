@@ -2033,7 +2033,7 @@ function chPose(r) {
   }
   r.mg.position.y = -r.extra * sit;
 }
-function chVisible(g) { for (var p = g, n = 0; p && n < 6; p = p.parent, n++) if (p.visible === false) return false; return true; }
+function chVisible(g) { for (var p = g.parent, n = 0; p && n < 6; p = p.parent, n++) if (p.visible === false) return false; return true; }
 updaters.push(function () {
   for (var i = chRigs.length - 1; i >= 0; i--) {
     var r = chRigs[i];
