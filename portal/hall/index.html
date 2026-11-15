@@ -3775,10 +3775,10 @@ if (window.__hall) { window.__hall.setEmo = setEmo; window.__hall.WSS = WSS; }
    Кава: ходьба швидша. Чай: більша дальність дотику. Бонуси діють лише на цьому пристрої й минають самі. */
 (function () {
   if (typeof F2 === 'undefined') return;
-  var BS = 0.73, BX = -2.5, BZ = 3.45, ISL_Y = 1.03;
+  var BS = 0.73, BX = -2.5, BZ = 3.95, ISL_Y = 1.03;
   var BG = new THREE.Group(); BG.position.set(BX, 0, BZ); BG.rotation.y = Math.PI; BG.scale.setScalar(BS); F2.group.add(BG);
   obs(F2, BX, BZ, 1.8, 1.05);
-  pl(F2, 0xffe0b0, 0.8, 6, -2.5, 2.5, 2.4);
+  pl(F2, 0xffe0b0, 0.8, 6, -2.5, 2.5, 2.9);
   var DRINKS = {
     coffee: { name: 'Кава', buff: 'Бадьорість', txt: 'ходьба швидша на 40%', sec: 120, mk: function () { BUFF.speed = 1.4; }, un: function () { BUFF.speed = 1; }, say: 'Ваша кава готова. Беріть, поки гаряча.' },
     tea: { name: 'Чай', buff: 'Спокій', txt: 'дальність дотику більша на 60%', sec: 180, mk: function () { BUFF.reach = 1.6; }, un: function () { BUFF.reach = 1; }, say: 'Ваш чай готовий. Обережно, гарячий.' }
