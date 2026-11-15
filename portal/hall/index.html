@@ -1795,12 +1795,14 @@ requestAnimationFrame(loop);
 /* ====== ФІГУРКИ, ШАФА (ВИГЛЯД) ====== */
 var SHIRTS = [0xb23a3a, 0x2f5d9a, 0x3f8a4f, 0xd9a521, 0x7a3f98, 0x1f8a8a, 0xe07a9a, 0x555555, 0xeeeeee, 0xe8742a];
 var HAIRS = [0x1a1a1a, 0x4a2c17, 0x8a5a2a, 0xd8b060, 0xa83a1a, 0x9a9a9a];
-var AV = { s: 'm', c: 0, h: 1 };
-try { var _a = JSON.parse(localStorage.getItem('hall-av') || 'null'); if (_a && (_a.s === 'm' || _a.s === 'f')) AV = { s: _a.s, c: (_a.c | 0) % SHIRTS.length, h: (_a.h | 0) % HAIRS.length }; else AV.c = Math.floor(Math.random() * SHIRTS.length); } catch (e) {}
+var CH_N = { m: 11, f: 10 };
+var AV = { s: 'm', c: 0, h: 1, k: Math.floor(Math.random() * 11) };
+try { var _a = JSON.parse(localStorage.getItem('hall-av') || 'null'); if (_a && (_a.s === 'm' || _a.s === 'f')) AV = { s: _a.s, c: (_a.c | 0) % SHIRTS.length, h: (_a.h | 0) % HAIRS.length, k: _a.k == null ? Math.floor(Math.random() * CH_N[_a.s]) : (_a.k | 0) % CH_N[_a.s] }; else AV.c = Math.floor(Math.random() * SHIRTS.length); } catch (e) {}
 function avSave() { try { localStorage.setItem('hall-av', JSON.stringify(AV)); } catch (e) {} }
+avSave();
 function cssHex(n) { return '#' + ('000000' + n.toString(16)).slice(-6); }
 
-function makeFigure(o) {
+function makeFigureBase(o) {
   var s = o.s === 'f' ? 'f' : 'm', shirt = SHIRTS[(o.c | 0) % SHIRTS.length], hair = HAIRS[(o.h | 0) % HAIRS.length], skin = 0xe0bf9c, pants = 0x2a2f3a;
   var g = new THREE.Group(), M_ = function (c, r) { return new THREE.MeshStandardMaterial({ color: c, roughness: r || .75 }); };
   function add(m, x, y, z, p) { m.raycast = function () {}; m.position.set(x, y, z); (p || g).add(m); return m; }
@@ -1855,22 +1857,42 @@ function drawPreview(cv, o) {
   x.fillStyle = '#111'; x.fillRect(-10, 38, 4, 5); x.fillRect(6, 38, 4, 5); x.setTransform(1, 0, 0, 1, 0, 0);
 }
 
+function wardPreview(cv) {
+  var rd;
+  try { rd = new THREE.WebGLRenderer({ canvas: cv, antialias: true }); } catch (e) { drawPreview(cv, AV); return function () { drawPreview(cv, AV); }; }
+  rd.setSize(cv.width, cv.height, false); rd.setClearColor(0x241a10);
+  var sc = new THREE.Scene(), cam = new THREE.PerspectiveCamera(28, cv.width / cv.height, 0.1, 20), fig = null, key = '', t0 = Date.now();
+  sc.add(new THREE.HemisphereLight(0xfff2dd, 0x6a5238, 1.0)); var dl = new THREE.DirectionalLight(0xffffff, 0.7); dl.position.set(1.5, 2.5, 3); sc.add(dl);
+  cam.position.set(0, 0.92, 4.1); cam.lookAt(0, 0.86, 0);
+  (function loop() {
+    if (!cv.isConnected) { rd.dispose(); return; }
+    var k = [AV.s, AV.k, AV.c, AV.h].join();
+    if (k !== key) { key = k; if (fig) sc.remove(fig); fig = makeFigure({ s: AV.s, k: AV.k, c: AV.c, h: AV.h, r: 0 }); sc.add(fig); }
+    fig.rotation.y = Math.PI + Math.sin((Date.now() - t0) / 1400) * 0.7;
+    rd.render(sc, cam); requestAnimationFrame(loop);
+  })();
+  return function () {};
+}
 function openWardrobe() {
-  var html = '<h3>Шафа: ваш вигляд</h3><div class="row" style="align-items:flex-start;gap:14px"><canvas id="avp" width="140" height="210" style="border:1px solid #6d5a3c;width:140px;height:210px;max-width:140px;flex:none"></canvas><div style="flex:1;min-width:190px">' +
-    '<p class="muted" style="margin:0 0 4px">Стать</p><div><button id="avm" type="button">Хлопчик</button><button id="avf" type="button">Дівчинка</button></div>' +
+  var html = '<h3>Шафа: ваш вигляд</h3><div class="row" style="align-items:flex-start;gap:14px"><canvas id="avp" width="300" height="440" style="border:1px solid #6d5a3c;width:150px;height:220px;max-width:150px;flex:none"></canvas><div style="flex:1;min-width:190px">' +
+    '<p class="muted" style="margin:0 0 4px">Стать</p><div><button id="avm" type="button">Хлопець</button><button id="avf" type="button">Дівчина</button></div>' +
+    '<p class="muted" style="margin:10px 0 4px">Образ</p><div style="display:flex;align-items:center;gap:6px"><button id="avp1" type="button">◀</button><span id="avn" style="flex:1;text-align:center"></span><button id="avp2" type="button">▶</button></div>' +
     '<p class="muted" style="margin:10px 0 4px">Колір одягу</p><div id="avc"></div><p class="muted" style="margin:10px 0 4px">Колір волосся</p><div id="avh"></div></div></div><button class="main" id="avok" type="button" style="margin-top:14px">Готово</button>';
-  var b = modal(html); var pv = b.querySelector('#avp');
+  var b = modal(html); var pv = b.querySelector('#avp'); wardPreview(pv);
   function sw(cont, arr, key) {
     var el = b.querySelector(cont); el.innerHTML = '';
     arr.forEach(function (c, i) { var bt = document.createElement('button'); bt.type = 'button'; bt.style.cssText = 'width:34px;height:34px;padding:0;margin:3px;background:' + cssHex(c) + ';border:2px solid ' + (AV[key] === i ? '#fff' : '#555'); bt.addEventListener('click', function () { AV[key] = i; refresh(); }); el.appendChild(bt); });
   }
   function refresh() {
-    drawPreview(pv, AV); sw('#avc', SHIRTS, 'c'); sw('#avh', HAIRS, 'h');
+    sw('#avc', SHIRTS, 'c'); sw('#avh', HAIRS, 'h'); b.querySelector('#avn').textContent = (CH_NAMES[AV.s][AV.k] || '') + ' · ' + (AV.k + 1) + '/' + CH_N[AV.s];
     b.querySelector('#avm').style.borderColor = AV.s === 'm' ? '#fff' : '#8a7347'; b.querySelector('#avf').style.borderColor = AV.s === 'f' ? '#fff' : '#8a7347';
     avSave(); if (window.__avChanged) window.__avChanged();
   }
-  b.querySelector('#avm').addEventListener('click', function () { AV.s = 'm'; refresh(); });
-  b.querySelector('#avf').addEventListener('click', function () { AV.s = 'f'; refresh(); });
+  function setS(sx) { if (AV.s !== sx) { AV.s = sx; AV.k = Math.floor(Math.random() * CH_N[sx]); } refresh(); }
+  b.querySelector('#avm').addEventListener('click', function () { setS('m'); });
+  b.querySelector('#avf').addEventListener('click', function () { setS('f'); });
+  b.querySelector('#avp1').addEventListener('click', function () { AV.k = (AV.k + CH_N[AV.s] - 1) % CH_N[AV.s]; refresh(); });
+  b.querySelector('#avp2').addEventListener('click', function () { AV.k = (AV.k + 1) % CH_N[AV.s]; refresh(); });
   b.querySelector('#avok').addEventListener('click', closeModal); refresh();
 }
 (function () {
@@ -1913,8 +1935,117 @@ updaters.push(function (s) {
   if (EMO === 1) ty = 0.95; else if (EMO === 2) ty = EYE + Math.abs(Math.sin(s * 7)) * 0.08; else if (EMO === 3) ty = EYE + Math.abs(Math.sin(s * 6)) * 0.12; else if (EMO === 4) ty = 1.4;
   if (EMO || camLow) { p.y += (ty - p.y) * k; camLow = Math.abs(p.y - EYE) > 0.01; if (!camLow && !EMO) p.y = EYE; }
 });
-if (window.__hall) { window.__hall.makeFigure = makeFigure; window.__hall.openWardrobe = openWardrobe; window.__hall.HALL = HALL; }
+if (window.__hall) { window.__hall.makeFigure = function (o) { return makeFigure(o); }; window.__hall.openWardrobe = openWardrobe; window.__hall.HALL = HALL; }
 if (window.__hall) { window.__hall.sit = sitDown; window.__hall.meetCheck = meetCheck; window.__hall.EMO = function () { return EMO; }; }
+
+
+/* ====== 3D-ПЕРСОНАЖІ (Quaternius, CC0): скелет, поза з коду, колір одягу й волосся ====== */
+var CH_NAMES = {
+  m: ['Мандрівник', 'Пляж', 'Повсякденний', 'Худі', 'Фермер', 'Король', 'Панк', 'Космонавт', 'Костюм', 'Спецназ', 'Робітник'],
+  f: ['Мандрівниця', 'Повсякденна', 'Офіційна', 'Середньовіччя', 'Панк', 'Космос', 'Солдат', 'Костюм', 'Відьма', 'Робітниця']
+};
+var CH_BASE = 'chars/', chCache = {}, chRigs = [], CH_MAT = null;
+function chLoad(id) {
+  if (chCache[id]) return chCache[id];
+  return chCache[id] = fetch(CH_BASE + id + '.bin').then(function (r) { if (!r.ok) throw new Error('chars'); return r.arrayBuffer(); }).then(function (buf) {
+    var dv = new DataView(buf), jl = dv.getUint32(0, true), meta = JSON.parse(new TextDecoder().decode(new Uint8Array(buf, 4, jl))), base = 4 + jl, A = {};
+    var TT = { int16: Int16Array, int8: Int8Array, uint8: Uint8Array, uint16: Uint16Array };
+    meta.arr.forEach(function (a) { A[a[0]] = new TT[a[1]](buf.slice(base + a[3], base + a[3] + a[4])); });
+    var nv = meta.nv, pos = new Float32Array(nv * 3), nor = new Float32Array(nv * 3), sw = new Float32Array(nv * 4), i, k = meta.ext / 32767;
+    for (i = 0; i < nv * 3; i++) { pos[i] = A.pos[i] * k; nor[i] = A.nor[i] / 127; }
+    for (i = 0; i < nv * 4; i++) sw[i] = A.wgt[i] / 255;
+    var sk = new Uint16Array(nv * 4); for (i = 0; i < nv * 4; i++) sk[i] = A.jnt[i];
+    return { meta: meta, A: A, pos: new THREE.BufferAttribute(pos, 3), nor: new THREE.BufferAttribute(nor, 3), sw: new THREE.BufferAttribute(sw, 4), sk: new THREE.BufferAttribute(sk, 4), idx: new THREE.BufferAttribute(A.idx, 1) };
+  });
+}
+function chId(o) {
+  var s = o.s === 'f' ? 'f' : 'm', n = CH_N[s], k = o.k == null ? ((o.c | 0) + (o.h | 0) * 3) : (o.k | 0);
+  return s + (((k % n) + n) % n);
+}
+function chColors(model, o) {
+  var meta = model.meta, A = model.A, col = new Uint8Array(A.col), role = meta.mats.map(function (m) { return m.role; }), i, mid = A.mid;
+  if (!o.raw) {
+    var sh = SHIRTS[(o.c | 0) % SHIRTS.length], hr = HAIRS[(o.h | 0) % HAIRS.length];
+    for (i = 0; i < mid.length; i++) {
+      var r = role[mid[i]], c = r === 'cloth' ? sh : r === 'hair' ? hr : -1;
+      if (c >= 0) { col[i * 3] = (c >> 16) & 255; col[i * 3 + 1] = (c >> 8) & 255; col[i * 3 + 2] = c & 255; }
+    }
+  }
+  return new THREE.BufferAttribute(col, 3, true);
+}
+var CH_Y = new THREE.Vector3(0, 1, 0), CH_X = new THREE.Vector3(1, 0, 0);
+function chBuild(g, o, model) {
+  var meta = model.meta, s = (o.s === 'f' ? 1.44 : 1.5) / meta.headY, bones = [], i;
+  if (!CH_MAT) CH_MAT = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.85, metalness: 0, skinning: true });
+  meta.bones.forEach(function (b) { var bo = new THREE.Bone(); bo.name = b.n; bo.position.set(b.t[0], b.t[1], b.t[2]); bo.quaternion.set(b.q[0], b.q[1], b.q[2], b.q[3]); bones.push(bo); });
+  meta.bones.forEach(function (b, k) { if (b.p >= 0) bones[b.p].add(bones[k]); });
+  var geo = new THREE.BufferGeometry(); geo.setAttribute('position', model.pos); geo.setAttribute('normal', model.nor); geo.setAttribute('skinIndex', model.sk); geo.setAttribute('skinWeight', model.sw); geo.setAttribute('color', chColors(model, o)); geo.setIndex(model.idx);
+  var mesh = new THREE.SkinnedMesh(geo, CH_MAT); mesh.frustumCulled = false; mesh.raycast = function () {};
+  bones.forEach(function (bo, k) { if (meta.bones[k].p < 0) mesh.add(bo); });
+  mesh.bind(new THREE.Skeleton(bones, meta.bones.map(function (b) { return new THREE.Matrix4().fromArray(b.ib); })), new THREE.Matrix4());
+  var mg = new THREE.Group(); mg.scale.setScalar(s); mg.rotation.y = Math.PI; mg.add(mesh); mg.updateMatrixWorld(true);
+  var W = [], flip = new THREE.Quaternion().setFromAxisAngle(CH_Y, Math.PI), byName = {};
+  meta.bones.forEach(function (b, k) { byName[b.n] = k; W[k] = (b.p >= 0 ? W[b.p].clone() : flip.clone()).multiply(new THREE.Quaternion(b.q[0], b.q[1], b.q[2], b.q[3])); });
+  function drv(name) { var k = byName[name], p = meta.bones[k].p, pw = p >= 0 ? W[p].clone() : flip.clone(); return { b: bones[k], pw: pw, pwi: pw.clone().invert(), qb: new THREE.Quaternion(meta.bones[k].q[0], meta.bones[k].q[1], meta.bones[k].q[2], meta.bones[k].q[3]), x: bones[k].matrixWorld.elements[12] }; }
+  function pair(a, b) { var A = drv(a), B = drv(b); return A.x <= B.x ? [A, B] : [B, A]; }
+  var rig = { g: g, mg: mg, arms: pair('UpperArm.L', 'UpperArm.R'), legs: pair('UpperLeg.L', 'UpperLeg.R'), shins: null, tmp: new THREE.Quaternion(), tmp2: new THREE.Quaternion(), extra: Math.max(0, meta.hipY * s - 0.82) };
+  rig.bn = {}; bones.forEach(function (bo) { rig.bn[bo.name] = bo; });
+  var sl = drv('LowerLeg.L'), sr = drv('LowerLeg.R'); rig.shins = sl.x <= sr.x ? [sl, sr] : [sr, sl];
+  rig.forearms = [drv('LowerArm.L'), drv('LowerArm.R')]; if (rig.forearms[0].x > rig.forearms[1].x) rig.forearms.reverse();
+  // старі кінцівки-проксі: код анімації керує їхніми rotation, а кістки слідують
+  g.userData.legs = [new THREE.Object3D(), new THREE.Object3D()]; g.userData.arms = [new THREE.Object3D(), new THREE.Object3D()];
+  g.userData.arms[0].rotation.z = 0.04; g.userData.arms[1].rotation.z = -0.04;
+  if (o.r) chRobe(g, rig, meta, s);
+  g.add(mg); chRigs.push(rig); return rig;
+}
+function chRobe(g, rig, meta, s) {
+  var M_ = function (c, r) { return new THREE.MeshStandardMaterial({ color: c, roughness: r || .85 }); };
+  function add(m, x, y, z, p) { m.raycast = function () {}; m.position.set(x, y, z); (p || g).add(m); return m; }
+  var rc = 0x16233f, gold = 0xc9a23c;
+  var sk = add(new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.36, 1.02, 20), M_(rc)), 0, 0.9, 0); sk.scale.z = 0.78;
+  var sh = add(new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.27, 0.2, 20), M_(rc)), 0, 1.32, 0); sh.scale.z = 0.7;
+  var hem = add(new THREE.Mesh(new THREE.CylinderGeometry(0.364, 0.368, 0.05, 20), M_(gold, .5)), 0, 0.42, 0); hem.scale.z = 0.78;
+  add(new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.98, 0.02), M_(gold, .5)), 0, 0.9, -0.28);
+  add(new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.98, 0.02), M_(gold, .5)), 0, 0.9, 0.28);
+  var cap = add(new THREE.Mesh(new THREE.CylinderGeometry(0.125, 0.125, 0.07, 14), M_(0x101a30)), 0, 1.66, 0), board = add(new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.025, 0.34), M_(0x101a30)), 0, 1.7, 0);
+  add(new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.008, 0.14, 5), M_(gold, .5)), 0.15, 1.64, 0.0);
+  // рукави на кістках плеча й передпліччя (вздовж осі кістки)
+  function sleeve(bone, to, r0, r1, extra, col) {
+    var d = to.position.clone(), len = d.length() * extra, m = new THREE.Mesh(new THREE.CylinderGeometry(r1 / s, r0 / s, len, 10), M_(col));
+    m.raycast = function () {}; m.quaternion.setFromUnitVectors(CH_Y, d.clone().normalize()); m.position.copy(d).multiplyScalar(0.5 * extra); bone.add(m);
+  }
+  rig.arms.forEach(function (a, i) {
+    var f = rig.forearms[i], w = rig.bn[f.b.name.replace('LowerArm', 'Wrist')];
+    sleeve(a.b, f.b, 0.085, 0.075, 1.0, rc); if (w) sleeve(f.b, w, 0.075, 0.1, 0.85, rc);
+  });
+}
+function chPose(r) {
+  var u = r.g.userData, i, a, q = r.tmp, sit = 0;
+  for (i = 0; i < 2; i++) {
+    a = r.arms[i]; q.copy(a.pwi).multiply(u.arms[i].quaternion).multiply(a.pw).multiply(a.qb); a.b.quaternion.copy(q);
+    var lx = u.legs[i].rotation.x, l = r.legs[i]; q.copy(l.pwi).multiply(u.legs[i].quaternion).multiply(l.pw).multiply(l.qb); l.b.quaternion.copy(q);
+    var t = Math.max(0, Math.min(1, (lx - 0.4) / 1.0)); if (t > sit) sit = t;
+    var bend = lx > 0 ? -lx * (0.4 + 0.6 * t) : 0, sh = r.shins[i]; r.tmp2.setFromAxisAngle(CH_X, bend); q.copy(sh.pwi).multiply(r.tmp2).multiply(sh.pw).multiply(sh.qb); sh.b.quaternion.copy(q);
+  }
+  r.mg.position.y = -r.extra * sit;
+}
+function chVisible(g) { for (var p = g, n = 0; p && n < 6; p = p.parent, n++) if (p.visible === false) return false; return true; }
+updaters.push(function () {
+  for (var i = chRigs.length - 1; i >= 0; i--) {
+    var r = chRigs[i];
+    if (!r.g.parent) { if (!r.orph) r.orph = Date.now(); else if (Date.now() - r.orph > 8000) chRigs.splice(i, 1); continue; }
+    r.orph = 0; if (chVisible(r.g)) chPose(r);
+  }
+});
+function makeFigure(o) {
+  var g = makeFigureBase(o), old = g.children.slice(), id = chId(o), done = function (m) {
+    if (g.userData.chDone) return; g.userData.chDone = 1;
+    old.forEach(function (c) { g.remove(c); }); g.userData.old = null; chBuild(g, o, m);
+  };
+  if (chCache[id]) { chCache[id].then(function (m) { done(m); }, function () {}); }
+  else chLoad(id).then(function (m) { done(m); }, function () { delete chCache[id]; });
+  return g;
+}
 
 
 /* ====== ПРИСУТНІСТЬ У ХОЛІ (Firebase Realtime Database) ====== */
@@ -1953,9 +2084,9 @@ if (window.__hall) { window.__hall.sit = sitDown; window.__hall.meetCheck = meet
     g.userData.bub = sp; g.userData.bubUntil = Date.now() + 9000;
   }
   function makeGhost(id, d) {
-    var g = makeFigure({ s: d.s, c: d.c == null ? (id.charCodeAt(0) + id.charCodeAt(id.length - 1)) % SHIRTS.length : d.c, h: d.h == null ? id.charCodeAt(1) % HAIRS.length : d.h, r: d.r | 0 });
+    var g = makeFigure({ s: d.s, c: d.c == null ? (id.charCodeAt(0) + id.charCodeAt(id.length - 1)) % SHIRTS.length : d.c, h: d.h == null ? id.charCodeAt(1) % HAIRS.length : d.h, k: d.k, r: d.r | 0 });
     var sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: labelTex(d.n, d.g || ''), transparent: true, depthTest: false })); sp.scale.set(0.75, 0.1875, 1); sp.position.y = 2.05; sp.renderOrder = 10; g.add(sp);
-    Object.assign(g.userData, { loc: d.l || 'hall', e: d.e | 0, tx: d.x, tz: d.z, ty: d.y, name: d.n, sub: d.g || '', key: [d.s, d.c, d.h, d.l, d.r | 0].join(), ph: 0, amp: 0 });
+    Object.assign(g.userData, { loc: d.l || 'hall', e: d.e | 0, tx: d.x, tz: d.z, ty: d.y, name: d.n, sub: d.g || '', key: [d.s, d.c, d.h, d.k, d.l, d.r | 0].join(), ph: 0, amp: 0 });
     g.position.set(d.x, 0, d.z); g.rotation.y = d.y; (LOC[d.l] || HALL).group.add(g); return g;
   }
   function logMsg(who, text, mine) {
@@ -1970,7 +2101,7 @@ if (window.__hall) { window.__hall.sit = sitDown; window.__hall.meetCheck = meet
       if (id === uid) return; var d = v[id];
       if (!d || now - d.t > 25000) return; seen[id] = 1;
       var g = ghosts[id];
-      if (!g || g.userData.name !== d.n || g.userData.sub !== (d.g || '') || g.userData.key !== [d.s, d.c, d.h, d.l, d.r | 0].join()) { if (g && g.parent) g.parent.remove(g); if (Object.keys(ghosts).length > 40) return; g = ghosts[id] = makeGhost(id, d); }
+      if (!g || g.userData.name !== d.n || g.userData.sub !== (d.g || '') || g.userData.key !== [d.s, d.c, d.h, d.k, d.l, d.r | 0].join()) { if (g && g.parent) g.parent.remove(g); if (Object.keys(ghosts).length > 40) return; g = ghosts[id] = makeGhost(id, d); }
       g.userData.tx = d.x; g.userData.tz = d.z; g.userData.ty = d.y; g.userData.e = d.e | 0; g.userData.mic = d.v | 0; g.userData.hd = d.hd | 0; g.userData.pt = typeof d.pt === 'string' ? d.pt.slice(0, 40) : '';
       if (d.m && d.mt && d.mt > (seenMt[id] || 0)) { if ((seenMt[id] !== undefined || now - d.mt < 20000) && (d.l || 'hall') === (cur && cur.id)) { say(g, String(d.m)); logMsg(d.n, String(d.m)); } seenMt[id] = d.mt; } else if (seenMt[id] === undefined) seenMt[id] = d.mt || 0;
     });
@@ -2024,7 +2155,7 @@ if (window.__hall) { window.__hall.sit = sitDown; window.__hall.meetCheck = meet
       var p = camera.position, nowMs = Date.now(), moved = Math.abs(p.x - last.x) > 0.05 || Math.abs(p.z - last.z) > 0.05 || Math.abs(yaw - last.y) > 0.08 || (window.__ptStr || '') !== (last.pt || '') || (window.__hand | 0) !== (last.hd | 0);
       if (!force && !moved && nowMs - lastSent < 8000) return;
       lastSent = nowMs; last = { x: p.x, z: p.z, y: yaw, pt: window.__ptStr || '', hd: window.__hand | 0 };
-      var rec = { n: w.name, g: w.group, s: AV.s, c: AV.c, h: AV.h, e: EMO, r: isTeacher() ? 1 : 0, l: cur.id, v: (window.__micOn ? 1 : 0), x: Math.round((p.x - cur.group.position.x) * 100) / 100, z: Math.round((p.z - cur.group.position.z) * 100) / 100, y: Math.round(yaw * 100) / 100, t: firebase.database.ServerValue.TIMESTAMP };
+      var rec = { n: w.name, g: w.group, s: AV.s, c: AV.c, h: AV.h, k: AV.k, e: EMO, r: isTeacher() ? 1 : 0, l: cur.id, v: (window.__micOn ? 1 : 0), x: Math.round((p.x - cur.group.position.x) * 100) / 100, z: Math.round((p.z - cur.group.position.z) * 100) / 100, y: Math.round(yaw * 100) / 100, t: firebase.database.ServerValue.TIMESTAMP };
       if (window.__ptStr) rec.pt = window.__ptStr;
       if (window.__hand && EMO === 4) rec.hd = 1;
       if (me.m && Date.now() + offset - me.mt < 30000) { rec.m = me.m; rec.mt = me.mt; }
@@ -2557,7 +2688,7 @@ var RB = (function () {
     MEET.zoomT = [{ label: 'Дошка', obj: plane }];
   }
   if (SEP) {
-    var rbf = makeFigure({ s: 'm', c: 4, h: 0, r: 1 }); rbf.position.set(3.0, 0, -5.0); rbf.rotation.y = Math.PI; MEET.group.add(rbf);
+    var rbf = makeFigure({ s: 'm', k: 7, c: 7, h: 0, r: 0, raw: 1 }); rbf.position.set(3.0, 0, -5.0); rbf.rotation.y = Math.PI; MEET.group.add(rbf);
     var rbs = signPlane(['Викладач-робот'], 1.5, 0.3, { bg: '#17110b', fg: '#9fe6b0', px: 72 }); rbs.position.set(3.0, 2.25, -5.0); rbs.rotation.y = 0; MEET.group.add(rbs); rbf.userData.sign = rbs;
     obs(MEET, 3.0, -5.0, 0.5, 0.5); RB.attach(KEY, MEET, rbf);
   }
@@ -3075,8 +3206,8 @@ var RB = (function () {
   var vcam = new THREE.PerspectiveCamera(60, W / H, 0.1, 60), self = null, selfKey = '', prev = { x: 0, z: 0 }, ph = 0, amp = 0;
   var cen = new THREE.Vector3(sx, CY, F2.group.position.z), fw = new THREE.Vector3();
   function ensureSelf() {
-    var k = AV.s + AV.c + AV.h + (isTeacher() ? 'T' : ''); if (self && selfKey === k) return; if (self) F2.group.remove(self);
-    self = makeFigure({ s: AV.s, c: AV.c, h: AV.h, r: isTeacher() ? 1 : 0 }); self.visible = false; F2.group.add(self); selfKey = k;
+    var k = AV.s + AV.c + AV.h + AV.k + (isTeacher() ? 'T' : ''); if (self && selfKey === k) return; if (self) F2.group.remove(self);
+    self = makeFigure({ s: AV.s, c: AV.c, h: AV.h, k: AV.k, r: isTeacher() ? 1 : 0 }); self.visible = false; F2.group.add(self); selfKey = k;
   }
   function pose(dt, nowMs) {
     var u = self.userData, sp = Math.hypot(camera.position.x - prev.x, camera.position.z - prev.z) / (dt || 0.016); prev.x = camera.position.x; prev.z = camera.position.z;
@@ -3112,8 +3243,8 @@ var RB = (function () {
 (function () {
   var self = null, selfKey = '', b = 0, dist = 2.4, offX = 0, offZ = 0, offY = 0, active = false, last = 0;
   function ensure() {
-    var k = AV.s + AV.c + AV.h + (isTeacher() ? 'T' : '');
-    if (!self || selfKey !== k) { if (self && self.parent) self.parent.remove(self); self = makeFigure({ s: AV.s, c: AV.c, h: AV.h, r: isTeacher() ? 1 : 0 }); selfKey = k; self.visible = false; var lt = new THREE.PointLight(0xfff0d8, 0.9, 6); lt.position.set(0, 2.2, 1.6); self.add(lt); }
+    var k = AV.s + AV.c + AV.h + AV.k + (isTeacher() ? 'T' : '');
+    if (!self || selfKey !== k) { if (self && self.parent) self.parent.remove(self); self = makeFigure({ s: AV.s, c: AV.c, h: AV.h, k: AV.k, r: isTeacher() ? 1 : 0 }); selfKey = k; self.visible = false; var lt = new THREE.PointLight(0xfff0d8, 0.9, 6); lt.position.set(0, 2.2, 1.6); self.add(lt); }
     if (self.parent !== cur.group) cur.group.add(self);
   }
   function pose(ts) {
