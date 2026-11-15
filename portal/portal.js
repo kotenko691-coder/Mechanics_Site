@@ -1010,7 +1010,10 @@
       document.body.appendChild(ov);
     }
     ov.hidden = false; ov.style.display = 'block';
-    document.getElementById('hall-frame').src = 'hall/?v=62';
+    /* номер версії холу береться з файлу без кешу: нова версія підхоплюється одразу, без чекання і Ctrl+F5 */
+    var hv = 62, fr = document.getElementById('hall-frame'); fr.src = 'about:blank';
+    var go = function () { if (ov.style.display !== 'none') fr.src = 'hall/?v=' + hv; };
+    try { fetch('hall-version.json?_=' + Date.now(), { cache: 'no-store' }).then(function (r) { return r.json(); }).then(function (j) { if (j && j.v) hv = j.v; }).catch(function () {}).then(go); } catch (e) { go(); }
     // повний екран: запит іде з кліку студента; там, де браузер не дозволяє (iPhone), хол і так займає весь екран
     try { var rq = ov.requestFullscreen || ov.webkitRequestFullscreen; if (rq) { var pr = rq.call(ov); if (pr && pr.catch) pr.catch(function () {}); } } catch (e) { /* ігноруємо */ }
   }
