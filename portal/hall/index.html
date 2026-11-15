@@ -3643,7 +3643,7 @@ if (window.__hall) { window.__hall.setEmo = setEmo; window.__hall.WSS = WSS; }
   var MAXS = 900;
   var css = 'padding:9px 12px;font-family:inherit;font-size:14px;background:rgba(36,26,16,.92);color:#f2e2c0;border:1px solid #8a7347;cursor:pointer';
   function mk(txt, st, fn) { var b = document.createElement('button'); b.type = 'button'; b.className = 'crk'; b.textContent = txt; b.style.cssText = css + ';' + st; b.addEventListener('click', fn); document.body.appendChild(b); return b; }
-  var take = mk('Взяти камеру', 'position:fixed;left:12px;bottom:70px;z-index:6;display:none', function () { held = !held; sync(); });
+  var take = mk('Взяти камеру', 'position:fixed;left:12px;bottom:70px;z-index:6;display:none', function () { held = false; sync(); toast('Камеру покладено на тумбочку в переговорній.', 3000); });
   var rb = mk('● Запис', 'position:fixed;left:12px;bottom:118px;z-index:6;display:none;color:#ff9a9a', function () { if (rec) stop(); else start(); });
   var vf = document.createElement('div'); vf.className = 'crk'; vf.style.cssText = 'position:fixed;inset:22px;z-index:4;pointer-events:none;display:none';
   vf.innerHTML = ['left:0;top:0;border-left:3px solid #fff;border-top:3px solid #fff', 'right:0;top:0;border-right:3px solid #fff;border-top:3px solid #fff', 'left:0;bottom:0;border-left:3px solid #fff;border-bottom:3px solid #fff', 'right:0;bottom:0;border-right:3px solid #fff;border-bottom:3px solid #fff'].map(function (s) { return '<i style="position:absolute;width:34px;height:34px;opacity:.85;' + s + '"></i>'; }).join('') + '<b id="crt" style="position:absolute;left:44px;top:6px;color:#ff4a4a;font:bold 16px Georgia,serif;text-shadow:0 0 4px #000"></b>';
@@ -3658,10 +3658,24 @@ if (window.__hall) { window.__hall.setEmo = setEmo; window.__hall.WSS = WSS; }
     g.scale.setScalar(0.5); g.position.set(0.3, -0.22, -0.55); g.rotation.set(0.05, 0.25, 0); return g;
   }
   function sync() {
-    take.textContent = held ? 'Покласти камеру' : 'Взяти камеру';
+    take.textContent = 'Покласти камеру'; if (shelf) shelf.visible = !held;
     if (held && !cam3) { cam3 = build3(); scene.add(camera); camera.add(cam3); }
     if (cam3) cam3.visible = held;
     if (!held && rec) stop();
+  }
+  /* камера на тумбочці в переговорній: підійти й торкнутися */
+  var shelf = null;
+  if (typeof MEET !== 'undefined' && MEET) {
+    var cg = MEET.group, cb = new THREE.Group(); cb.position.set(-5.55, 0, 0.5); cg.add(cb);
+    var wood = new THREE.MeshStandardMaterial({ color: 0x4a3220, roughness: 0.7 });
+    var bx = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.74, 0.95), wood); bx.position.y = 0.37; cb.add(bx);
+    var top = new THREE.Mesh(new THREE.BoxGeometry(0.56, 0.03, 1.0), new THREE.MeshStandardMaterial({ color: 0x2e1d10, roughness: 0.5 })); top.position.y = 0.755; cb.add(top);
+    [0.18, 0.56].forEach(function (y) { var h = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.02, 0.2), new THREE.MeshStandardMaterial({ color: 0xc8a050, metalness: 0.6, roughness: 0.4 })); h.position.set(0.26, y, 0); cb.add(h); });
+    shelf = build3(); shelf.scale.setScalar(1); shelf.position.set(0, 0.84, 0); shelf.rotation.set(0, Math.PI / 2 + 0.2, 0); cb.add(shelf);
+    var hb = hit(cb, 0.7, 0.4, 0.9, 0, 0.95, 0);
+    var take1 = function () { if (!allowed()) { toast('Камера доступна лише викладачу.', 3000); return; } held = true; sync(); toast('Камеру взято. Кнопка «● Запис» зліва знизу.', 3500); };
+    act(bx, 'Камера', take1, { reach: 4 }); act(hb, 'Камера', take1, { reach: 4 }); act(shelf, 'Камера', take1, { reach: 4 });
+    obs(MEET, -5.55, 0.5, 0.3, 0.52);
   }
   function fmt(s) { return Math.floor(s / 60) + ':' + ('0' + (s % 60)).slice(-2); }
   function pickMime() { var c = ['video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm', 'video/mp4'], i; if (!window.MediaRecorder) return ''; for (i = 0; i < c.length; i++) if (MediaRecorder.isTypeSupported(c[i])) return c[i]; return ''; }
@@ -3711,7 +3725,7 @@ if (window.__hall) { window.__hall.setEmo = setEmo; window.__hall.WSS = WSS; }
   }
   updaters.push(function () {
     var ok = allowed(), show = ok && !modalOpen;
-    take.style.display = show ? 'block' : 'none'; rb.style.display = (show && held) || rec ? 'block' : 'none';
+    take.style.display = show && held ? 'block' : 'none'; rb.style.display = (show && held) || rec ? 'block' : 'none';
     if (cam3 && cam3.visible && cam3.userData.led && rec) cam3.userData.led.visible = (Date.now() % 1000) < 700; else if (cam3) cam3.userData.led.visible = true;
     if (held && !rec && !modalOpen) vf.style.display = 'block'; else if (!rec) vf.style.display = 'none';
     if (!ok && (held || rec)) { held = false; sync(); }
