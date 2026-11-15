@@ -1148,8 +1148,6 @@ var f2Door = {};
       ss.sort(function (a, c) { return Math.hypot(a.x - camera.position.x, a.z - camera.position.z) - Math.hypot(c.x - camera.position.x, c.z - camera.position.z); }); sitDown(ss[0]);
     }, { reach: 4.5 }); obs(F2, lx, 3.9, 1.2, 0.3);
   });
-  (function () { var cp = wsMesh('cup'); cp.scale.setScalar(2.0); cp.position.set(0, 0.45, 3.9); cp.rotation.y = 0.6; F2.group.add(cp);
-    act(cp, 'Чашка кави', say('Чашка еспресо на блюдці. Хтось залишив кави для викладача.'), { reach: 4 }); })();
   plant(F2, -5.2, -3.7); plant(F2, 5.2, -3.7); plant(F2, -3.3, 0.9);
   ppaint(F2, 3, 0, 1.9, 1.3, 0.9, sysDraw('2 поверх', 'Тут кабінети груп і переговорна'), 'Схема поверху', 'На схемі п’ять дверей: переговорна, практика та три кабінети за спеціальностями.');
   // сходи вниз
