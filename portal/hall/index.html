@@ -3376,15 +3376,19 @@ var RB = (function () {
   function zBtnMake(label, fn, on) { var b = document.createElement('button'); b.type = 'button'; b.textContent = label; b.style.cssText = 'padding:9px 12px;font-family:inherit;font-size:14px;background:' + (on ? '#6b4a1f' : 'rgba(36,26,16,.92)') + ';color:#f2e2c0;border:1px solid #8a7347;cursor:pointer;text-align:left'; b.addEventListener('click', fn); zPanel.appendChild(b); return b; }
   function zDraw() {
     zPanel.innerHTML = ''; var L = LOC[zRoom]; if (!L) return;
-    var list = (L.zoomT || []).slice(); if (L.zoomStand) list.push({ label: 'Стенд', obj: L.zoomStand });
-    list.forEach(function (t) {
-      var lab = zT === t && zLv ? (zLv === 1 ? t.label + ': ще ближче' : t.label + ': ближче не можна') : (list.length === 1 ? 'Наблизити ' + t.label.toLowerCase() : 'До ' + (t.label === 'Дошка' ? 'дошки' : t.label === 'Телевізор' ? 'телевізора' : 'стенда'));
-      zBtnMake(lab, function () {
-        if (zT === t && zLv) zLv = Math.min(ZL.length - 1, zLv + 1); else { zT = t; zLv = 1; }
-        var tgt = t.obj; if (t.objs) { var bd = 1e9; t.objs.forEach(function (o2) { var d2 = worldPos(o2).distanceTo(camera.position); if (d2 < bd) { bd = d2; tgt = o2; } }); } if (!busy) lookAtPoint(worldPos(tgt), 600); zDraw();
-      }, zT === t && zLv);
-    });
-    if (zLv) zBtnMake('Звичайний вигляд', function () { zLv = 0; zT = null; zDraw(); });
+    var list = (L.zoomT || []).slice(); if (L.zoomStand) list.push({ label: 'Стенд', obj: L.zoomStand }); if (!list.length) return;
+    var last = ZL.length - 1, lab = !zLv ? 'Наблизити' : zLv < last ? 'Ще ближче' : 'Звичайний вигляд';
+    zBtnMake(lab, function () {
+      if (zLv >= last) { zLv = 0; zT = null; zDraw(); return; }
+      if (!zLv) {
+        /* ціль — те, на що зараз дивимось: дошка, телевізор чи стенд */
+        var fw = new THREE.Vector3(); camera.getWorldDirection(fw); var best = -2, bt = list[0];
+        list.forEach(function (t) { var o = t.obj; if (t.objs) { var bd = 1e9; t.objs.forEach(function (o2) { var d2 = worldPos(o2).distanceTo(camera.position); if (d2 < bd) { bd = d2; o = o2; } }); } var dv = worldPos(o).sub(camera.position).normalize().dot(fw); if (dv > best) { best = dv; bt = t; } });
+        zT = bt; zLv = 1;
+      } else zLv++;
+      var t = zT, tgt = t.obj; if (t.objs) { var bd2 = 1e9; t.objs.forEach(function (o2) { var d3 = worldPos(o2).distanceTo(camera.position); if (d3 < bd2) { bd2 = d3; tgt = o2; } }); }
+      if (!busy) lookAtPoint(worldPos(tgt), 600); zDraw();
+    }, !!zLv);
   }
   var fovNow = 72;
   updaters.push(function () {
