@@ -2521,7 +2521,7 @@ function selfCup(g) { // чашка у «власній» фігурі (дзер
       if (!d || now - d.t > 25000) return; seen[id] = 1;
       var g = ghosts[id];
       if (!g || g.userData.name !== d.n || g.userData.sub !== (d.g || '') || g.userData.key !== [d.s, d.c, d.h, d.k, d.l, d.r | 0].join()) { if (g && g.parent) g.parent.remove(g); if (Object.keys(ghosts).length > 40) return; g = ghosts[id] = makeGhost(id, d); }
-      g.userData.tx = d.x; g.userData.tz = d.z; g.userData.ty = d.y; g.userData.e = d.e | 0; g.userData.mic = d.v | 0; g.userData.hd = d.hd | 0; g.userData.cp = d.cp | 0; g.userData.dk = d.dk | 0; g.userData.pt = typeof d.pt === 'string' ? d.pt.slice(0, 40) : '';
+      g.userData.tx = d.x; g.userData.tz = d.z; g.userData.ty = d.y; g.userData.e = d.e | 0; g.userData.mic = d.v | 0; g.userData.hd = d.hd | 0; g.userData.cp = d.cp | 0; g.userData.dk = d.dk | 0; g.userData.tb = d.tb | 0; g.userData.pt = typeof d.pt === 'string' ? d.pt.slice(0, 40) : '';
       if (d.m && d.mt && d.mt > (seenMt[id] || 0)) { if ((seenMt[id] !== undefined || now - d.mt < 20000) && (d.l || 'hall') === (cur && cur.id)) { say(g, String(d.m)); logMsg(d.n, String(d.m)); } seenMt[id] = d.mt; } else if (seenMt[id] === undefined) seenMt[id] = d.mt || 0;
     });
     Object.keys(ghosts).forEach(function (id) { if (!seen[id]) { if (ghosts[id].parent) ghosts[id].parent.remove(ghosts[id]); delete ghosts[id]; } });
@@ -2571,11 +2571,12 @@ function selfCup(g) { // чашка у «власній» фігурі (дзер
     function send(force) {
       var inHall = !inRoom();
       if (!inHall) { if (last.x !== 1e9) { myRef.remove(); last.x = 1e9; } return; }
-      var p = camera.position, nowMs = Date.now(), moved = Math.abs(p.x - last.x) > 0.05 || Math.abs(p.z - last.z) > 0.05 || Math.abs(yaw - last.y) > 0.08 || (window.__ptStr || '') !== (last.pt || '') || (window.__hand | 0) !== (last.hd | 0) || (window.__cupK | 0) !== (last.cp | 0) || (window.__cupD | 0) !== (last.dk | 0);
+      var p = camera.position, nowMs = Date.now(), moved = Math.abs(p.x - last.x) > 0.05 || Math.abs(p.z - last.z) > 0.05 || Math.abs(yaw - last.y) > 0.08 || (window.__ptStr || '') !== (last.pt || '') || (window.__hand | 0) !== (last.hd | 0) || (window.__tbH | 0) !== (last.tb | 0) || (window.__cupK | 0) !== (last.cp | 0) || (window.__cupD | 0) !== (last.dk | 0);
       if (!force && !moved && nowMs - lastSent < 8000) return;
-      lastSent = nowMs; last = { x: p.x, z: p.z, y: yaw, pt: window.__ptStr || '', hd: window.__hand | 0, cp: window.__cupK | 0, dk: window.__cupD | 0 };
+      lastSent = nowMs; last = { x: p.x, z: p.z, y: yaw, pt: window.__ptStr || '', tb: window.__tbH | 0, hd: window.__hand | 0, cp: window.__cupK | 0, dk: window.__cupD | 0 };
       var rec = { n: w.name, g: w.group, s: AV.s, c: AV.c, h: AV.h, k: AV.k, e: EMO, r: isTeacher() ? 1 : 0, l: cur.id, v: (window.__micOn ? 1 : 0), x: Math.round((p.x - cur.group.position.x) * 100) / 100, z: Math.round((p.z - cur.group.position.z) * 100) / 100, y: Math.round(yaw * 100) / 100, t: firebase.database.ServerValue.TIMESTAMP };
       if (window.__ptStr) rec.pt = window.__ptStr;
+      if (window.__tbH) rec.tb = 1;
       if (window.__hand && EMO === 4) rec.hd = 1;
       if (window.__cupK) { rec.cp = window.__cupK | 0; if (window.__cupD) rec.dk = 1; }
       if (me.m && Date.now() + offset - me.mt < 30000) { rec.m = me.m; rec.mt = me.mt; }
@@ -4191,7 +4192,13 @@ if (window.__hall) { window.__hall.setEmo = setEmo; window.__hall.WSS = WSS; }
   });
   updaters.push(function () {
     var near = ROOMS.indexOf(cur.id) >= 0; if (near || holding) ensureModel();
-    Object.keys(deskTabs).forEach(function (k) { deskTabs[k].visible = !holding; });
+    var gh = (window.__pres && window.__pres.ghosts) || {}, other = false;
+    Object.keys(gh).forEach(function (k) {
+      var u = gh[k].userData, on = !!u.tb; if (on) other = true;
+      if (on && !u.tbm) { u.tbm = mkTablet(); u.tbm.scale.setScalar(0.78); u.tbm.position.set(0.2, 1.08, -0.38); u.tbm.rotation.set(-0.35, -0.1, 0); gh[k].add(u.tbm); }
+      if (u.tbm) u.tbm.visible = on;
+    });
+    Object.keys(deskTabs).forEach(function (k) { deskTabs[k].visible = !holding && !other; });
     if (heldBtns) heldBtns.style.display = (holding && !modalOpen && !overlay) ? 'flex' : 'none';
     if (held) held.visible = !overlay;
   });
@@ -4205,7 +4212,7 @@ if (window.__hall) { window.__hall.setEmo = setEmo; window.__hall.WSS = WSS; }
   function take() {
     if (holding) return;
     if (typeof isTeacher === 'function' && !isTeacher()) { toast('Планшет призначений для викладача.', 2800); return; }
-    holding = true; ensureModel();
+    holding = true; window.__tbH = 1; ensureModel();
     held = mkTablet(); held.scale.setScalar(0.78); held.position.set(0.22, -0.27, -0.62); held.rotation.set(-0.2, -0.12, 0); scene.add(camera); camera.add(held);
     if (!heldBtns) mkHeldBtns();
     toast('Торкніться планшета в руці або натисніть «Відкрити планшет».', 4200);
@@ -4213,7 +4220,7 @@ if (window.__hall) { window.__hall.setEmo = setEmo; window.__hall.WSS = WSS; }
   function putBack() {
     if (!holding) return;
     if (ROOMS.indexOf(cur.id) < 0) { toast('Покласти можна на стіл викладача в навчальному кабінеті.', 3200); return; }
-    closeUI(); holding = false; if (held) { camera.remove(held); var i = tabs.indexOf(held); if (i >= 0) tabs.splice(i, 1); held = null; } if (heldBtns) heldBtns.style.display = 'none';
+    closeUI(); holding = false; window.__tbH = 0; if (held) { camera.remove(held); var i = tabs.indexOf(held); if (i >= 0) tabs.splice(i, 1); held = null; } if (heldBtns) heldBtns.style.display = 'none';
   }
   var dn = null, rc = new THREE.Raycaster();
   cv.addEventListener('pointerdown', function (e) { dn = { x: e.clientX, y: e.clientY }; });
