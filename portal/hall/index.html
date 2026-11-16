@@ -462,7 +462,7 @@ function stopMove() { keys = {}; if (typeof sEnd === 'function') sEnd(); } windo
 addEventListener('blur', stopMove); document.addEventListener('visibilitychange', function () { if (document.hidden) stopMove(); });
 function walk(dt) {
   if (!cur) return;
-  var nowK = performance.now(), kd = function (c) { return keys[c] && nowK - keys[c] < 2500; };
+  var nowK = performance.now(), kd = function (c) { return keys[c] && (!window.__recOn || nowK - keys[c] < 2500); };
   if (sid !== null && stick.hasPointerCapture && !stick.hasPointerCapture(sid)) sEnd(); // палець уже не на джойстику
   var fx = -mv.y, sx = mv.x;
   if (kd('KeyW') || kd('ArrowUp')) fx += 1; if (kd('KeyS') || kd('ArrowDown')) fx -= 1;
@@ -4159,6 +4159,7 @@ if (window.__hall) { window.__hall.setEmo = setEmo; window.__hall.WSS = WSS; }
     var ok = allowed(), show = ok && !modalOpen;
     take.style.display = show && held ? 'block' : 'none'; ph.style.display = show && held ? 'block' : 'none'; sf.style.display = show && held ? 'block' : 'none'; tk.style.display = show && held && !rec ? 'block' : 'none'; rb.style.display = (show && held) || rec ? 'block' : 'none';
     if (cam3 && cam3.visible && cam3.userData.led && rec) cam3.userData.led.visible = (Date.now() % 1000) < 700; else if (cam3) cam3.userData.led.visible = true;
+    window.__recOn = !!rec;
     var gw = Math.min(innerWidth - 44, (innerHeight - 44) * 9 / 16), gl = vert ? 22 + (innerWidth - 44 - gw) * vpos : 22; vf.style.left = gl + 'px'; vf.style.right = (vert ? innerWidth - gl - gw : 22) + 'px';
     var ss = vert && ((show && held) || rec) ? 'block' : 'none'; sl.style.display = ss; slt.style.display = ss;
     if (cam3) cam3.visible = held && !rec;
