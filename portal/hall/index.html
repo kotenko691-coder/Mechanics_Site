@@ -4032,11 +4032,14 @@ if (window.__hall) { window.__hall.setEmo = setEmo; window.__hall.WSS = WSS; }
   var MAXS = 900;
   var css = 'padding:9px 12px;font-family:inherit;font-size:14px;background:rgba(36,26,16,.92);color:#f2e2c0;border:1px solid #8a7347;cursor:pointer';
   function mk(txt, st, fn) { var b = document.createElement('button'); b.type = 'button'; b.className = 'crk'; b.textContent = txt; b.style.cssText = css + ';' + st; b.addEventListener('click', fn); document.body.appendChild(b); return b; }
-  var take = mk('Взяти камеру', 'position:fixed;left:12px;bottom:70px;z-index:6;display:none', function () { held = false; sync(); toast('Камеру покладено на тумбочку в переговорній.', 3000); });
-  var rb = mk('● Запис', 'position:fixed;left:12px;bottom:118px;z-index:6;display:none;color:#ff9a9a', function () { if (rec) stop(); else start(); });
+  var take = mk('Взяти камеру', 'position:fixed;left:96px;bottom:70px;z-index:6;display:none', function () { held = false; sync(); toast('Камеру покладено на тумбочку в переговорній.', 3000); });
+  var rb = mk('● Запис', 'position:fixed;left:96px;bottom:118px;z-index:6;display:none;color:#ff9a9a', function () { if (rec) stop(); else start(); });
   var vert = false, vtmr = 0, vVid = null;
-  var tk = mk('Формат: широкий', 'position:fixed;left:12px;bottom:262px;z-index:6;display:none', function () { if (rec) return; vert = !vert; tk.textContent = vert ? 'Формат: TikTok 9:16' : 'Формат: широкий'; toast(vert ? 'Відео знімається вертикально (9:16) для TikTok: береться центральна смуга кадру.' : 'Звичайний широкий кадр.', 3500); });
-  var ph = mk('Фото', 'position:fixed;left:12px;bottom:166px;z-index:6;display:none', function () { shot(); });
+  var tk = mk('Формат: широкий', 'position:fixed;left:96px;bottom:262px;z-index:6;display:none', function () { if (rec) return; vert = !vert; tk.textContent = vert ? 'Формат: TikTok 9:16' : 'Формат: широкий'; toast(vert ? 'Відео знімається вертикально (9:16) для TikTok: береться центральна смуга кадру.' : 'Звичайний широкий кадр.', 3500); });
+  var vpos = 0.5, sl = document.createElement('input'); sl.type = 'range'; sl.min = 0; sl.max = 100; sl.value = 50; sl.className = 'crk'; sl.title = 'Яку частину екрана записувати';
+  sl.style.cssText = 'position:fixed;left:50%;transform:translateX(-50%);bottom:18px;width:min(60vw,420px);z-index:6;display:none'; sl.addEventListener('input', function () { vpos = sl.value / 100; }); document.body.appendChild(sl);
+  var slt = document.createElement('div'); slt.className = 'crk'; slt.textContent = '◀ яку частину екрана записувати ▶'; slt.style.cssText = 'position:fixed;left:50%;transform:translateX(-50%);bottom:44px;z-index:6;display:none;font:13px Georgia,serif;color:#f2e2c0;background:rgba(11,9,7,.7);padding:2px 8px;pointer-events:none'; document.body.appendChild(slt);
+  var ph = mk('Фото', 'position:fixed;left:96px;bottom:166px;z-index:6;display:none', function () { shot(); });
   function shot() {
     if (!allowed() || !held) return; var cv = renderer.domElement, vis = cam3 ? cam3.visible : false, ofs = vf.style.display; if (cam3) cam3.visible = false;
     var hc = typeof __hcupVis === 'function'; renderer.render(scene, camera); var url = cv.toDataURL('image/jpeg', 0.92); if (cam3) cam3.visible = vis;
@@ -4044,7 +4047,7 @@ if (window.__hall) { window.__hall.setEmo = setEmo; window.__hall.WSS = WSS; }
     var fl = document.createElement('div'); fl.className = 'crk'; fl.style.cssText = 'position:fixed;inset:0;z-index:7;background:#fff;opacity:.85;pointer-events:none;transition:opacity .35s'; document.body.appendChild(fl); setTimeout(function () { fl.style.opacity = 0; }, 30); setTimeout(function () { fl.remove(); }, 500);
     modal('<h3>Фото готове</h3><p class="muted">Файл збережеться на цьому пристрої, на сервер нічого не йде.</p><img src="' + url + '" style="width:100%;max-height:55vh;object-fit:contain;background:#000"><p><a id="crpa" download="' + nm + '" href="' + url + '" style="display:inline-block;padding:10px 16px;background:#1f4f8a;color:#fff;text-decoration:none">Зберегти фото</a></p>');
   }
-  var sf = mk('Селфі', 'position:fixed;left:12px;bottom:214px;z-index:6;display:none', function () { selfie(); });
+  var sf = mk('Селфі', 'position:fixed;left:96px;bottom:214px;z-index:6;display:none', function () { selfie(); });
   function selfShot(ang) {
     var W = 1080, H = 1350, yw = yaw + ang, fx = -Math.sin(yw), fz = -Math.cos(yw), bd = cur.bounds, d = 1.7, px = camera.position.x, pz = camera.position.z;
     if (bd) for (var i = 0; i < 12 && d > 0.7; i++) { var cx0 = px + fx * d, cz0 = pz + fz * d; if (cx0 > bd.x1 + 0.25 && cx0 < bd.x2 - 0.25 && cz0 > bd.z1 + 0.25 && cz0 < bd.z2 - 0.25) break; d -= 0.2; }
@@ -4122,7 +4125,7 @@ if (window.__hall) { window.__hall.setEmo = setEmo; window.__hall.WSS = WSS; }
       if (vert) {
         vVid = document.createElement('video'); vVid.muted = true; vVid.playsInline = true; vVid.srcObject = new MediaStream(disp.getVideoTracks()); var pp = vVid.play(); if (pp && pp.catch) pp.catch(function () {});
         var vc = document.createElement('canvas'); vc.width = 720; vc.height = 1280; var vx = vc.getContext('2d');
-        vtmr = setInterval(function () { var w = vVid.videoWidth, h = vVid.videoHeight; if (!w || !h) return; var cw = Math.min(w, h * 9 / 16), ch = cw * 16 / 9; if (ch > h) { ch = h; cw = h * 9 / 16; } vx.drawImage(vVid, (w - cw) / 2, (h - ch) / 2, cw, ch, 0, 0, 720, 1280); }, 33);
+        vtmr = setInterval(function () { var w = vVid.videoWidth, h = vVid.videoHeight; if (!w || !h) return; var cw = Math.min(w, h * 9 / 16), ch = cw * 16 / 9; if (ch > h) { ch = h; cw = h * 9 / 16; } vx.drawImage(vVid, (w - cw) * vpos, (h - ch) / 2, cw, ch, 0, 0, 720, 1280); }, 33);
         tracks = vc.captureStream(30).getVideoTracks();
       } if (n) dest.stream.getAudioTracks().forEach(function (t) { tracks.push(t); });
       recStream = new MediaStream(tracks); chunks = [];
@@ -4131,7 +4134,7 @@ if (window.__hall) { window.__hall.setEmo = setEmo; window.__hall.WSS = WSS; }
       rec.ondataavailable = function (e) { if (e.data && e.data.size) chunks.push(e.data); };
       rec.onstop = function () { finish(mt || rec.mimeType || 'video/webm'); };
       disp.getVideoTracks()[0].addEventListener('ended', function () { if (rec) stop(); });
-      rec.start(1000); t0 = Date.now(); hideHud(true); vf.style.display = 'block'; rb.textContent = '■ Стоп'; rb.style.left = '12px';
+      rec.start(1000); t0 = Date.now(); hideHud(true); vf.style.display = 'block'; rb.textContent = '■ Стоп'; rb.style.left = '96px';
       if (cam3) cam3.userData.led.material.color.set(0xff2020);
       tmr = setInterval(function () { var s = Math.round((Date.now() - t0) / 1000); $('crt').textContent = '● REC ' + fmt(s) + (mode === 'canvas' ? ' · без телевізора' : ''); if (s >= MAXS) stop(); }, 500);
     }).catch(function (e) {
@@ -4154,7 +4157,9 @@ if (window.__hall) { window.__hall.setEmo = setEmo; window.__hall.WSS = WSS; }
     var ok = allowed(), show = ok && !modalOpen;
     take.style.display = show && held ? 'block' : 'none'; ph.style.display = show && held ? 'block' : 'none'; sf.style.display = show && held ? 'block' : 'none'; tk.style.display = show && held && !rec ? 'block' : 'none'; rb.style.display = (show && held) || rec ? 'block' : 'none';
     if (cam3 && cam3.visible && cam3.userData.led && rec) cam3.userData.led.visible = (Date.now() % 1000) < 700; else if (cam3) cam3.userData.led.visible = true;
-    var gx = vert ? Math.max(22, (innerWidth - innerHeight * 9 / 16) / 2) : 22; vf.style.left = gx + 'px'; vf.style.right = gx + 'px';
+    var gw = Math.min(innerWidth - 44, (innerHeight - 44) * 9 / 16), gl = vert ? 22 + (innerWidth - 44 - gw) * vpos : 22; vf.style.left = gl + 'px'; vf.style.right = (vert ? innerWidth - gl - gw : 22) + 'px';
+    var ss = vert && ((show && held) || rec) ? 'block' : 'none'; sl.style.display = ss; slt.style.display = ss;
+    if (cam3) cam3.visible = held && !rec;
     if (held && !rec && !modalOpen) vf.style.display = 'block'; else if (!rec) vf.style.display = 'none';
     if (!ok && (held || rec)) { held = false; sync(); }
   });
