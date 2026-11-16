@@ -456,15 +456,17 @@ stick.addEventListener('pointerdown', function (e) { sid = e.pointerId; stick.se
 stick.addEventListener('pointermove', function (e) { if (e.pointerId === sid) sMove(e); });
 stick.addEventListener('pointerup', function (e) { if (e.pointerId === sid) sEnd(); });
 stick.addEventListener('pointercancel', sEnd);
-addEventListener('keydown', function (e) { if (e.target && /^(INPUT|TEXTAREA)$/.test(e.target.tagName)) return; if (modalOpen) { if (e.key === 'Escape') closeModal(); return; } keys[e.code] = true; if (e.code === 'Escape') leaveRoom && leaveRoom(); });
+addEventListener('keydown', function (e) { if (e.target && /^(INPUT|TEXTAREA)$/.test(e.target.tagName)) return; if (modalOpen) { if (e.key === 'Escape') closeModal(); return; } keys[e.code] = performance.now(); if (e.code === 'Escape') leaveRoom && leaveRoom(); });
 addEventListener('keyup', function (e) { keys[e.code] = false; });
 function stopMove() { keys = {}; if (typeof sEnd === 'function') sEnd(); } window.__stopMove = stopMove;
 addEventListener('blur', stopMove); document.addEventListener('visibilitychange', function () { if (document.hidden) stopMove(); });
 function walk(dt) {
   if (!cur) return;
+  var nowK = performance.now(), kd = function (c) { return keys[c] && nowK - keys[c] < 2500; };
+  if (sid !== null && stick.hasPointerCapture && !stick.hasPointerCapture(sid)) sEnd(); // палець уже не на джойстику
   var fx = -mv.y, sx = mv.x;
-  if (keys.KeyW || keys.ArrowUp) fx += 1; if (keys.KeyS || keys.ArrowDown) fx -= 1;
-  if (keys.KeyD || keys.ArrowRight) sx += 1; if (keys.KeyA || keys.ArrowLeft) sx -= 1;
+  if (kd('KeyW') || kd('ArrowUp')) fx += 1; if (kd('KeyS') || kd('ArrowDown')) fx -= 1;
+  if (kd('KeyD') || kd('ArrowRight')) sx += 1; if (kd('KeyA') || kd('ArrowLeft')) sx -= 1;
   var l = Math.hypot(fx, sx); if (l > 1) { fx /= l; sx /= l; }
   var sp = 2.7 * BUFF.speed * dt, p = camera.position;
   p.x += (-Math.sin(yaw) * fx + Math.cos(yaw) * sx) * sp; p.z += (-Math.cos(yaw) * fx - Math.sin(yaw) * sx) * sp;
