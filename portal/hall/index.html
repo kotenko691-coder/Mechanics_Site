@@ -3895,10 +3895,35 @@ if (window.__hall) { window.__hall.setEmo = setEmo; window.__hall.WSS = WSS; }
    Кава: ходьба швидша. Чай: більша дальність дотику. Бонуси діють лише на цьому пристрої й минають самі. */
 (function () {
   if (typeof F2 === 'undefined') return;
-  var BS = 0.73, BX = -2.5, BZ = 3.95, ISL_Y = 1.03;
-  var BG = new THREE.Group(); BG.position.set(BX, 0, BZ); BG.rotation.y = Math.PI; BG.scale.setScalar(BS); F2.group.add(BG);
-  obs(F2, BX, BZ, 1.8, 1.05);
-  pl(F2, 0xffe0b0, 0.8, 6, -2.5, 2.5, 2.9);
+  /* окреме приміщення «Кафе»: двері на південній стіні 2 поверху */
+  ROOMX.cafe = 480;
+  var CW = 9, CD = 7, CAFE = newRoom('cafe', CW, CD, 3.5, { floor: TX.planks, wall: TX.wallpaper, ceil: 0x2a221b, amb: 0xffe2b8, ambI: 0.55, bg: 0x0b0907 });
+  var CDX = -2.4, backSp = { x: F2.X - CDX, z: F2.D / 2 - 2.3, yaw: 0 };
+  pubLoc(CAFE, 'Кафе', { id: 'f2', sp: backSp });
+  var fd = pdoor(F2, 2, CDX, ['Кафе'], function () { walkIn(fd.leaf, function () { teleport('cafe', LOC.cafe.spawn); }); });
+  var cexit = pdoor(CAFE, 2, 0, ['Вихід'], function () { walkIn(cexit.leaf, function () { teleport('f2', backSp); }); });
+  pl(CAFE, 0xffe0b0, 0.8, 11, -2.5, 3.0, 0); pl(CAFE, 0xffe0b0, 0.8, 11, 2.5, 3.0, 0);
+  (function () { // та сама цегла й плитка, що й на 2 поверсі (беремо зображення, коли вони завантажаться)
+    var wsrc = F2.walls[0].children[0].material, fsrc = F2.group.children.filter(function (o) { return o.isMesh && o.geometry.type === 'PlaneGeometry'; })[0].material, done = false;
+    var fl = CAFE.group.children.filter(function (o) { return o.isMesh && o.geometry.type === 'PlaneGeometry'; })[0];
+    updaters.push(function () {
+      if (done || !wsrc.map || !wsrc.map.image || !fsrc.map || !fsrc.map.image) return; done = true;
+      function cl(m, rx, ry) { var t = m.clone(); t.image = m.image; t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(rx, ry); t.needsUpdate = true; return t; }
+      CAFE.walls.forEach(function (wg) { var pm = wg.children[0], len = pm.geometry.parameters.width; pm.material.map = cl(wsrc.map, len / 1.4, CAFE.H / 1.4); pm.material.roughness = 0.35; pm.material.needsUpdate = true; });
+      fl.material.map = cl(fsrc.map, CW / 3.6, CD / 3.6); fl.material.roughness = 0.55; fl.material.needsUpdate = true;
+    });
+  })();
+  // столики з стільцями, рослини
+  [[-3.0, 0.4], [3.0, 0.4], [3.2, -1.6]].forEach(function (p) {
+    var t = tbl(CAFE.group, p[0], p[1], 1.0, 1.0, 0.75, M.wood); obs(CAFE, p[0], p[1], 0.55, 0.55);
+    [[0, -0.8, 0], [0, 0.8, Math.PI]].forEach(function (c) { chair(CAFE.group, p[0] + c[0], p[1] + c[1], c[2], 0x4a2a2a); });
+  });
+  plant(CAFE, -4.0, 2.8); plant(CAFE, 4.0, -2.9);
+  var BS = 0.73, BX = 0, BZ = -D2(), ISL_Y = 1.03;
+  function D2() { return CD / 2 - 0.55; }
+  var BG = new THREE.Group(); BG.position.set(BX, 0, BZ); BG.rotation.y = 0; BG.scale.setScalar(BS); CAFE.group.add(BG);
+  obs(CAFE, BX, BZ, 1.8, 1.05);
+  pl(CAFE, 0xffe0b0, 0.8, 6, 0, 2.5, -1.9);
   var DRINKS = {
     coffee: { name: 'Кава', buff: 'Бадьорість', txt: 'ходьба швидша на 40%', sec: 120, mk: function () { BUFF.speed = 1.4; }, un: function () { BUFF.speed = 1; }, say: 'Ваша кава готова. Беріть, поки гаряча.' },
     tea: { name: 'Чай', buff: 'Спокій', txt: 'дальність дотику більша на 60%', sec: 180, mk: function () { BUFF.reach = 1.6; }, un: function () { BUFF.reach = 1; }, say: 'Ваш чай готовий. Обережно, гарячий.' }
@@ -3921,7 +3946,7 @@ if (window.__hall) { window.__hall.setEmo = setEmo; window.__hall.WSS = WSS; }
       BG.add(m);
     }, function () { loaded = false; });
   }
-  updaters.push(function () { if (!loaded && typeof cur !== 'undefined' && cur === F2) loadBar(); });
+  updaters.push(function () { if (!loaded && typeof cur !== 'undefined' && cur === CAFE) loadBar(); });
 
   /* ---------- кавомашина на стійці ---------- */
   var mach = wsMesh('cm'); mach.scale.setScalar(0.8); mach.position.set(-0.75, ISL_Y, 1.0); mach.rotation.y = 0; BG.add(mach);
@@ -3980,7 +4005,7 @@ if (window.__hall) { window.__hall.setEmo = setEmo; window.__hall.WSS = WSS; }
   var css = 'padding:9px 12px;font-family:inherit;font-size:14px;background:rgba(36,26,16,.92);color:#f2e2c0;border:1px solid #8a7347;cursor:pointer';
   function mkb(txt, st, fn) { var b = document.createElement('button'); b.type = 'button'; b.className = 'cfb'; b.textContent = txt; b.style.cssText = css + ';' + st; b.addEventListener('click', fn); document.body.appendChild(b); return b; }
   var bDrink = mkb('Випити', 'position:fixed;left:12px;bottom:70px;z-index:6;display:none', function () { drink(); });
-  var bPut = mkb('Поставити', 'position:fixed;left:12px;bottom:118px;z-index:6;display:none', function () { if (!held) return; var k = held; held = ''; holdSync(); if (typeof cur !== 'undefined' && cur === F2) { putReady(k); toast('Чашку поставлено на стійку.'); } else toast('Чашку відставлено.'); });
+  var bPut = mkb('Поставити', 'position:fixed;left:12px;bottom:118px;z-index:6;display:none', function () { if (!held) return; var k = held; held = ''; holdSync(); if (typeof cur !== 'undefined' && cur === CAFE) { putReady(k); toast('Чашку поставлено на стійку.'); } else toast('Чашку відставлено.'); });
   var bBadge = document.createElement('div'); bBadge.style.cssText = 'position:fixed;left:12px;top:150px;z-index:6;display:none;font-size:13px;line-height:1.6;color:#f2e2c0;background:rgba(36,26,16,.85);border:1px solid #8a7347;padding:6px 10px;pointer-events:none'; document.body.appendChild(bBadge);
   window.__cupMesh = function (k) { return cupMesh(k); }; window.__hcupVis = function (v) { if (hcup) hcup.visible = v; };
   function holdSync() {
@@ -4016,10 +4041,10 @@ if (window.__hall) { window.__hall.setEmo = setEmo; window.__hall.WSS = WSS; }
       var p = puffs[i], a = (now - p.t0) / p.life; if (a >= 1) { p.s.parent && p.s.parent.remove(p.s); p.s.material.dispose(); puffs.splice(i, 1); continue; }
       p.s.position.y = p.y0 + a * 0.35; p.s.scale.setScalar(0.1 + a * 0.35); p.s.material.opacity = 0.55 * (1 - a);
     }
-    if (ready && Math.random() < 0.05 && typeof cur !== 'undefined' && cur === F2) puff(pickG, (Math.random() - 0.5) * 0.04, 0.12, (Math.random() - 0.5) * 0.04, 1600);
+    if (ready && Math.random() < 0.05 && typeof cur !== 'undefined' && cur === CAFE) puff(pickG, (Math.random() - 0.5) * 0.04, 0.12, (Math.random() - 0.5) * 0.04, 1600);
     // бот: стежить за гостем і готує
-    if (typeof cur !== 'undefined' && cur === F2) {
-      bot.getWorldPosition(bw); var wy = Math.atan2(camera.position.x - F2.group.position.x - bw.x + F2.group.position.x, camera.position.z - F2.group.position.z - bw.z + F2.group.position.z);
+    if (typeof cur !== 'undefined' && cur === CAFE) {
+      bot.getWorldPosition(bw); var wy = Math.atan2(camera.position.x - bw.x, camera.position.z - bw.z);
       var ty = Math.max(-0.9, Math.min(0.9, norm(wy - BG.rotation.y))), near = Math.hypot(camera.position.x - bw.x, camera.position.z - bw.z) < 6;
       bot.rotation.y += (Math.PI + (near ? ty : 0) - bot.rotation.y) * 0.08;
       bot.position.y = 0.01 * Math.sin(now / 600);
