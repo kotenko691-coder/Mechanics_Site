@@ -4386,6 +4386,11 @@ if (window.__hall) { window.__hall.setEmo = setEmo; window.__hall.WSS = WSS; }
     return { name: name, pages: [p], marks: {}, n: 1, vector: true };
   }
 
+  var dwgP = null;
+  function dwgLib() {
+    if (dwgP) return dwgP;
+    return dwgP = import(new URL('dwg/dist/libredwg-web.js', location.href).href).then(function (m) { return m.LibreDwg.create(new URL('dwg/wasm', location.href).href); }).catch(function (e) { dwgP = null; throw e; });
+  }
   function setDoc(d) {
     doc = d; cache = {}; pageIdx = 0; groups = 0; V = { z: 1, cx: 0.5, cy: 0 }; tool = 'move'; tvOn = true; syncUI(); goPage(0, true);
   }
@@ -4402,7 +4407,14 @@ if (window.__hall) { window.__hall.setEmo = setEmo; window.__hall.WSS = WSS; }
       var f2 = new FileReader(); f2.onload = function () { var d = null; try { d = dxfDoc(String(f2.result), nm); } catch (er) { d = null; } if (d) setDoc(d); else bad('У DXF не знайдено креслення, яке можна показати (потрібен текстовий DXF).'); }; f2.readAsText(file);
     } else if (ext === 'txt' || ext === 'md' || ext === 'csv' || /^text\//.test(file.type)) {
       var f3 = new FileReader(); f3.onload = function () { setDoc(txtDoc(String(f3.result), nm)); }; f3.readAsText(file);
-    } else if (ext === 'dwg') bad('DWG напряму не відкривається. У AutoCAD/nanoCAD збережіть як DXF (Зберегти як) і завантажте його.');
+    } else if (ext === 'dwg') {
+      toast('Відкриваємо DWG (перший раз бібліотека завантажується, до 10 с)…', 6000); var f4 = new FileReader();
+      f4.onload = function () {
+        dwgLib().then(function (lib) {
+          var out = lib.dwg_write_dxf(f4.result); if (!out) throw new Error('dxf'); var d = dxfDoc(new TextDecoder('utf-8').decode(out), nm); if (!d) throw new Error('empty'); setDoc(d);
+        }).catch(function () { bad('Не вдалося прочитати цей DWG (можливо, дуже нова версія). У AutoCAD збережіть як DXF або PDF.'); });
+      }; f4.readAsArrayBuffer(file);
+    }
     else if (/^(docx?|pptx?|xlsx?|odt|odp)$/.test(ext)) bad('Файл ' + ext.toUpperCase() + ' не відображається в браузері. Збережіть його як PDF і завантажте PDF.');
     else if (/^video\//.test(file.type)) bad('Відеофайли не передаються на телевізор. Скористайтеся кнопкою «Відео за посиланням» (YouTube чи Диск).');
     else bad('Формат .' + ext + ' не підтримується. Можна: PDF, зображення, DXF, текст.');
