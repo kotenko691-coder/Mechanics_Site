@@ -207,9 +207,14 @@ var CFG = { SEQUENTIAL: false };        // true: двері відкривают
 if (/[?&]seq=1/.test(location.search)) CFG.SEQUENTIAL = true;
 
 var renderer = new THREE.WebGLRenderer({ antialias: true });
-var GFX0 = 'low'; try { var _g = localStorage.getItem('hall-gfx'); if (_g === 'mid' || _g === 'max') GFX0 = _g; } catch (e) {}
-var ANISO = GFX0 === 'max' ? Math.min(16, renderer.capabilities.getMaxAnisotropy()) : GFX0 === 'mid' ? 4 : 1;
-renderer.setPixelRatio(GFX0 === 'max' ? Math.min(devicePixelRatio, 3) : GFX0 === 'mid' ? Math.min(devicePixelRatio, 1.5) : 1);
+var GFX0 = 'low', COARSE = !!(window.matchMedia && matchMedia('(pointer:coarse)').matches);
+try { var _g = localStorage.getItem('hall-gfx'); if (_g === 'mid' || _g === 'max') GFX0 = _g;
+  if (GFX0 !== 'low' && localStorage.getItem('hall-gfx-boot')) { GFX0 = 'low'; localStorage.setItem('hall-gfx', 'low'); } // попередній запуск не дожив до кінця (пам'ять): безпечний режим
+  localStorage.setItem('hall-gfx-boot', '1'); setTimeout(function () { try { localStorage.removeItem('hall-gfx-boot'); } catch (e) {} }, 15000);
+} catch (e) {}
+var ANISO = GFX0 === 'max' ? Math.min(COARSE ? 8 : 16, renderer.capabilities.getMaxAnisotropy()) : GFX0 === 'mid' ? 4 : 1;
+function gfxPR() { var pr = GFX0 === 'max' ? Math.min(devicePixelRatio, COARSE ? 2 : 3) : GFX0 === 'mid' ? Math.min(devicePixelRatio, 1.5) : 1, px = innerWidth * innerHeight; if (GFX0 === 'max') pr = Math.min(pr, Math.sqrt((COARSE ? 3.5e6 : 9e6) / px)); return Math.max(1, pr); }
+renderer.setPixelRatio(gfxPR());
 renderer.setSize(innerWidth, innerHeight);
 document.body.insertBefore(renderer.domElement, document.body.firstChild);
 var scene = new THREE.Scene();
@@ -2291,7 +2296,7 @@ function chPose(r) {
 function mxB64(t) { var a = atob(t), u = new Uint8Array(a.length), i; for (i = 0; i < a.length; i++) u[i] = a.charCodeAt(i); return u.buffer; }
 function mxLoad(name) {
   if (mxCache[name]) return mxCache[name];
-  return mxCache[name] = fetch(CH_BASE + 'mx/' + (GFX0 === 'max' ? 'hd/' : '') + name + '.json?v=1').then(function (r) { if (!r.ok) throw new Error('mx'); return r.json(); }).then(function (d) {
+  return mxCache[name] = fetch(CH_BASE + 'mx/' + (GFX0 === 'max' && !COARSE ? 'hd/' : '') + name + '.json?v=1').then(function (r) { if (!r.ok) throw new Error('mx'); return r.json(); }).then(function (d) {
     var n = d.n, g = new THREE.BufferGeometry(), p = new Int16Array(mxB64(d.p)), pos = new Float32Array(n * 3), i, k;
     for (i = 0; i < n; i++) for (k = 0; k < 3; k++) pos[i * 3 + k] = p[i * 3 + k] / 32767 * d.e[k] + d.c[k];
     g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
@@ -4125,8 +4130,7 @@ if (window.__hall) { window.__hall.setEmo = setEmo; window.__hall.WSS = WSS; }
   var lvl = GFX0, lvl0 = GFX0;
   var fr = 0;
   function apply() {
-    var pr = lvl === 'low' ? 1 : lvl === 'mid' ? Math.min(devicePixelRatio, 1.5) : Math.min(devicePixelRatio, 3);
-    renderer.setPixelRatio(pr); renderer.setSize(innerWidth, innerHeight);
+    renderer.setPixelRatio(gfxPR()); renderer.setSize(innerWidth, innerHeight);
   }
   window.__gfx = {
     lvl: function () { return lvl; },
