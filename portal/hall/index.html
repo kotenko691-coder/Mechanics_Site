@@ -2022,8 +2022,8 @@ requestAnimationFrame(loop);
 var SHIRTS = [0xb23a3a, 0x2f5d9a, 0x3f8a4f, 0xd9a521, 0x7a3f98, 0x1f8a8a, 0xe07a9a, 0x555555, 0xeeeeee, 0xe8742a];
 var HAIRS = [0x1a1a1a, 0x4a2c17, 0x8a5a2a, 0xd8b060, 0xa83a1a, 0x9a9a9a];
 var CH_N = { m: 4, f: 3 };
-var AV = { s: 'm', c: 0, h: 1, k: Math.floor(Math.random() * 11) };
-try { var _a = JSON.parse(localStorage.getItem('hall-av') || 'null'); if (_a && (_a.s === 'm' || _a.s === 'f')) AV = { s: _a.s, c: (_a.c | 0) % SHIRTS.length, h: (_a.h | 0) % HAIRS.length, k: _a.k == null ? Math.floor(Math.random() * CH_N[_a.s]) : (_a.k | 0) % CH_N[_a.s] }; else AV.c = Math.floor(Math.random() * SHIRTS.length); } catch (e) {}
+var AV = { s: 'm', c: SHIRTS.length, h: HAIRS.length, k: Math.floor(Math.random() * 11) };
+try { var _a = JSON.parse(localStorage.getItem('hall-av') || 'null'); if (_a && (_a.s === 'm' || _a.s === 'f')) AV = { v2: 1, s: _a.s, c: _a.v2 ? Math.min(_a.c | 0, SHIRTS.length) : SHIRTS.length, h: _a.v2 ? Math.min(_a.h | 0, HAIRS.length) : HAIRS.length, k: _a.k == null ? Math.floor(Math.random() * CH_N[_a.s]) : (_a.k | 0) % CH_N[_a.s] }; else AV.v2 = 1; } catch (e) {}
 function avSave() { try { localStorage.setItem('hall-av', JSON.stringify(AV)); } catch (e) {} }
 avSave();
 function cssHex(n) { return '#' + ('000000' + n.toString(16)).slice(-6); }
@@ -2108,11 +2108,11 @@ function openWardrobe() {
   function sw(cont, arr, key) {
     var el = b.querySelector(cont); el.innerHTML = '';
     arr.forEach(function (c, i) { var bt = document.createElement('button'); bt.type = 'button'; bt.style.cssText = 'width:34px;height:34px;padding:0;margin:3px;background:' + cssHex(c) + ';border:2px solid ' + (AV[key] === i ? '#fff' : '#555'); bt.addEventListener('click', function () { AV[key] = i; refresh(); }); el.appendChild(bt); });
+    var o = document.createElement('button'); o.type = 'button'; o.title = 'Як є'; o.textContent = 'як є'; o.style.cssText = 'height:34px;padding:0 8px;margin:3px;font-size:12px;background:#222;color:#ddd;border:2px solid ' + (AV[key] >= arr.length ? '#fff' : '#555'); o.addEventListener('click', function () { AV[key] = arr.length; refresh(); }); el.appendChild(o);
   }
   function refresh() {
     sw('#avc', SHIRTS, 'c'); sw('#avh', HAIRS, 'h'); b.querySelector('#avn').textContent = (CH_NAMES[AV.s][AV.k] || '') + ' · ' + (AV.k + 1) + '/' + CH_N[AV.s];
     b.querySelector('#avm').style.borderColor = AV.s === 'm' ? '#fff' : '#8a7347'; b.querySelector('#avf').style.borderColor = AV.s === 'f' ? '#fff' : '#8a7347';
-    var mxk = AV.k >= (AV.s === 'm' ? 11 : 10); ['#avc', '#avh'].forEach(function (q) { var e = b.querySelector(q); e.style.opacity = mxk ? 0.25 : 1; e.style.pointerEvents = mxk ? 'none' : ''; });
     avSave(); if (window.__avChanged) window.__avChanged();
   }
   function setS(sx) { if (AV.s !== sx) { AV.s = sx; AV.k = Math.floor(Math.random() * CH_N[sx]); } refresh(); }
@@ -2136,6 +2136,7 @@ function openWardrobe() {
 })();
 /* ---- значки інтерфейсу (замість написів) ---- */
 var ICO = {
+  gear: '<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/>',
   mic: '<path d="M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3z"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/>',
   mutemic: '<path d="M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3z"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/><path d="M3 3l18 18"/>',
   users: '<circle cx="9" cy="8" r="3"/><path d="M3 20c0-3.6 2.7-6 6-6s6 2.4 6 6"/><circle cx="17" cy="9" r="2.4"/><path d="M17 14c2.7 0 4.5 2 4.5 5"/>',
@@ -2334,10 +2335,38 @@ function mxClips(m, A) {
   });
   return m.clips = res;
 }
+
+function mxImg(src) { return new Promise(function (ok) { var im = new Image(); im.onload = function () { ok(im); }; im.src = src; }); }
+function mxRecolor(m, rgb, kind) { // перефарбування одягу (маска) або волосся; rgb = 0xRRGGBB; повертає Promise<CanvasTexture>
+  var key = kind + rgb; m.rc = m.rc || {}; if (m.rc[key]) return m.rc[key];
+  var d = m.d, isH = kind === 'h', src = isH ? 'data:image/png;base64,' + d.hair : 'data:image/jpeg;base64,' + d.tex;
+  return m.rc[key] = Promise.all([mxImg(src), isH ? null : mxImg('data:image/png;base64,' + d.mk)]).then(function (a) {
+    var im = a[0], W = im.width, H = im.height, cv = document.createElement('canvas'); cv.width = W; cv.height = H;
+    var cx = cv.getContext('2d'); cx.drawImage(im, 0, 0); var id = cx.getImageData(0, 0, W, H), px = id.data, mk = null, i, n = W * H;
+    if (!isH) { var c2 = document.createElement('canvas'); c2.width = W; c2.height = H; var x2 = c2.getContext('2d'); x2.drawImage(a[1], 0, 0, W, H); mk = x2.getImageData(0, 0, W, H).data; }
+    var tr = (rgb >> 16 & 255) / 255, tg = (rgb >> 8 & 255) / 255, tb = (rgb & 255) / 255, sum = 0, cnt = 0, L, al, mx, mn;
+    for (i = 0; i < n; i++) { al = isH ? px[i * 4 + 3] / 255 : mk[i * 4] / 255; if (al < 0.5) continue; sum += (px[i * 4] * 0.3 + px[i * 4 + 1] * 0.59 + px[i * 4 + 2] * 0.11) / 255; cnt++; }
+    var mean = cnt ? Math.max(0.05, sum / cnt) : 0.3;
+    for (i = 0; i < n; i++) {
+      al = isH ? (px[i * 4 + 3] > 8 ? 1 : 0) : mk[i * 4] / 255; if (al <= 0.01) continue;
+      var r = px[i * 4] / 255, g = px[i * 4 + 1] / 255, b = px[i * 4 + 2] / 255; L = r * 0.3 + g * 0.59 + b * 0.11; mx = Math.max(r, g, b); mn = Math.min(r, g, b);
+      if (!isH && d.kw && L > 0.6 && (mx - mn) / (mx + 1e-6) < 0.15) continue; // білі сорочки/коміри лишаються білими
+      var f = Math.min(1.4, Math.max(0.3, 0.4 + 0.6 * L / mean));
+      px[i * 4] = (r + (Math.min(1, tr * f) - r) * al) * 255; px[i * 4 + 1] = (g + (Math.min(1, tg * f) - g) * al) * 255; px[i * 4 + 2] = (b + (Math.min(1, tb * f) - b) * al) * 255;
+    }
+    cx.putImageData(id, 0, 0); var t = new THREE.CanvasTexture(cv); t.flipY = false; return t;
+  });
+}
 function mxBuild(g, o, m, A) {
   var d = m.d, bones = d.names.map(function (nm, i) { var b = new THREE.Bone(), r = d.rest[i]; b.name = nm; b.position.set(r[0], r[1], r[2]); b.quaternion.set(r[3], r[4], r[5], r[6]); return b; });
   d.par.forEach(function (p, i) { if (p >= 0) bones[p].add(bones[i]); });
-  var mesh = new THREE.SkinnedMesh(m.geo, m.mats.length > 1 ? m.mats : m.mats[0]); mesh.frustumCulled = false; mesh.raycast = function () {};
+  var cc = o.c | 0, hc = o.h | 0, mats = m.mats;
+  if ((d.mk && cc >= 0 && cc < SHIRTS.length) || (d.hair && hc >= 0 && hc < HAIRS.length)) {
+    mats = m.mats.map(function (x) { return x.clone(); });
+    if (d.mk && cc >= 0 && cc < SHIRTS.length) mxRecolor(m, SHIRTS[cc], 'c').then(function (t) { mats[0].map = t; mats[0].needsUpdate = true; });
+    if (d.hair && hc >= 0 && hc < HAIRS.length && mats[1]) mxRecolor(m, HAIRS[hc], 'h').then(function (t) { mats[1].map = t; mats[1].needsUpdate = true; });
+  }
+  var mesh = new THREE.SkinnedMesh(m.geo, mats.length > 1 ? mats : mats[0]); mesh.frustumCulled = false; mesh.raycast = function () {};
   var root = new THREE.Group(); root.add(bones[0]); root.add(mesh); root.updateMatrixWorld(true); mesh.bind(new THREE.Skeleton(bones));
   var s = (o.s === 'f' ? 1.64 : 1.72) / m.top, mg = new THREE.Group(); mg.scale.setScalar(s); mg.rotation.y = Math.PI; mg.add(root);
   var mixer = new THREE.AnimationMixer(root), cl = mxClips(m, A), acts = {};
@@ -2393,7 +2422,7 @@ updaters.push(function () {
   for (var i = chRigs.length - 1; i >= 0; i--) {
     var r = chRigs[i];
     if (!r.g.parent) { if (!r.orph) r.orph = Date.now(); else if (Date.now() - r.orph > 8000) chRigs.splice(i, 1); continue; }
-    r.orph = 0; if (chVisible(r.g)) chPose(r);
+    r.orph = 0; if (chVisible(r.g)) { if (r.mg && window.__gfx) { var nr = window.__gfx.near(r.g); r.mg.visible = nr; if (!nr) continue; } chPose(r); }
   }
 });
 function makeFigure(o) {
@@ -3617,6 +3646,7 @@ var RB = (function () {
   var lastT = 0;
   updaters.push(function (s) {
     if (cur.id !== 'f2') return;
+    if (window.__gfx && !window.__gfx.mirror()) return;
     var dt = lastT ? Math.min(0.1, s - lastT) : 0.016; lastT = s;
     ensureSelf();
     camera.getWorldDirection(fw); var to = cen.clone().sub(camera.position), dist = to.length();
@@ -4083,6 +4113,44 @@ if (window.__hall) { window.__hall.setEmo = setEmo; window.__hall.WSS = WSS; }
       else { var s = Math.abs(Math.sin(a * Math.PI * 2)); hcup.position.set(0.2 - 0.2 * s, -0.2 + 0.14 * s, -0.45 + 0.05 * s); hcup.rotation.set(0.15 + 0.9 * s, 0.5 - 0.5 * s, 0); }
     }
   });
+})();
+
+/* ====== ГРАФІКА: рівні якості (дошка й телевізор не змінюються) ====== */
+(function () {
+  var LV = [['max', 'Максимум', 'Найкраща картинка. Для сучасних телефонів і комп\u2019ютерів.'],
+            ['mid', 'Середня', 'Трохи легша картинка, дзеркало оновлюється рідше, далекі люди не малюються.'],
+            ['low', 'Слабкий пристрій', 'Найлегший режим: без дзеркала, далекі люди зникають, нижча чіткість.']];
+  var lvl = 'low'; try { var s = localStorage.getItem('hall-gfx'); if (s === 'mid' || s === 'low' || s === 'max') lvl = s; } catch (e) {}
+  var fr = 0;
+  function apply() {
+    var pr = lvl === 'low' ? 1 : lvl === 'mid' ? Math.min(devicePixelRatio, 1.5) : Math.min(devicePixelRatio, 2);
+    renderer.setPixelRatio(pr); renderer.setSize(innerWidth, innerHeight);
+  }
+  window.__gfx = {
+    lvl: function () { return lvl; },
+    mirror: function () { if (lvl === 'low') return false; if (lvl === 'mid') return (++fr & 1) === 0; return true; },
+    near: function (g) { if (lvl === 'max') return true; var d = lvl === 'low' ? 14 : 28; g.getWorldPosition(window.__gfx.v); return window.__gfx.v.distanceToSquared(camera.position) < d * d; },
+    v: new THREE.Vector3()
+  };
+  apply();
+  var btn = document.createElement('button'); btn.type = 'button'; btn.className = 'rb ib'; btn.style.top = '12px'; btn.style.right = '70px'; btn.title = 'Графіка'; btn.innerHTML = ico('gear'); btn.style.display = 'flex';
+  document.body.appendChild(btn);
+  function open() {
+    var h = '<h3>Графіка</h3><p class="muted">Якщо гальмує або гріється телефон, оберіть легший режим. Дошка й телевізор завжди в повній якості.</p><div id="gfxl"></div><button class="main" id="gfxok" type="button" style="margin-top:12px">Готово</button>';
+    var b = modal(h), box = b.querySelector('#gfxl');
+    function draw() {
+      box.innerHTML = '';
+      LV.forEach(function (x) {
+        var e = document.createElement('button'); e.type = 'button'; e.style.cssText = 'display:block;width:100%;text-align:left;margin:6px 0;padding:10px 12px;border:2px solid ' + (lvl === x[0] ? '#fff' : '#555');
+        e.innerHTML = '<b>' + x[1] + '</b><br><span class="muted" style="font-size:13px">' + x[2] + '</span>';
+        e.addEventListener('click', function () { lvl = x[0]; try { localStorage.setItem('hall-gfx', lvl); } catch (er) {} apply(); draw(); });
+        box.appendChild(e);
+      });
+    }
+    draw(); b.querySelector('#gfxok').addEventListener('click', closeModal);
+  }
+  btn.addEventListener('click', open);
+  updaters.push(function () { btn.style.display = modalOpen ? 'none' : 'flex'; });
 })();
 
 })();
