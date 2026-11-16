@@ -4152,11 +4152,11 @@ if (window.__hall) { window.__hall.setEmo = setEmo; window.__hall.WSS = WSS; }
       LV.forEach(function (x) {
         var e = document.createElement('button'); e.type = 'button'; e.style.cssText = 'display:block;width:100%;text-align:left;margin:6px 0;padding:10px 12px;border:2px solid ' + (lvl === x[0] ? '#fff' : '#555');
         e.innerHTML = '<b>' + x[1] + '</b><br><span class="muted" style="font-size:13px">' + x[2] + '</span>';
-        e.addEventListener('click', function () { lvl = x[0]; try { localStorage.setItem('hall-gfx', lvl); } catch (er) {} apply(); draw(); });
+        e.addEventListener('click', function () { lvl = x[0]; try { localStorage.setItem('hall-gfx', lvl); } catch (er) {} draw(); });
         box.appendChild(e);
       });
     }
-    draw(); b.querySelector('#gfxok').addEventListener('click', function () { if (lvl !== lvl0) { b.innerHTML = '<p>Застосовую…</p>'; setTimeout(function () { location.reload(); }, 150); } else closeModal(); });
+    draw(); b.querySelector('#gfxok').addEventListener('click', function () { if (lvl !== lvl0) { b.innerHTML = '<p>Застосовую…</p>'; try { localStorage.setItem('hall-gfx', lvl); localStorage.removeItem('hall-gfx-boot'); } catch (er) {} setTimeout(function () { location.reload(); }, 150); } else closeModal(); });
   }
   btn.addEventListener('click', open);
   updaters.push(function () { btn.style.display = modalOpen ? 'none' : 'flex'; });
