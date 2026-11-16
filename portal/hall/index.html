@@ -2018,7 +2018,7 @@ requestAnimationFrame(loop);
 /* ====== ФІГУРКИ, ШАФА (ВИГЛЯД) ====== */
 var SHIRTS = [0xb23a3a, 0x2f5d9a, 0x3f8a4f, 0xd9a521, 0x7a3f98, 0x1f8a8a, 0xe07a9a, 0x555555, 0xeeeeee, 0xe8742a];
 var HAIRS = [0x1a1a1a, 0x4a2c17, 0x8a5a2a, 0xd8b060, 0xa83a1a, 0x9a9a9a];
-var CH_N = { m: 15, f: 13 };
+var CH_N = { m: 4, f: 3 };
 var AV = { s: 'm', c: 0, h: 1, k: Math.floor(Math.random() * 11) };
 try { var _a = JSON.parse(localStorage.getItem('hall-av') || 'null'); if (_a && (_a.s === 'm' || _a.s === 'f')) AV = { s: _a.s, c: (_a.c | 0) % SHIRTS.length, h: (_a.h | 0) % HAIRS.length, k: _a.k == null ? Math.floor(Math.random() * CH_N[_a.s]) : (_a.k | 0) % CH_N[_a.s] }; else AV.c = Math.floor(Math.random() * SHIRTS.length); } catch (e) {}
 function avSave() { try { localStorage.setItem('hall-av', JSON.stringify(AV)); } catch (e) {} }
@@ -2168,7 +2168,7 @@ var CH_NAMES = {
   m: ['Мандрівник', 'Пляж', 'Повсякденний', 'Худі', 'Фермер', 'Король', 'Панк', 'Космонавт', 'Костюм', 'Спецназ', 'Робітник'],
   f: ['Мандрівниця', 'Повсякденна', 'Офіційна', 'Середньовіччя', 'Панк', 'Космос', 'Солдат', 'Костюм', 'Відьма', 'Робітниця']
 };
-CH_NAMES.m = CH_NAMES.m.concat(['Лисий (3D)', 'Кардиган (3D)', 'Светр (3D)', 'Костюм і краватка (3D)']); CH_NAMES.f = CH_NAMES.f.concat(['Піджак (3D)', 'Сорочка (3D)', 'Футболка (3D)']);
+CH_NAMES = { m: ['Лисий', 'Кардиган', 'Светр', 'Костюм і краватка'], f: ['Піджак', 'Сорочка', 'Футболка'] };
 var CH_Q = { m: 11, f: 10 }, MXF = { m: ['Ch01', 'Ch23', 'Ch31', 'Ch33'], f: ['Ch07', 'Ch21', 'Ch22'] }, mxCache = {}, mxAnimP = null;
 var CH_BASE = 'chars/', chCache = {}, chRigs = [], CH_MAT = null;
 function chLoad(id) {
@@ -2185,7 +2185,7 @@ function chLoad(id) {
   });
 }
 function chId(o) {
-  var s = o.s === 'f' ? 'f' : 'm', n = CH_N[s], k = o.k == null ? ((o.c | 0) + (o.h | 0) * 3) : (o.k | 0);
+  var s = o.s === 'f' ? 'f' : 'm', n = CH_Q[s], k = o.k == null ? ((o.c | 0) + (o.h | 0) * 3) : (o.k | 0);
   return s + (((k % n) + n) % n);
 }
 function chColors(model, o) {
@@ -2324,26 +2324,47 @@ function mxBuild(g, o, m, A) {
   acts.walk.timeScale = 1.7; acts.idle.time = Math.random() * 5;
   g.userData.legs = [new THREE.Object3D(), new THREE.Object3D()]; g.userData.arms = [new THREE.Object3D(), new THREE.Object3D()];
   g.userData.arms[0].rotation.z = 0.04; g.userData.arms[1].rotation.z = -0.04; g.userData.mx = 1;
-  var rig = { g: g, mg: mg, mx: 1, fa: bones[d.names.indexOf('RightForeArm')], ua: bones[d.names.indexOf('RightArm')], qt: new THREE.Quaternion(), mixer: mixer, acts: acts, w: { walk: 0, sit: 0, idle: 1 }, s: s, bones: bones, hand: bones[d.names.indexOf('RightHand')], t: Date.now() };
+  var rig = { g: g, mg: mg, mx: 1, fa: bones[d.names.indexOf('RightForeArm')], ua: bones[d.names.indexOf('RightArm')], qt: new THREE.Quaternion(), mixer: mixer, acts: acts, w: { walk: 0, sit: 0, idle: 1 }, s: s, bones: bones, hand: bones[d.names.indexOf('RightHand')], t: Date.now(), my: 0, hipY: d.rest[0][1], ov: [0, 0], ovL: [0, 0], wkT: 0 };
+  rig.arm = [bones[d.names.indexOf('LeftArm')], bones[d.names.indexOf('RightArm')]]; rig.armC = rig.arm.map(mxChain);
+  rig.leg = [bones[d.names.indexOf('LeftUpLeg')], bones[d.names.indexOf('RightUpLeg')]]; rig.legC = rig.leg.map(mxChain);
   if (o.r) chRobe(g, rig, null, s);
   g.add(mg); chRigs.push(rig); return rig;
 }
 var MX_AX = new THREE.Vector3(0, 0, 1), MX_UA = new THREE.Vector3(1, 0, 0), MX_CUP = [0, 0.1, 0.04];
+var MX_QA = new THREE.Quaternion(), MX_QB = new THREE.Quaternion(), MX_PW = new THREE.Quaternion(), MX_AXX = new THREE.Vector3(1, 0, 0), MX_AXZ = new THREE.Vector3(0, 0, 1);
+function mxChain(bone) { var l = [], p = bone.parent; while (p && p.isBone) { l.unshift(p); p = p.parent; } return l; }
+function mxOv(r, bone, ch, ax, az, k) { // додатковий поворот кінцівки в «світі» персонажа: ax вперед/вгору, az вбік (як у проксі-кінцівок)
+  MX_PW.identity(); for (var i = 0; i < ch.length; i++) MX_PW.multiply(ch[i].quaternion);
+  MX_QA.setFromAxisAngle(MX_AXX, -ax * k); MX_QB.setFromAxisAngle(MX_AXZ, az * k); MX_QB.multiply(MX_QA);
+  bone.quaternion.premultiply(MX_PW).premultiply(MX_QB).premultiply(MX_QA.copy(MX_PW).invert());
+}
 function mxPose(r) {
-  var u = r.g.userData, now = Date.now(), dt = Math.min(0.1, (now - r.t) / 1000), l0 = u.legs[0].rotation.x, sit = l0 > 0.9 ? 1 : 0, wk = !sit && ((u.amp || 0) > 0.1 || Math.abs(l0) > 0.08) ? 1 : 0, id = !sit && !wk ? 1 : 0, k = Math.min(1, dt * 8), W = r.w;
-  r.t = now; W.sit += (sit - W.sit) * k; W.walk += (wk - W.walk) * k; W.idle += (id - W.idle) * k;
+  var u = r.g.userData, now = Date.now(), dt = Math.min(0.1, (now - r.t) / 1000), l0 = u.legs[0].rotation.x, gy = r.g.position.y, i;
+  var down = l0 > 0.9, floor = down && gy < -0.55, chair = down && !floor;
+  if (Math.abs(l0) > 0.08) r.wkT = now;
+  var wk = !down && ((u.amp || 0) > 0.1 || now - (r.wkT || 0) < 250) ? 1 : 0, id = !chair && !wk ? 1 : 0, k = Math.min(1, dt * 8), W = r.w;
+  r.t = now; W.sit += ((chair ? 1 : 0) - W.sit) * k; W.walk += (wk - W.walk) * k; W.idle += (id - W.idle) * k;
   r.acts.sit.setEffectiveWeight(W.sit); r.acts.walk.setEffectiveWeight(W.walk); r.acts.idle.setEffectiveWeight(W.idle);
+  var up = Math.max(u.arms[0].rotation.x, u.arms[1].rotation.x) > 2; r.acts.walk.timeScale = up ? 1.15 : 1.7;
   r.mixer.update(dt);
-  r.mg.position.y = -r.g.position.y / (r.g.scale.y || 1); r.sit = W.sit;
+  var ty = floor ? 0.12 - gy - r.hipY * r.s : -gy / (r.g.scale.y || 1); r.my += (ty - r.my) * Math.min(1, dt * 12); r.mg.position.y = r.my; r.sit = W.sit;
   var cm = u.cupM; // чашка в руці: рука зігнута, під час пиття підноситься до рота
-  if (cm && cm.visible && !sit) {
-    var dk = u.dk ? 0.5 + 0.5 * Math.sin(now / 1000 * 2.2) : 0, ax = window.__mxAx || MX_AX;
+  var hold = cm && cm.visible && !down;
+  if (hold) {
+    var dk = u.dk ? 0.5 + 0.5 * Math.sin(now / 1000 * 2.2) : 0;
     if (cm.parent !== r.hand) { r.hand.add(cm); cm.scale.setScalar(1.6 / r.s); cm.position.set(MX_CUP[0], MX_CUP[1], MX_CUP[2]); }
     cm.rotation.set(0, 0, 0);
-    r.qt.setFromAxisAngle(ax, -(1.45 + dk * 0.75)); r.fa.quaternion.multiply(r.qt);
+    r.qt.setFromAxisAngle(MX_AX, -(1.45 + dk * 0.75)); r.fa.quaternion.multiply(r.qt);
     r.qt.setFromAxisAngle(MX_UA, 0.35 + dk * 0.25); r.ua.quaternion.multiply(r.qt);
   } else if (cm && cm.parent === r.hand) { r.g.add(cm); cm.scale.setScalar(1.6); }
-  var cp = u.cape; if (cp) { var tg = 0.05 + (wk ? 0.45 : 0) + (sit ? 0.45 : 0) + Math.sin(now / 700 + r.g.id) * 0.02; cp.rotation.x += (tg - cp.rotation.x) * 0.15; }
+  for (i = 0; i < 2; i++) { // руки: «вгору», махання, рука на запитання, руки на колінах при сидінні на підлозі
+    var ax = u.arms[i].rotation.x, az = u.arms[i].rotation.z, on = (floor ? Math.abs(ax) > 0.5 : Math.abs(ax) > 0.9) && !(hold && i === 1) ? 1 : 0;
+    r.ov[i] += (on - r.ov[i]) * Math.min(1, dt * 10);
+    if (r.ov[i] > 0.01) mxOv(r, r.arm[i], r.armC[i], ax, az, r.ov[i]);
+    r.ovL[i] += ((floor ? 1 : 0) - r.ovL[i]) * Math.min(1, dt * 10);
+    if (r.ovL[i] > 0.01) mxOv(r, r.leg[i], r.legC[i], u.legs[i].rotation.x, 0, r.ovL[i]);
+  }
+  var cp = u.cape; if (cp) { var tg = 0.05 + (wk ? 0.45 : 0) + (down ? 0.45 : 0) + Math.sin(now / 700 + r.g.id) * 0.02; cp.rotation.x += (tg - cp.rotation.x) * 0.15; }
 }
 function chVisible(g) { for (var p = g.parent, n = 0; p && n < 6; p = p.parent, n++) if (p.visible === false) return false; return true; }
 updaters.push(function () {
@@ -2354,9 +2375,9 @@ updaters.push(function () {
   }
 });
 function makeFigure(o) {
-  var sx = o.s === 'f' ? 'f' : 'm', kk = chId(o), kn = +kk.slice(1);
-  if (kn >= CH_Q[sx]) {
-    var g2 = makeFigureBase(o), old2 = g2.children.slice(), nm = MXF[sx][(kn - CH_Q[sx]) % MXF[sx].length];
+  var sx = o.s === 'f' ? 'f' : 'm', kn = ((o.k | 0) % MXF[sx].length + MXF[sx].length) % MXF[sx].length;
+  if (!o.old) {
+    var g2 = makeFigureBase(o), old2 = g2.children.slice(), nm = MXF[sx][kn];
     Promise.all([mxLoad(nm), mxAnims()]).then(function (a) { if (g2.userData.chDone) return; g2.userData.chDone = 1; old2.forEach(function (c) { g2.remove(c); }); g2.userData.old = null; mxBuild(g2, o, a[0], a[1]); }, function () { delete mxCache[nm]; mxAnimP = null; });
     return g2;
   }
@@ -2367,6 +2388,12 @@ function makeFigure(o) {
   if (chCache[id]) { chCache[id].then(function (m) { done(m); }, function () {}); }
   else chLoad(id).then(function (m) { done(m); }, function () { delete chCache[id]; });
   return g;
+}
+
+function selfCup(g) { // чашка у «власній» фігурі (дзеркало, вид зі спини)
+  var u = g.userData, k = window.__cupK | 0;
+  if (k && window.__cupMesh) { if (u.cupK !== k) { if (u.cupM && u.cupM.parent) u.cupM.parent.remove(u.cupM); u.cupM = window.__cupMesh(k === 2 ? 'tea' : 'coffee'); u.cupM.scale.setScalar(1.6); g.add(u.cupM); u.cupK = k; } u.cupM.visible = true; u.dk = window.__cupD | 0; }
+  else if (u.cupM) { u.cupM.visible = false; u.cupK = 0; }
 }
 
 
@@ -3024,7 +3051,7 @@ var RB = (function () {
     MEET.zoomT = [{ label: 'Дошка', obj: plane }];
   }
   if (SEP) {
-    var rbf = makeFigure({ s: 'm', k: 7, c: 7, h: 0, r: 0, raw: 1 }); rbf.position.set(3.0, 0, -5.0); rbf.rotation.y = Math.PI; MEET.group.add(rbf);
+    var rbf = makeFigure({ s: 'm', k: 7, c: 7, h: 0, r: 0, raw: 1, old: 1 }); rbf.position.set(3.0, 0, -5.0); rbf.rotation.y = Math.PI; MEET.group.add(rbf);
     var rbs = signPlane(['Викладач-робот'], 1.5, 0.3, { bg: '#17110b', fg: '#9fe6b0', px: 72 }); rbs.position.set(3.0, 2.25, -5.0); rbs.rotation.y = 0; MEET.group.add(rbs); rbf.userData.sign = rbs;
     obs(MEET, 3.0, -5.0, 0.5, 0.5); RB.attach(KEY, MEET, rbf);
   }
@@ -3577,9 +3604,9 @@ var RB = (function () {
     vcam.position.set(2 * sx - px, py, pz); vcam.up.set(0, 1, 0); vcam.lookAt(vcam.position.x + 1, py, pz); vcam.updateMatrixWorld(true);
     var dz = cen.z - pz, dy = CY - py, hw = W / 2, hh = H / 2, nr = d;
     vcam.projectionMatrix.makePerspective(dz - hw, dz + hw, dy + hh, dy - hh, nr, 60); vcam.projectionMatrixInverse.copy(vcam.projectionMatrix).invert();
-    pose(dt, performance.now()); self.visible = true; plane.visible = false;
+    pose(dt, performance.now()); selfCup(self); if (window.__hcupVis) window.__hcupVis(false); self.visible = true; plane.visible = false;
     var old = renderer.getRenderTarget(); renderer.setRenderTarget(rt); renderer.render(scene, vcam); renderer.setRenderTarget(old);
-    self.visible = false; plane.visible = true;
+    self.visible = false; plane.visible = true; if (window.__hcupVis) window.__hcupVis(true);
   });
   window.__mirror = { plane: plane, vcam: vcam };
 })();
@@ -3604,9 +3631,9 @@ var RB = (function () {
   updaters.push(function (s) {
     var want = (EMO >= 1 && EMO <= 3 && !modalOpen) ? 1 : 0;
     b += (want - b) * 0.12; if (Math.abs(want - b) < 0.01) b = want;
-    active = b > 0;
+    active = b > 0; if (window.__hcupVis) window.__hcupVis(!active);
     if (!active) { if (self) self.visible = false; return; }
-    ensure(); pose(performance.now() / 1000); self.visible = true;
+    ensure(); pose(performance.now() / 1000); selfCup(self); self.visible = true;
     var fx = -Math.sin(yaw), fz = -Math.cos(yaw), bd = cur.bounds, d = dist, px = camera.position.x, pz = camera.position.z;
     if (bd) { for (var i = 0; i < 12 && d > 0.6; i++) { var cx = px - fx * d, cz = pz - fz * d; if (cx > bd.x1 - 0.3 && cx < bd.x2 + 0.3 && cz > bd.z1 - 0.3 && cz < bd.z2 + 0.3) break; d -= 0.2; } }
     var ty = EMO === 1 ? 1.2 : 1.75;
@@ -3924,7 +3951,7 @@ if (window.__hall) { window.__hall.setEmo = setEmo; window.__hall.WSS = WSS; }
   }
 
   /* ---------- бариста-бот ---------- */
-  var bot = makeFigure({ s: 'f', k: 3, c: 2, h: 2, r: 0 }); bot.scale.setScalar(1 / BS); bot.position.set(-0.15, 0, 0.1); bot.rotation.y = Math.PI; BG.add(bot);
+  var bot = makeFigure({ s: 'f', k: 3, c: 2, h: 2, r: 0, old: 1 }); bot.scale.setScalar(1 / BS); bot.position.set(-0.15, 0, 0.1); bot.rotation.y = Math.PI; BG.add(bot);
   var lab = signPlane(['Бариста-бот'], 1.2, 0.3, { bg: '#17110b', fg: '#f2d9a0', px: 90 }); lab.scale.setScalar(1 / BS); lab.position.set(-0.15, 2.55, 0.1); BG.add(lab);
   var bhit = hit(BG, 0.8, 1.3, 0.7, -0.15, 1.9, 0.1);
   var brew = null;
@@ -3955,7 +3982,7 @@ if (window.__hall) { window.__hall.setEmo = setEmo; window.__hall.WSS = WSS; }
   var bDrink = mkb('Випити', 'position:fixed;left:12px;bottom:70px;z-index:6;display:none', function () { drink(); });
   var bPut = mkb('Поставити', 'position:fixed;left:12px;bottom:118px;z-index:6;display:none', function () { if (!held) return; var k = held; held = ''; holdSync(); if (typeof cur !== 'undefined' && cur === F2) { putReady(k); toast('Чашку поставлено на стійку.'); } else toast('Чашку відставлено.'); });
   var bBadge = document.createElement('div'); bBadge.style.cssText = 'position:fixed;left:12px;top:150px;z-index:6;display:none;font-size:13px;line-height:1.6;color:#f2e2c0;background:rgba(36,26,16,.85);border:1px solid #8a7347;padding:6px 10px;pointer-events:none'; document.body.appendChild(bBadge);
-  window.__cupMesh = function (k) { return cupMesh(k); };
+  window.__cupMesh = function (k) { return cupMesh(k); }; window.__hcupVis = function (v) { if (hcup) hcup.visible = v; };
   function holdSync() {
     window.__cupK = held === 'coffee' ? 1 : held === 'tea' ? 2 : 0;
     if (hcup) { camera.remove(hcup); hcup = null; }
