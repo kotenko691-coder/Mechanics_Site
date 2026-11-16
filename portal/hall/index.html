@@ -4372,15 +4372,22 @@ if (window.__hall) { window.__hall.setEmo = setEmo; window.__hall.WSS = WSS; }
     }
     walk(ents, [1, 0, 0, 1, 0, 0], '#111', 0);
     if (!polys.length && !texts.length) return null;
-    var x0 = 1e18, x1 = -1e18, y0 = 1e18, y1 = -1e18;
-    polys.forEach(function (pl) { pl.p.forEach(function (q) { if (q[0] < x0) x0 = q[0]; if (q[0] > x1) x1 = q[0]; if (q[1] < y0) y0 = q[1]; if (q[1] > y1) y1 = q[1]; }); });
-    texts.forEach(function (tx) { if (tx.x < x0) x0 = tx.x; if (tx.x > x1) x1 = tx.x; if (tx.y < y0) y0 = tx.y; if (tx.y > y1) y1 = tx.y; });
+    var AX = [], AY = [];
+    polys.forEach(function (pl) { pl.p.forEach(function (q) { if (isFinite(q[0]) && isFinite(q[1])) { AX.push(q[0]); AY.push(q[1]); } }); });
+    texts.forEach(function (tx) { if (isFinite(tx.x) && isFinite(tx.y)) { AX.push(tx.x); AY.push(tx.y); } });
+    if (!AX.length) return null; AX.sort(function (a, b) { return a - b; }); AY.sort(function (a, b) { return a - b; });
+    function rb(A) {
+      var n = A.length, med = A[Math.floor(n / 2)], dv = A.map(function (v) { return Math.abs(v - med); }).sort(function (a, b) { return a - b; }), mad = dv[Math.floor(n / 2)], w = Math.max(mad * 10, (A[n - 1] - A[0]) * 1e-4, 1e-9), lo = med - w, hi = med + w, mn = 1e300, mx = -1e300;
+      A.forEach(function (v) { if (v >= lo && v <= hi) { if (v < mn) mn = v; if (v > mx) mx = v; } }); return [mn, mx];
+    }
+    var rx = rb(AX), ry = rb(AY), x0 = rx[0], x1 = rx[1], y0 = ry[0], y1 = ry[1], ex = (x1 - x0) * 0.04 + 1e-9, ey = (y1 - y0) * 0.04 + 1e-9;
+    x0 -= ex; x1 += ex; y0 -= ey; y1 += ey;
     var bw = Math.max(1e-6, x1 - x0), bh = Math.max(1e-6, y1 - y0), mg = 0.04, ar = Math.max(0.2, Math.min(5, bw / bh * (1 + 0 * mg)));
-    var p = { ar: ar, lines: [], load: function () { return Promise.resolve(); }, render: function (w) {
+    var p = { dbg: { np: polys.length, nt: texts.length, x0: x0, x1: x1, y0: y0, y1: y1, s: polys.slice(0, 3).map(function (q) { return q.p[0].join(',') + ' ' + q.c; }) }, ar: ar, lines: [], load: function () { return Promise.resolve(); }, render: function (w) {
       var h = Math.round(w / ar), c = document.createElement('canvas'); c.width = Math.round(w); c.height = h; var q = c.getContext('2d'); q.fillStyle = '#fff'; q.fillRect(0, 0, w, h);
       var pad = w * mg, sc = Math.min((w - 2 * pad) / bw, (h - 2 * pad) / bh), ox = (w - bw * sc) / 2, oy = (h - bh * sc) / 2;
       function X(x) { return ox + (x - x0) * sc; } function Y(y) { return h - (oy + (y - y0) * sc); }
-      q.lineWidth = Math.max(1, w / 1800); q.lineJoin = 'round'; var lastC = '';
+      q.lineWidth = Math.max(1.5, w / 1000); q.lineJoin = 'round'; var lastC = '';
       polys.forEach(function (pl) { if (pl.c !== lastC) { q.stroke(); q.beginPath(); q.strokeStyle = pl.c; lastC = pl.c; } q.moveTo(X(pl.p[0][0]), Y(pl.p[0][1])); for (var k = 1; k < pl.p.length; k++) q.lineTo(X(pl.p[k][0]), Y(pl.p[k][1])); });
       q.stroke();
       texts.forEach(function (tx) { var fs = tx.h * sc; if (fs < 4) return; q.save(); q.translate(X(tx.x), Y(tx.y)); q.rotate(-tx.r); q.font = fs + 'px Arial'; q.fillStyle = tx.c; q.fillText(tx.s, 0, 0); q.restore(); });
