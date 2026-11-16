@@ -4158,28 +4158,31 @@ if (window.__hall) { window.__hall.setEmo = setEmo; window.__hall.WSS = WSS; }
     });
   }
   lights(); setTimeout(lights, 0);
+  try { var rs = JSON.parse(sessionStorage.getItem('hall-resume') || 'null'); sessionStorage.removeItem('hall-resume');
+    if (rs && Date.now() - rs.t < 60000 && LOC[rs.id] && !inRoom()) { teleport(rs.id, { x: rs.x, z: rs.z, yaw: rs.yaw }, true); pitch = rs.pitch || 0; } } catch (e) {} // після зміни графіки лишаємось на тому ж місці
   var btn = document.createElement('button'); btn.type = 'button'; btn.className = 'rb ib'; btn.style.top = '12px'; btn.style.right = '70px'; btn.title = 'Графіка'; btn.innerHTML = ico('gear'); btn.style.display = 'flex';
   document.body.appendChild(btn);
+  function curLoc() { return cur; }
   function open() {
-    var cur = { p: G.p, t: G.t, l: G.l, r: G.r, m: G.m }, orig = JSON.stringify(cur);
+    var loc0 = curLoc(), st = { p: G.p, t: G.t, l: G.l, r: G.r, m: G.m }, orig = JSON.stringify(st);
     var h = '<h3>Графіка</h3><p class="muted">Якщо гальмує або гріється пристрій, оберіть нижчі рівні. Дошка й телевізор завжди в повній якості. Після змін сторінка перезавантажиться.</p><div id="gfxp" style="margin:8px 0"></div><div id="gfxl"></div><button class="main" id="gfxok" type="button" style="margin-top:12px">Готово</button>';
     var b = modal(h), box = b.querySelector('#gfxl'), pre = b.querySelector('#gfxp');
     function btnCss(on) { return 'padding:7px 4px;margin:0;flex:1;border:2px solid ' + (on ? '#fff' : '#555') + ';font-size:13px'; }
     function draw() {
       pre.innerHTML = '<span class="muted" style="font-size:13px">Усе разом: </span>'; pre.style.cssText = 'display:flex;gap:6px;align-items:center;margin:8px 0';
-      NAMES.forEach(function (n, v) { var e = document.createElement('button'); e.type = 'button'; e.textContent = n; var all = ROWS.every(function (r) { return cur[r[0]] === v; }); e.style.cssText = btnCss(all); e.addEventListener('click', function () { ROWS.forEach(function (r) { cur[r[0]] = v; }); draw(); }); pre.appendChild(e); });
+      NAMES.forEach(function (n, v) { var e = document.createElement('button'); e.type = 'button'; e.textContent = n; var all = ROWS.every(function (r) { return st[r[0]] === v; }); e.style.cssText = btnCss(all); e.addEventListener('click', function () { ROWS.forEach(function (r) { st[r[0]] = v; }); draw(); }); pre.appendChild(e); });
       box.innerHTML = '';
       ROWS.forEach(function (r) {
         var d = document.createElement('div'); d.style.cssText = 'margin:10px 0';
-        d.innerHTML = '<div><b>' + r[1] + '</b> <span class="muted" style="font-size:12px">' + r[2][cur[r[0]]] + '</span></div>';
+        d.innerHTML = '<div><b>' + r[1] + '</b> <span class="muted" style="font-size:12px">' + r[2][st[r[0]]] + '</span></div>';
         var line = document.createElement('div'); line.style.cssText = 'display:flex;gap:6px;margin-top:4px';
-        NAMES.forEach(function (n, v) { var e = document.createElement('button'); e.type = 'button'; e.textContent = n; e.style.cssText = btnCss(cur[r[0]] === v); e.addEventListener('click', function () { cur[r[0]] = v; draw(); }); line.appendChild(e); });
+        NAMES.forEach(function (n, v) { var e = document.createElement('button'); e.type = 'button'; e.textContent = n; e.style.cssText = btnCss(st[r[0]] === v); e.addEventListener('click', function () { st[r[0]] = v; draw(); }); line.appendChild(e); });
         d.appendChild(line); box.appendChild(d);
       });
     }
     draw();
     b.querySelector('#gfxok').addEventListener('click', function () {
-      if (JSON.stringify(cur) !== orig) { b.innerHTML = '<p>Застосовую…</p>'; try { localStorage.setItem('hall-gfx2', JSON.stringify(cur)); localStorage.removeItem('hall-gfx-boot'); } catch (er) {} setTimeout(function () { location.reload(); }, 150); } else closeModal();
+      if (JSON.stringify(st) !== orig) { b.innerHTML = '<p>Застосовую…</p>'; try { localStorage.setItem('hall-gfx2', JSON.stringify(st)); localStorage.removeItem('hall-gfx-boot'); if (loc0 && !inRoom()) sessionStorage.setItem('hall-resume', JSON.stringify({ id: loc0.id, x: camera.position.x, z: camera.position.z, yaw: yaw, pitch: pitch, t: Date.now() })); } catch (er) {} setTimeout(function () { location.reload(); }, 150); } else closeModal();
     });
   }
   btn.addEventListener('click', open);
