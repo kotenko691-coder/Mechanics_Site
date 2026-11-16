@@ -72,7 +72,17 @@ button.rb{position:fixed;right:12px;z-index:6;display:none;align-items:center;ju
 </script>
 <script>
 (function(){
-var HRT = GFX0 === 'max' && !COARSE; // великі текстури інтер'єру лише на комп'ютері в режимі «Максимум»
+/* ====== налаштування графіки (0 низький, 1 середній, 2 високий) ====== */
+var COARSE = !!(window.matchMedia && matchMedia('(pointer:coarse)').matches);
+var G = { p: 0, t: 0, l: 0, r: 0, m: 0 }; // p люди, t текстури, l освітлення, r роздільність, m дзеркало
+try {
+  var _s = JSON.parse(localStorage.getItem('hall-gfx2') || 'null');
+  if (!_s) { var _o = localStorage.getItem('hall-gfx'), _v = _o === 'max' ? 2 : _o === 'mid' ? 1 : 0; _s = { p: _v, t: _v, l: _v, r: _v, m: _v }; }
+  Object.keys(G).forEach(function (k) { var v = _s[k] | 0; G[k] = v < 0 ? 0 : v > 2 ? 2 : v; });
+  if (localStorage.getItem('hall-gfx-boot') && (G.p + G.t + G.l + G.r + G.m)) { G = { p: 0, t: 0, l: 0, r: 0, m: 0 }; localStorage.setItem('hall-gfx2', JSON.stringify(G)); } // попередній запуск не дожив до кінця: безпечний режим
+  localStorage.setItem('hall-gfx-boot', '1'); setTimeout(function () { try { localStorage.removeItem('hall-gfx-boot'); } catch (e) {} }, 15000);
+} catch (e) {}
+var HRT = G.t === 2 && !COARSE; // великі текстури інтер'єру лише на комп'ютері в режимі «Максимум»
 var TEXS = HRT ? 1024 : 512;
 function hrImage(name, emb, ok) { var im = new Image(); im.onload = function () { ok(im); }; if (HRT) { im.onerror = function () { im.onerror = null; im.src = emb; }; im.src = 'tex/' + name + '.jpg?v=1'; } else im.src = emb; return im; }
 /* Quaternius Ultimate House Interior Pack (CC0) */
@@ -209,14 +219,9 @@ var $ = function (i) { return document.getElementById(i); };
 var CFG = { SEQUENTIAL: false };        // true: двері відкриваються по черзі
 if (/[?&]seq=1/.test(location.search)) CFG.SEQUENTIAL = true;
 
-var renderer = new THREE.WebGLRenderer({ antialias: true });
-var GFX0 = 'low', COARSE = !!(window.matchMedia && matchMedia('(pointer:coarse)').matches);
-try { var _g = localStorage.getItem('hall-gfx'); if (_g === 'mid' || _g === 'max') GFX0 = _g;
-  if (GFX0 !== 'low' && localStorage.getItem('hall-gfx-boot')) { GFX0 = 'low'; localStorage.setItem('hall-gfx', 'low'); } // попередній запуск не дожив до кінця (пам'ять): безпечний режим
-  localStorage.setItem('hall-gfx-boot', '1'); setTimeout(function () { try { localStorage.removeItem('hall-gfx-boot'); } catch (e) {} }, 15000);
-} catch (e) {}
-var ANISO = GFX0 === 'max' ? Math.min(COARSE ? 8 : 16, renderer.capabilities.getMaxAnisotropy()) : GFX0 === 'mid' ? 4 : 1;
-function gfxPR() { var pr = GFX0 === 'max' ? Math.min(devicePixelRatio, COARSE ? 2 : 3) : GFX0 === 'mid' ? Math.min(devicePixelRatio, 1.5) : 1, px = innerWidth * innerHeight; if (GFX0 === 'max') pr = Math.min(pr, Math.sqrt((COARSE ? 3.5e6 : 9e6) / px)); return Math.max(1, pr); }
+var renderer = new THREE.WebGLRenderer({ antialias: G.r > 0 });
+var ANISO = [1, 4, Math.min(COARSE ? 8 : 16, renderer.capabilities.getMaxAnisotropy())][G.t];
+function gfxPR() { var pr = [1, Math.min(devicePixelRatio, 1.5), Math.min(devicePixelRatio, COARSE ? 2 : 3)][G.r], px = innerWidth * innerHeight; if (G.r === 2) pr = Math.min(pr, Math.sqrt((COARSE ? 3.5e6 : 9e6) / px)); return Math.max(1, pr); }
 renderer.setPixelRatio(gfxPR());
 renderer.setSize(innerWidth, innerHeight);
 document.body.insertBefore(renderer.domElement, document.body.firstChild);
@@ -2299,7 +2304,7 @@ function chPose(r) {
 function mxB64(t) { var a = atob(t), u = new Uint8Array(a.length), i; for (i = 0; i < a.length; i++) u[i] = a.charCodeAt(i); return u.buffer; }
 function mxLoad(name) {
   if (mxCache[name]) return mxCache[name];
-  return mxCache[name] = fetch(CH_BASE + 'mx/' + (GFX0 === 'max' && !COARSE ? 'hd/' : '') + name + '.json?v=1').then(function (r) { if (!r.ok) throw new Error('mx'); return r.json(); }).then(function (d) {
+  return mxCache[name] = fetch(CH_BASE + 'mx/' + (G.p === 2 && !COARSE ? 'hd/' : '') + name + '.json?v=1').then(function (r) { if (!r.ok) throw new Error('mx'); return r.json(); }).then(function (d) {
     var n = d.n, g = new THREE.BufferGeometry(), p = new Int16Array(mxB64(d.p)), pos = new Float32Array(n * 3), i, k;
     for (i = 0; i < n; i++) for (k = 0; k < 3; k++) pos[i * 3 + k] = p[i * 3 + k] / 32767 * d.e[k] + d.c[k];
     g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
@@ -4125,38 +4130,57 @@ if (window.__hall) { window.__hall.setEmo = setEmo; window.__hall.WSS = WSS; }
   });
 })();
 
-/* ====== ГРАФІКА: рівні якості (дошка й телевізор не змінюються) ====== */
+/* ====== ГРАФІКА: окремі налаштування (дошка й телевізор не змінюються) ====== */
 (function () {
-  var LV = [['max', 'Максимум', 'Найчіткіша картинка: великі текстури, чіткіші люди, повне згладжування. Потрібен швидкий інтернет і потужний пристрій.'],
-            ['mid', 'Середня', 'Трохи легша картинка, дзеркало оновлюється рідше, далекі люди не малюються.'],
-            ['low', 'Слабкий пристрій', 'Найлегший режим: без дзеркала, далекі люди зникають, нижча чіткість.']];
-  var lvl = GFX0, lvl0 = GFX0;
-  var fr = 0;
-  function apply() {
-    renderer.setPixelRatio(gfxPR()); renderer.setSize(innerWidth, innerHeight);
-  }
+  var ROWS = [
+    ['p', 'Люди', ['Прості моделі, зникають далі 14 м', 'Звичайні, зникають далі 28 м', 'Деталізовані (HD), видно всіх']],
+    ['t', 'Текстури', ['Малі, без згладжування під кутом', 'Звичайні', 'Великі, максимальна чіткість']],
+    ['l', 'Освітлення', ['Мінімум джерел світла', 'Частина джерел', 'Усі джерела світла']],
+    ['r', 'Чіткість екрана', ['Нижча, без згладжування країв', 'Середня', 'Найвища (на телефоні обмежена)']],
+    ['m', 'Дзеркало', ['Вимкнено', 'Оновлюється рідше', 'Повне']]
+  ], NAMES = ['Низький', 'Середній', 'Високий'], fr = 0;
   window.__gfx = {
-    lvl: function () { return lvl; },
-    mirror: function () { if (lvl === 'low') return false; if (lvl === 'mid') return (++fr & 1) === 0; return true; },
-    near: function (g) { if (lvl === 'max') return true; var d = lvl === 'low' ? 14 : 28; g.getWorldPosition(window.__gfx.v); return window.__gfx.v.distanceToSquared(camera.position) < d * d; },
+    G: G,
+    mirror: function () { if (G.m === 0) return false; if (G.m === 1) return (++fr & 1) === 0; return true; },
+    near: function (g) { if (G.p === 2) return true; var d = G.p === 0 ? 14 : 28; g.getWorldPosition(window.__gfx.v); return window.__gfx.v.distanceToSquared(camera.position) < d * d; },
     v: new THREE.Vector3()
   };
-  apply();
+  function lights() { // освітлення: залишаємо найсильніші точкові джерела, решту вимикаємо; світла додаємо навзамін
+    if (G.l === 2) return; var keep = G.l === 0 ? 1 : 3;
+    Object.keys(LOC).forEach(function (id) {
+      var loc = LOC[id], pls = []; if (!loc || !loc.group) return;
+      loc.group.traverse(function (o) { if (o.isPointLight) pls.push(o); });
+      if (pls.length <= keep) return;
+      pls.sort(function (a, b) { return b.intensity * b.distance - a.intensity * a.distance; });
+      var tot = 0, kept = 0; pls.forEach(function (l, i) { tot += l.intensity; if (i < keep) { kept += l.intensity; } else l.visible = false; });
+      if (kept > 0) for (var i = 0; i < keep; i++) pls[i].intensity *= Math.min(1.8, tot / kept);
+      if (loc.amb) loc.amb.intensity *= G.l === 0 ? 1.3 : 1.12;
+    });
+  }
+  lights(); setTimeout(lights, 0);
   var btn = document.createElement('button'); btn.type = 'button'; btn.className = 'rb ib'; btn.style.top = '12px'; btn.style.right = '70px'; btn.title = 'Графіка'; btn.innerHTML = ico('gear'); btn.style.display = 'flex';
   document.body.appendChild(btn);
   function open() {
-    var h = '<h3>Графіка</h3><p class="muted">Якщо гальмує або гріється телефон, оберіть легший режим. Дошка й телевізор завжди в повній якості. Після зміни сторінка перезавантажиться.</p><div id="gfxl"></div><button class="main" id="gfxok" type="button" style="margin-top:12px">Готово</button>';
-    var b = modal(h), box = b.querySelector('#gfxl');
+    var cur = { p: G.p, t: G.t, l: G.l, r: G.r, m: G.m }, orig = JSON.stringify(cur);
+    var h = '<h3>Графіка</h3><p class="muted">Якщо гальмує або гріється пристрій, оберіть нижчі рівні. Дошка й телевізор завжди в повній якості. Після змін сторінка перезавантажиться.</p><div id="gfxp" style="margin:8px 0"></div><div id="gfxl"></div><button class="main" id="gfxok" type="button" style="margin-top:12px">Готово</button>';
+    var b = modal(h), box = b.querySelector('#gfxl'), pre = b.querySelector('#gfxp');
+    function btnCss(on) { return 'padding:7px 4px;margin:0;flex:1;border:2px solid ' + (on ? '#fff' : '#555') + ';font-size:13px'; }
     function draw() {
+      pre.innerHTML = '<span class="muted" style="font-size:13px">Усе разом: </span>'; pre.style.cssText = 'display:flex;gap:6px;align-items:center;margin:8px 0';
+      NAMES.forEach(function (n, v) { var e = document.createElement('button'); e.type = 'button'; e.textContent = n; var all = ROWS.every(function (r) { return cur[r[0]] === v; }); e.style.cssText = btnCss(all); e.addEventListener('click', function () { ROWS.forEach(function (r) { cur[r[0]] = v; }); draw(); }); pre.appendChild(e); });
       box.innerHTML = '';
-      LV.forEach(function (x) {
-        var e = document.createElement('button'); e.type = 'button'; e.style.cssText = 'display:block;width:100%;text-align:left;margin:6px 0;padding:10px 12px;border:2px solid ' + (lvl === x[0] ? '#fff' : '#555');
-        e.innerHTML = '<b>' + x[1] + '</b><br><span class="muted" style="font-size:13px">' + x[2] + '</span>';
-        e.addEventListener('click', function () { lvl = x[0]; try { localStorage.setItem('hall-gfx', lvl); } catch (er) {} draw(); });
-        box.appendChild(e);
+      ROWS.forEach(function (r) {
+        var d = document.createElement('div'); d.style.cssText = 'margin:10px 0';
+        d.innerHTML = '<div><b>' + r[1] + '</b> <span class="muted" style="font-size:12px">' + r[2][cur[r[0]]] + '</span></div>';
+        var line = document.createElement('div'); line.style.cssText = 'display:flex;gap:6px;margin-top:4px';
+        NAMES.forEach(function (n, v) { var e = document.createElement('button'); e.type = 'button'; e.textContent = n; e.style.cssText = btnCss(cur[r[0]] === v); e.addEventListener('click', function () { cur[r[0]] = v; draw(); }); line.appendChild(e); });
+        d.appendChild(line); box.appendChild(d);
       });
     }
-    draw(); b.querySelector('#gfxok').addEventListener('click', function () { if (lvl !== lvl0) { b.innerHTML = '<p>Застосовую…</p>'; try { localStorage.setItem('hall-gfx', lvl); localStorage.removeItem('hall-gfx-boot'); } catch (er) {} setTimeout(function () { location.reload(); }, 150); } else closeModal(); });
+    draw();
+    b.querySelector('#gfxok').addEventListener('click', function () {
+      if (JSON.stringify(cur) !== orig) { b.innerHTML = '<p>Застосовую…</p>'; try { localStorage.setItem('hall-gfx2', JSON.stringify(cur)); localStorage.removeItem('hall-gfx-boot'); } catch (er) {} setTimeout(function () { location.reload(); }, 150); } else closeModal();
+    });
   }
   btn.addEventListener('click', open);
   updaters.push(function () { btn.style.display = modalOpen ? 'none' : 'flex'; });
