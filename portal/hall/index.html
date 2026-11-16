@@ -3222,7 +3222,7 @@ var RB = (function () {
     var rec = { d: d, i: i + 1, n: myPages.length, by: who, u: f ? f.uid : 'local', t: Date.now() };
     myIdx = i; tvState = rec; showTv();
     if (!f) return;
-    var r = f.db.ref('tv/' + KEY); r.onDisconnect().remove().catch(function () {}); r.set(rec).catch(function (e) { toast('Телевізор: ' + (e && e.code || 'помилка'), 4500); });
+    var r = f.db.ref('tv/' + KEY); r.onDisconnect().remove().catch(function () {}); r.set(rec).catch(function (e) { toast('Телевізор: ' + (e && e.code || 'помилка') + '. Показ лише у вас.', 6000); tvState = rec; showTv(); });
   }
   function tvLecture(id, title) {
     var f = fb(), who = NET && NET.who ? NET.who().name : 'Викладач', rec = { d: 'l', lid: String(id), ti: String(title).slice(0, 120), by: who, u: f ? f.uid : 'local', t: Date.now() };
@@ -4181,14 +4181,27 @@ if (window.__hall) { window.__hall.setEmo = setEmo; window.__hall.WSS = WSS; }
   }
 
   /* ---------- стіл викладача й планшет на ньому ---------- */
-  var deskTabs = {};
+  var deskTabs = {}, deskRec = {}, mpx = innerWidth / 2, mpy = innerHeight / 2;
+  addEventListener('pointermove', function (e) { mpx = e.clientX; mpy = e.clientY; }, true);
+  function setDesk(id, x, z) { var r = deskRec[id]; if (!r) return; var L = LOC[id]; r.d.position.set(x, 0, z); r.ob.x1 = L.X + x - 0.9; r.ob.x2 = L.X + x + 0.9; r.ob.z1 = z - 0.45; r.ob.z2 = z + 0.45; }
+  function placeDesk() {
+    var id = cur.id, L = LOC[id]; if (!deskRec[id]) { toast('Стіл можна ставити в навчальному кабінеті.', 2800); return; }
+    var r = new THREE.Raycaster(); r.setFromCamera(new THREE.Vector2(mpx / innerWidth * 2 - 1, -(mpy / innerHeight) * 2 + 1), camera);
+    var o = r.ray.origin, dr = r.ray.direction; if (dr.y > -0.02) { toast('Наведіть мишку на підлогу.', 2500); return; }
+    var k = -o.y / dr.y, wx = o.x + dr.x * k, wz = o.z + dr.z * k, gx = L.group.position.x, gz = L.group.position.z, b = L.bounds;
+    var lx = wx - gx, lz = wz - gz; if (Math.hypot(wx - camera.position.x, wz - camera.position.z) > 9) { toast('Занадто далеко. Підійдіть ближче.', 2500); return; }
+    var mg = 1.2; lx = Math.max(b.x1 - gx + mg, Math.min(b.x2 - gx - mg, lx)); lz = Math.max(b.z1 - gz + mg, Math.min(b.z2 - gz - mg, lz));
+    if (Math.hypot(wx - camera.position.x, wz - camera.position.z) < 1.2) { toast('Відійдіть від місця, куди ставите стіл.', 2500); return; }
+    setDesk(id, lx, lz); try { localStorage.setItem('deskpos_' + id, JSON.stringify({ x: lx, z: lz })); } catch (e) { } toast('Стіл поставлено.', 1800);
+  }
   ROOMS.forEach(function (id) {
     var L = LOC[id]; if (!L) return; var G = L.group;
     var d = grp(0, 0, DESK_Z, G);
     box(1.7, 0.05, 0.8, mat(0x6b4a2a, { rough: .55 }), 0, 0.775, 0, d); box(1.64, 0.02, 0.74, mat(0x7a5532, { rough: .45 }), 0, 0.808, 0, d);
     [-0.78, 0.78].forEach(function (lx) { [-0.34, 0.34].forEach(function (lz) { box(0.06, 0.75, 0.06, M.darkwood, lx, 0.375, lz, d); }); });
     box(1.5, 0.12, 0.02, M.darkwood, 0, 0.68, 0.36, d); box(0.5, 0.2, 0.7, mat(0x4a321c, { rough: .6 }), 0.55, 0.62, 0, d);
-    obs(L, 0, DESK_Z, 0.9, 0.45);
+    var dob = obs(L, 0, DESK_Z, 0.9, 0.45); deskRec[id] = { d: d, ob: dob };
+    try { var sv = JSON.parse(localStorage.getItem('deskpos_' + id) || 'null'); if (sv && isFinite(sv.x) && isFinite(sv.z)) setDesk(id, sv.x, sv.z); } catch (e) { }
     var t = grp(-0.1, 0.835, 0.0, d, Math.PI); t.scale.setScalar(0.85); var tab = mkTablet(); t.add(tab);
     var hit = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.24, 0.12), new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false })); hit.position.set(0, 0.1, -0.02); tab.add(hit);
     act(hit, 'Взяти планшет', take, { reach: 4.5 }); deskTabs[id] = t;
@@ -4210,7 +4223,7 @@ if (window.__hall) { window.__hall.setEmo = setEmo; window.__hall.WSS = WSS; }
   function mkHeldBtns() {
     heldBtns = document.createElement('div'); heldBtns.style.cssText = 'position:fixed;left:50%;transform:translateX(-50%);bottom:112px;z-index:6;display:none;gap:8px';
     function bt(txt, fn) { var b = document.createElement('button'); b.type = 'button'; b.textContent = txt; b.style.cssText = 'padding:10px 16px;font:15px Georgia,serif;background:rgba(36,26,16,.92);color:#f2e2c0;border:1px solid #8a7347;cursor:pointer'; b.addEventListener('click', fn); heldBtns.appendChild(b); }
-    bt('Відкрити планшет', openUI); bt('Покласти на стіл', putBack); document.body.appendChild(heldBtns);
+    bt('Відкрити планшет', openUI); bt('Покласти на стіл', putBack); bt('Поставити стіл туди, куди вказує мишка', placeDesk); document.body.appendChild(heldBtns);
   }
   function take() {
     if (holding) return;
