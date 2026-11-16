@@ -3392,7 +3392,8 @@ var RB = (function () {
     if (q('#tvp')) q('#tvp').addEventListener('click', function () { closeModal(); gotoPage(myIdx - 1); });
     if (q('#tvn')) q('#tvn').addEventListener('click', function () { closeModal(); gotoPage(myIdx + 1); });
   }
-  var __tvApi = { open: openPanel, publish: function (d) { myPages = [d]; myPdf = null; tvPublish(0); }, off: tvOff, state: function () { return tvState; } };
+  var __tvApi = { open: openPanel, publish: function (d) { myPages = [d]; myPdf = null; tvPublish(0); }, off: tvOff, state: function () { return tvState; }, pick: function () { lecPicker(); }, video: function (u) { var pr = VP.parse(u); if (!pr) return false; startVideo(pr); return true; } };
+  (window.__tvApis = window.__tvApis || {})[KEY] = __tvApi;
   if (KEY === 'meet') window.__tv = __tvApi;
 
   var warned = false;
@@ -4132,6 +4133,458 @@ if (window.__hall) { window.__hall.setEmo = setEmo; window.__hall.WSS = WSS; }
       else { var s = Math.abs(Math.sin(a * Math.PI * 2)); hcup.position.set(0.2 - 0.2 * s, -0.2 + 0.14 * s, -0.45 + 0.05 * s); hcup.rotation.set(0.15 + 0.9 * s, 0.5 - 0.5 * s, 0); }
     }
   });
+})();
+
+/* ====== ПЛАНШЕТ ВИКЛАДАЧА: лежить на столі викладача перед першою партою; викладач бере його в руку, відкриває на весь екран
+   і керує телевізором кабінету: файли (PDF, зображення, DXF, текст), гортання, збільшення, виділення й підкреслення тексту. ====== */
+(function () {
+  var ROOMS = ['arch', 'build', 'road'], DESK_Z = -3.9;
+  var TW = 1280, TH = 720;
+  var model = null, loading = false, tabs = [], holding = false, held = null, heldBtns = null, overlay = null, api = null;
+  var scrC = document.createElement('canvas'); scrC.width = 780; scrC.height = 400; var scrX = scrC.getContext('2d'), scrT = new THREE.CanvasTexture(scrC);
+  var bodyMat = null, scrMat = new THREE.MeshBasicMaterial({ map: scrT });
+  function home() {
+    scrX.fillStyle = '#0c1522'; scrX.fillRect(0, 0, 780, 400); scrX.fillStyle = '#9fc4ee'; scrX.textAlign = 'center'; scrX.font = 'bold 44px Georgia'; scrX.fillText('Планшет викладача', 390, 190);
+    scrX.fillStyle = '#6f8fb4'; scrX.font = '28px Georgia'; scrX.fillText('Телевізор · файли · PDF', 390, 245); scrT.needsUpdate = true;
+  }
+  home();
+  function b64(s) { var bin = atob(s), u = new Uint8Array(bin.length); for (var i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i); return u; }
+  function geo(d, screen) {
+    var g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(d.p, 3));
+    if (screen) {
+      var uv = [], x0 = 1e9, x1 = -1e9, y0 = 1e9, y1 = -1e9, i; for (i = 0; i < d.p.length; i += 3) { x0 = Math.min(x0, d.p[i]); x1 = Math.max(x1, d.p[i]); y0 = Math.min(y0, d.p[i + 1]); y1 = Math.max(y1, d.p[i + 1]); }
+      for (i = 0; i < d.p.length; i += 3) uv.push((d.p[i] - x0) / (x1 - x0), (d.p[i + 1] - y0) / (y1 - y0)); g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+      g.setAttribute('normal', new THREE.Float32BufferAttribute(d.n, 3));
+    } else { g.setAttribute('normal', new THREE.Float32BufferAttribute(d.n, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(d.u, 2)); }
+    return g;
+  }
+  function ensureModel() {
+    if (model || loading) return; loading = true;
+    fetch('tablet.json?v=1').then(function (r) { if (!r.ok) throw 0; return r.json(); }).then(function (d) {
+      var im = new Image(); im.onload = function () {
+        var t = new THREE.Texture(im); t.needsUpdate = true; t.anisotropy = Math.min(8, ANISO || 1);
+        bodyMat = new THREE.MeshStandardMaterial({ map: t, metalness: 0.45, roughness: 0.5 });
+        model = { body: geo(d.body), screen: geo(d.screen, true) }; tabs.forEach(fill);
+      }; im.src = 'data:image/jpeg;base64,' + d.tex;
+    }).catch(function () { loading = false; });
+  }
+  function fill(g) {
+    if (!model || g.userData.filled) return; g.userData.filled = 1; g.remove(g.userData.ph);
+    var b = new THREE.Mesh(model.body, bodyMat), s = new THREE.Mesh(model.screen, scrMat); g.add(b); g.add(s); g.userData.parts = [b, s];
+  }
+  function mkTablet() {
+    var g = new THREE.Group(), ph = new THREE.Mesh(new THREE.BoxGeometry(0.39, 0.2, 0.01), new THREE.MeshStandardMaterial({ color: 0x222831 })); ph.position.set(0, 0.11, -0.01); g.add(ph); g.userData.ph = ph; tabs.push(g); fill(g); return g;
+  }
+
+  /* ---------- стіл викладача й планшет на ньому ---------- */
+  var deskTabs = {};
+  ROOMS.forEach(function (id) {
+    var L = LOC[id]; if (!L) return; var G = L.group;
+    var d = grp(0, 0, DESK_Z, G);
+    box(1.7, 0.05, 0.8, mat(0x6b4a2a, { rough: .55 }), 0, 0.775, 0, d); box(1.64, 0.02, 0.74, mat(0x7a5532, { rough: .45 }), 0, 0.808, 0, d);
+    [-0.78, 0.78].forEach(function (lx) { [-0.34, 0.34].forEach(function (lz) { box(0.06, 0.75, 0.06, M.darkwood, lx, 0.375, lz, d); }); });
+    box(1.5, 0.12, 0.02, M.darkwood, 0, 0.68, 0.36, d); box(0.5, 0.2, 0.7, mat(0x4a321c, { rough: .6 }), 0.55, 0.62, 0, d);
+    obs(L, 0, DESK_Z, 0.9, 0.45);
+    var t = grp(-0.1, 0.835, 0.0, d, Math.PI); t.scale.setScalar(0.85); var tab = mkTablet(); t.add(tab);
+    var hit = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.24, 0.12), new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false })); hit.position.set(0, 0.1, -0.02); tab.add(hit);
+    act(hit, 'Взяти планшет', take, { reach: 4.5 }); deskTabs[id] = t;
+  });
+  updaters.push(function () {
+    var near = ROOMS.indexOf(cur.id) >= 0; if (near || holding) ensureModel();
+    Object.keys(deskTabs).forEach(function (k) { deskTabs[k].visible = !holding; });
+    if (heldBtns) heldBtns.style.display = (holding && !modalOpen && !overlay) ? 'flex' : 'none';
+    if (held) held.visible = !overlay;
+  });
+
+  /* ---------- планшет у руці ---------- */
+  function mkHeldBtns() {
+    heldBtns = document.createElement('div'); heldBtns.style.cssText = 'position:fixed;left:50%;transform:translateX(-50%);bottom:112px;z-index:6;display:none;gap:8px';
+    function bt(txt, fn) { var b = document.createElement('button'); b.type = 'button'; b.textContent = txt; b.style.cssText = 'padding:10px 16px;font:15px Georgia,serif;background:rgba(36,26,16,.92);color:#f2e2c0;border:1px solid #8a7347;cursor:pointer'; b.addEventListener('click', fn); heldBtns.appendChild(b); }
+    bt('Відкрити планшет', openUI); bt('Покласти на стіл', putBack); document.body.appendChild(heldBtns);
+  }
+  function take() {
+    if (holding) return;
+    if (typeof isTeacher === 'function' && !isTeacher()) { toast('Планшет призначений для викладача.', 2800); return; }
+    holding = true; ensureModel();
+    held = mkTablet(); held.scale.setScalar(0.78); held.position.set(0.22, -0.27, -0.62); held.rotation.set(-0.2, -0.12, 0); scene.add(camera); camera.add(held);
+    if (!heldBtns) mkHeldBtns();
+    toast('Торкніться планшета в руці або натисніть «Відкрити планшет».', 4200);
+  }
+  function putBack() {
+    if (!holding) return;
+    if (ROOMS.indexOf(cur.id) < 0) { toast('Покласти можна на стіл викладача в навчальному кабінеті.', 3200); return; }
+    closeUI(); holding = false; if (held) { camera.remove(held); var i = tabs.indexOf(held); if (i >= 0) tabs.splice(i, 1); held = null; } if (heldBtns) heldBtns.style.display = 'none';
+  }
+  var dn = null, rc = new THREE.Raycaster();
+  cv.addEventListener('pointerdown', function (e) { dn = { x: e.clientX, y: e.clientY }; });
+  cv.addEventListener('pointerup', function (e) {
+    if (!holding || !held || overlay || modalOpen || !dn || Math.hypot(e.clientX - dn.x, e.clientY - dn.y) > 8 || !held.userData.parts) return;
+    mouse.set(e.clientX / innerWidth * 2 - 1, -(e.clientY / innerHeight) * 2 + 1); rc.setFromCamera(mouse, camera); camera.updateMatrixWorld(true); held.updateMatrixWorld(true);
+    if (rc.intersectObjects(held.userData.parts, false).length) openUI();
+  });
+
+  /* ---------- джерела: сторінки документа ---------- */
+  var doc = null; // { name, pages:[{ar, render(w)->Promise<canvas>, lines}], marks:{}, n }
+  var cache = {}, pageIdx = 0, V = { z: 1, cx: 0.5, cy: 0 }, tool = 'move', col = 0, tvOn = true, dirty = true, pubT = 0, lastPub = 0, groups = 0, over = 0;
+  var HL = ['#ffe14d', '#7ed957', '#ff8fb1', '#6ec6ff'], UL = ['#d9a400', '#2e9e3a', '#d6336c', '#1971c2'];
+  var vc = null, vx = null, ui = {};
+
+  function loadPdfJs() {
+    if (window.pdfjsLib) return Promise.resolve();
+    return new Promise(function (ok, no) {
+      var s = document.createElement('script'); s.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+      s.onload = function () { window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js'; ok(); }; s.onerror = no; document.head.appendChild(s);
+    });
+  }
+  function pdfDoc(pdf, name) {
+    var pages = [], n = Math.min(pdf.numPages, 200);
+    for (var i = 0; i < n; i++) (function (i) {
+      var p = { ar: 0.707, lines: null, ready: null };
+      p.load = function () {
+        if (p.ready) return p.ready;
+        return p.ready = pdf.getPage(i + 1).then(function (pg) {
+          var v1 = pg.getViewport({ scale: 1 }); p.ar = v1.width / v1.height; p.pg = pg; p.v1 = v1;
+          return pg.getTextContent().then(function (tc) { p.lines = mkLines(tc.items, v1); }, function () { p.lines = []; });
+        });
+      };
+      p.render = function (w) {
+        return p.load().then(function () {
+          var vp = p.pg.getViewport({ scale: w / p.v1.width }), c = document.createElement('canvas'); c.width = Math.round(vp.width); c.height = Math.round(vp.height);
+          var x = c.getContext('2d'); x.fillStyle = '#fff'; x.fillRect(0, 0, c.width, c.height);
+          return p.pg.render({ canvasContext: x, viewport: vp }).promise.then(function () { return c; });
+        });
+      };
+      pages.push(p);
+    })(i);
+    return { name: name, pages: pages, marks: {}, n: n, vector: true };
+  }
+  function mkLines(items, v1) {
+    var its = [];
+    items.forEach(function (it) {
+      if (!it.str || !it.str.trim() || !it.transform) return;
+      var pt = v1.convertToViewportPoint(it.transform[4], it.transform[5]), h = Math.hypot(it.transform[2], it.transform[3]) || it.height || 10, w = it.width || 0;
+      its.push({ x0: pt[0] / v1.width, x1: (pt[0] + w) / v1.width, top: (pt[1] - h * 0.86) / v1.height, bot: (pt[1] + h * 0.22) / v1.height });
+    });
+    its.sort(function (a, b) { return (a.top + a.bot) - (b.top + b.bot); });
+    var lines = [];
+    its.forEach(function (it) {
+      var cy = (it.top + it.bot) / 2, ln = null;
+      for (var i = lines.length - 1; i >= 0 && i >= lines.length - 4; i--) { var l = lines[i]; if (Math.abs(cy - (l.top + l.bot) / 2) < (l.bot - l.top) * 0.55) { ln = l; break; } }
+      if (!ln) lines.push({ x0: it.x0, x1: it.x1, top: it.top, bot: it.bot, n: 1 });
+      else { ln.x0 = Math.min(ln.x0, it.x0); ln.x1 = Math.max(ln.x1, it.x1); ln.top = (ln.top * ln.n + it.top) / (ln.n + 1); ln.bot = (ln.bot * ln.n + it.bot) / (ln.n + 1); ln.n++; }
+    });
+    lines.sort(function (a, b) { return a.top - b.top; }); return lines;
+  }
+  function imgDoc(im, name) {
+    var c = document.createElement('canvas'), k = Math.min(1, 3000 / Math.max(im.naturalWidth || im.width, im.naturalHeight || im.height)); c.width = Math.round((im.naturalWidth || im.width) * k); c.height = Math.round((im.naturalHeight || im.height) * k);
+    var x = c.getContext('2d'); x.fillStyle = '#fff'; x.fillRect(0, 0, c.width, c.height); x.drawImage(im, 0, 0, c.width, c.height);
+    var p = { ar: c.width / c.height, lines: [], load: function () { return Promise.resolve(); }, render: function () { return Promise.resolve(c); } };
+    return { name: name, pages: [p], marks: {}, n: 1, vector: false };
+  }
+  function txtDoc(text, name) {
+    var PW = 1240, PH = 1754, M = 90, FS = 26, LH = 38, pages = [], x, c, y, lines = [];
+    var mc = document.createElement('canvas').getContext('2d'); mc.font = FS + 'px Georgia';
+    text.replace(/\r/g, '').replace(/\t/g, '    ').split('\n').forEach(function (par) {
+      if (!par) { lines.push(''); return; } var ws = par.split(' '), ln = '';
+      ws.forEach(function (w) { var t = ln ? ln + ' ' + w : w; if (mc.measureText(t).width > PW - 2 * M && ln) { lines.push(ln); ln = w; } else ln = t; }); lines.push(ln);
+    });
+    var per = Math.floor((PH - 2 * M) / LH);
+    for (var i = 0; i < Math.max(1, lines.length); i += per) (function (chunk) {
+      pages.push({ ar: PW / PH, lines: [], load: function () { return Promise.resolve(); }, render: function () {
+        var cc = document.createElement('canvas'); cc.width = PW; cc.height = PH; var q = cc.getContext('2d'); q.fillStyle = '#fff'; q.fillRect(0, 0, PW, PH); q.fillStyle = '#111'; q.font = FS + 'px Georgia'; q.textBaseline = 'top';
+        chunk.forEach(function (l, j) { q.fillText(l, M, M + j * LH); }); return Promise.resolve(cc);
+      } });
+    })(lines.slice(i, i + per));
+    return { name: name, pages: pages, marks: {}, n: pages.length, vector: false };
+  }
+
+  /* ---------- DXF: відрізки, дуги, кола, полілінії, текст, блоки ---------- */
+  function dxfDoc(text, name) {
+    var L = text.replace(/\r/g, '').split('\n'), pairs = [], i;
+    for (i = 0; i + 1 < L.length; i += 2) pairs.push([parseInt(L[i], 10), L[i + 1].trim()]);
+    var sec = '', blocks = {}, ents = [], curB = null, e = null, inPoly = null;
+    function push(en) { (curB ? curB.e : ents).push(en); }
+    pairs.forEach(function (p) {
+      var c = p[0], v = p[1];
+      if (c === 0) {
+        if (e) { if (e.t === 'VERTEX' && inPoly) inPoly.v.push(e); else if (e.t !== 'SEQEND') push(e); }
+        e = null;
+        if (v === 'SECTION') { sec = ''; return; } if (v === 'ENDSEC') { sec = ''; return; }
+        if (v === 'BLOCK') { curB = { e: [], bx: 0, by: 0, name: '' }; e = { t: 'BLOCKHDR', g: [], blk: curB }; return; }
+        if (v === 'ENDBLK') { if (curB && curB.name) blocks[curB.name] = curB; curB = null; return; }
+        if (v === 'SEQEND') { inPoly = null; return; }
+        e = { t: v, g: [] }; if (v === 'POLYLINE') { e.v = []; inPoly = e; }
+        return;
+      }
+      if (c === 2 && !e && !sec) { sec = v; return; }
+      if (e) e.g.push([c, v]);
+    });
+    if (e && e.t !== 'SEQEND') push(e);
+    function fv(en, c, d) { for (var k = 0; k < en.g.length; k++) if (en.g[k][0] === c) return parseFloat(en.g[k][1]); return d; }
+    function sv(en, c) { for (var k = 0; k < en.g.length; k++) if (en.g[k][0] === c) return en.g[k][1]; return ''; }
+    function all(en, c) { var o = []; en.g.forEach(function (q) { if (q[0] === c) o.push(parseFloat(q[1])); }); return o; }
+    // заголовки блоків: назва й базова точка
+    var raw = pairs, bi = -1; // назву блока беремо з наступної пари 2 після BLOCK
+    for (i = 0; i < raw.length; i++) if (raw[i][0] === 0 && raw[i][1] === 'BLOCK') { var nm = '', bx = 0, by = 0, j = i + 1; while (j < raw.length && raw[j][0] !== 0) { if (raw[j][0] === 2 && !nm) nm = raw[j][1]; if (raw[j][0] === 10) bx = parseFloat(raw[j][1]); if (raw[j][0] === 20) by = parseFloat(raw[j][1]); j++; } if (blocks[nm]) { blocks[nm].bx = bx; blocks[nm].by = by; } }
+    var polys = [], texts = [], ACI = { 1: '#d32f2f', 2: '#b8a000', 3: '#2e7d32', 4: '#0097a7', 5: '#1565c0', 6: '#8e24aa', 7: '#111', 8: '#777', 9: '#999' };
+    function colOf(en, inh) { var c = fv(en, 62, NaN); return isFinite(c) && ACI[c] ? ACI[c] : (inh || '#111'); }
+    function ap(m, x, y) { return [m[0] * x + m[2] * y + m[4], m[1] * x + m[3] * y + m[5]]; }
+    function mul(a, b) { return [a[0] * b[0] + a[2] * b[1], a[1] * b[0] + a[3] * b[1], a[0] * b[2] + a[2] * b[3], a[1] * b[2] + a[3] * b[3], a[0] * b[4] + a[2] * b[5] + a[4], a[1] * b[4] + a[3] * b[5] + a[5]]; }
+    function arc(cx, cy, r, a0, a1, m, color) {
+      while (a1 <= a0) a1 += 360; var n = Math.max(6, Math.ceil((a1 - a0) / 6)), pts = [], k;
+      for (k = 0; k <= n; k++) { var a = (a0 + (a1 - a0) * k / n) * Math.PI / 180; pts.push(ap(m, cx + r * Math.cos(a), cy + r * Math.sin(a))); } polys.push({ p: pts, c: color });
+    }
+    function walk(list, m, color, depth) {
+      list.forEach(function (en) {
+        var t = en.t, c = colOf(en, color), q;
+        if (t === 'LINE') polys.push({ p: [ap(m, fv(en, 10, 0), fv(en, 20, 0)), ap(m, fv(en, 11, 0), fv(en, 21, 0))], c: c });
+        else if (t === 'CIRCLE') arc(fv(en, 10, 0), fv(en, 20, 0), fv(en, 40, 1), 0, 360, m, c);
+        else if (t === 'ARC') arc(fv(en, 10, 0), fv(en, 20, 0), fv(en, 40, 1), fv(en, 50, 0), fv(en, 51, 360), m, c);
+        else if (t === 'LWPOLYLINE') { var xs = all(en, 10), ys = all(en, 20), pts = []; for (q = 0; q < xs.length; q++) pts.push(ap(m, xs[q], ys[q])); if ((fv(en, 70, 0) & 1) && pts.length) pts.push(pts[0]); if (pts.length > 1) polys.push({ p: pts, c: c }); }
+        else if (t === 'POLYLINE') { var pp = (en.v || []).map(function (v) { return ap(m, fv(v, 10, 0), fv(v, 20, 0)); }); if ((fv(en, 70, 0) & 1) && pp.length) pp.push(pp[0]); if (pp.length > 1) polys.push({ p: pp, c: c }); }
+        else if (t === 'SPLINE') { var sx = all(en, 10), sy = all(en, 20), sp = []; for (q = 0; q < sx.length; q++) sp.push(ap(m, sx[q], sy[q])); if (sp.length > 1) polys.push({ p: sp, c: c }); }
+        else if (t === 'ELLIPSE') {
+          var cx = fv(en, 10, 0), cy = fv(en, 20, 0), mx = fv(en, 11, 1), my = fv(en, 21, 0), rt = fv(en, 40, 1), s0 = fv(en, 41, 0), s1 = fv(en, 42, 6.2832); if (s1 <= s0) s1 += 6.2832;
+          var ep = []; for (q = 0; q <= 48; q++) { var a = s0 + (s1 - s0) * q / 48, ca = Math.cos(a), sa = Math.sin(a); ep.push(ap(m, cx + mx * ca - my * rt * sa, cy + my * ca + mx * rt * sa)); } polys.push({ p: ep, c: c });
+        }
+        else if (t === 'SOLID' || t === '3DFACE') { var f4 = [10, 11, 13, 12].map(function (k, ix) { return ap(m, fv(en, 10 + (k - 10), 0), fv(en, 20 + (k - 10), 0)); }); f4.push(f4[0]); polys.push({ p: f4, c: c }); }
+        else if (t === 'TEXT' || t === 'MTEXT' || t === 'ATTRIB') {
+          var s = sv(en, 1).replace(/\\P/g, ' ').replace(/\{?\\[A-Za-z][^;]*;/g, '').replace(/[{}]/g, ''); if (!s) return;
+          var pt = ap(m, fv(en, 10, 0), fv(en, 20, 0)), sc = Math.hypot(m[0], m[1]) || 1; texts.push({ x: pt[0], y: pt[1], h: fv(en, 40, 1) * sc, r: fv(en, 50, 0) * Math.PI / 180 + Math.atan2(m[1], m[0]), s: s, c: c });
+        }
+        else if ((t === 'INSERT' || t === 'DIMENSION') && depth < 5) {
+          var bn = t === 'INSERT' ? sv(en, 2) : sv(en, 2), b = blocks[bn]; if (!b) return;
+          var sxs = fv(en, 41, 1), sys = fv(en, 42, sxs), rot = fv(en, 50, 0) * Math.PI / 180, ix = t === 'INSERT' ? fv(en, 10, 0) : 0, iy = t === 'INSERT' ? fv(en, 20, 0) : 0;
+          var cr = Math.cos(rot), sr = Math.sin(rot), loc = [cr * sxs, sr * sxs, -sr * sys, cr * sys, ix - (cr * sxs * b.bx - sr * sys * b.by), iy - (sr * sxs * b.bx + cr * sys * b.by)];
+          walk(b.e, mul(m, loc), c, depth + 1);
+        }
+      });
+    }
+    walk(ents, [1, 0, 0, 1, 0, 0], '#111', 0);
+    if (!polys.length && !texts.length) return null;
+    var x0 = 1e18, x1 = -1e18, y0 = 1e18, y1 = -1e18;
+    polys.forEach(function (pl) { pl.p.forEach(function (q) { if (q[0] < x0) x0 = q[0]; if (q[0] > x1) x1 = q[0]; if (q[1] < y0) y0 = q[1]; if (q[1] > y1) y1 = q[1]; }); });
+    texts.forEach(function (tx) { if (tx.x < x0) x0 = tx.x; if (tx.x > x1) x1 = tx.x; if (tx.y < y0) y0 = tx.y; if (tx.y > y1) y1 = tx.y; });
+    var bw = Math.max(1e-6, x1 - x0), bh = Math.max(1e-6, y1 - y0), mg = 0.04, ar = Math.max(0.2, Math.min(5, bw / bh * (1 + 0 * mg)));
+    var p = { ar: ar, lines: [], load: function () { return Promise.resolve(); }, render: function (w) {
+      var h = Math.round(w / ar), c = document.createElement('canvas'); c.width = Math.round(w); c.height = h; var q = c.getContext('2d'); q.fillStyle = '#fff'; q.fillRect(0, 0, w, h);
+      var pad = w * mg, sc = Math.min((w - 2 * pad) / bw, (h - 2 * pad) / bh), ox = (w - bw * sc) / 2, oy = (h - bh * sc) / 2;
+      function X(x) { return ox + (x - x0) * sc; } function Y(y) { return h - (oy + (y - y0) * sc); }
+      q.lineWidth = Math.max(1, w / 1800); q.lineJoin = 'round'; var lastC = '';
+      polys.forEach(function (pl) { if (pl.c !== lastC) { q.stroke(); q.beginPath(); q.strokeStyle = pl.c; lastC = pl.c; } q.moveTo(X(pl.p[0][0]), Y(pl.p[0][1])); for (var k = 1; k < pl.p.length; k++) q.lineTo(X(pl.p[k][0]), Y(pl.p[k][1])); });
+      q.stroke();
+      texts.forEach(function (tx) { var fs = tx.h * sc; if (fs < 4) return; q.save(); q.translate(X(tx.x), Y(tx.y)); q.rotate(-tx.r); q.font = fs + 'px Arial'; q.fillStyle = tx.c; q.fillText(tx.s, 0, 0); q.restore(); });
+      return Promise.resolve(c);
+    } };
+    return { name: name, pages: [p], marks: {}, n: 1, vector: true };
+  }
+
+  function setDoc(d) {
+    doc = d; cache = {}; pageIdx = 0; groups = 0; V = { z: 1, cx: 0.5, cy: 0 }; tool = 'move'; tvOn = true; syncUI(); goPage(0, true);
+  }
+  function openFile(file) {
+    if (!file) return; var nm = file.name || 'файл', ext = (nm.split('.').pop() || '').toLowerCase();
+    function bad(m) { toast(m, 6000); }
+    if (ext === 'pdf' || file.type === 'application/pdf') {
+      toast('Відкриваємо PDF…', 3000); var fr = new FileReader();
+      fr.onload = function () { loadPdfJs().then(function () { return window.pdfjsLib.getDocument({ data: new Uint8Array(fr.result) }).promise; }).then(function (pdf) { setDoc(pdfDoc(pdf, nm)); }).catch(function () { bad('Не вдалося відкрити PDF.'); }); };
+      fr.readAsArrayBuffer(file);
+    } else if (ext !== 'dxf' && ext !== 'dwg' && (/^image\//.test(file.type) || /^(png|jpe?g|gif|webp|bmp|svg)$/.test(ext))) {
+      var url = URL.createObjectURL(file), im = new Image(); im.onload = function () { setDoc(imgDoc(im, nm)); URL.revokeObjectURL(url); }; im.onerror = function () { bad('Не вдалося прочитати зображення.'); }; im.src = url;
+    } else if (ext === 'dxf') {
+      var f2 = new FileReader(); f2.onload = function () { var d = null; try { d = dxfDoc(String(f2.result), nm); } catch (er) { d = null; } if (d) setDoc(d); else bad('У DXF не знайдено креслення, яке можна показати (потрібен текстовий DXF).'); }; f2.readAsText(file);
+    } else if (ext === 'txt' || ext === 'md' || ext === 'csv' || /^text\//.test(file.type)) {
+      var f3 = new FileReader(); f3.onload = function () { setDoc(txtDoc(String(f3.result), nm)); }; f3.readAsText(file);
+    } else if (ext === 'dwg') bad('DWG напряму не відкривається. У AutoCAD/nanoCAD збережіть як DXF (Зберегти як) і завантажте його.');
+    else if (/^(docx?|pptx?|xlsx?|odt|odp)$/.test(ext)) bad('Файл ' + ext.toUpperCase() + ' не відображається в браузері. Збережіть його як PDF і завантажте PDF.');
+    else if (/^video\//.test(file.type)) bad('Відеофайли не передаються на телевізор. Скористайтеся кнопкою «Відео за посиланням» (YouTube чи Диск).');
+    else bad('Формат .' + ext + ' не підтримується. Можна: PDF, зображення, DXF, текст.');
+  }
+
+  /* ---------- вид: масштаб, зсув, відмітки ---------- */
+  function pg() { return doc && doc.pages[pageIdx]; }
+  function geom() { var p = pg(); if (!p) return null; var dw = TW * V.z, dh = dw / p.ar; return { dw: dw, dh: dh, l: TW / 2 - V.cx * dw, t: TH / 2 - V.cy * dh }; }
+  function clampV() {
+    var p = pg(); if (!p) return; V.z = Math.max(0.35, Math.min(8, V.z)); var dw = TW * V.z, dh = dw / p.ar;
+    if (dw <= TW) V.cx = 0.5; else V.cx = Math.max(TW / 2 / dw, Math.min(1 - TW / 2 / dw, V.cx));
+    if (dh <= TH) V.cy = 0.5; else V.cy = Math.max(TH / 2 / dh, Math.min(1 - TH / 2 / dh, V.cy));
+  }
+  function goPage(i, first) {
+    if (!doc) return; i = Math.max(0, Math.min(doc.n - 1, i)); pageIdx = i; var p = doc.pages[i];
+    if (first) V = { z: 1, cx: 0.5, cy: 0 };
+    p.load().then(function () { if (pageIdx !== i) return; if (first || true) { var dw = TW * V.z, dh = dw / p.ar; V.cy = dh <= TH ? 0.5 : TH / 2 / dh; V.cx = 0.5; } clampV(); need(); dirty = true; schedule(); syncUI(); });
+  }
+  function need() {
+    var p = pg(); if (!p) return; var key = pageIdx, w = Math.min(4096, Math.max(1400, TW * V.z * 1.15)), c = cache[key];
+    if (c && (c.w >= w * 0.85 || c.busy)) return; var rec = c || (cache[key] = { w: 0, c: null }); rec.busy = true;
+    p.render(Math.round(w)).then(function (cv2) { rec.c = cv2; rec.w = cv2.width; rec.busy = false; dirty = true; schedule(); }, function () { rec.busy = false; });
+  }
+  function pos(e) { var r = vc.getBoundingClientRect(); return [(e.clientX - r.left) / r.width * TW, (e.clientY - r.top) / r.height * TH]; }
+  function toN(px, py) { var g = geom(); return [(px - g.l) / g.dw, (py - g.t) / g.dh]; }
+  function marksOf() { return doc.marks[pageIdx] || (doc.marks[pageIdx] = []); }
+  function drawMark(x, m, g) {
+    if (m.k === 'h') { x.globalCompositeOperation = 'multiply'; x.fillStyle = m.c; x.fillRect(g.l + m.x * g.dw, g.t + m.y * g.dh, m.w * g.dw, m.h * g.dh); x.globalCompositeOperation = 'source-over'; }
+    else { x.strokeStyle = m.c; x.lineWidth = Math.max(2, g.dw * 0.0032); x.lineCap = 'round'; x.beginPath(); x.moveTo(g.l + m.x * g.dw, g.t + (m.y) * g.dh); x.lineTo(g.l + (m.x + m.w) * g.dw, g.t + m.y * g.dh); x.stroke(); }
+  }
+  var temp = null;
+  function render() {
+    dirty = false; if (!vc) return; var x = vx; x.fillStyle = '#1b2026'; x.fillRect(0, 0, TW, TH);
+    if (!doc) { x.fillStyle = '#7f93aa'; x.textAlign = 'center'; x.font = '34px Georgia'; x.fillText('Завантажте файл, щоб показати його на телевізорі', TW / 2, TH / 2 - 10); x.font = '24px Georgia'; x.fillText('PDF · зображення · DXF · текст', TW / 2, TH / 2 + 36); return; }
+    var g = geom(), p = pg(), rec = cache[pageIdx];
+    x.fillStyle = '#fff'; x.fillRect(g.l, g.t, g.dw, g.dh);
+    if (rec && rec.c) { x.imageSmoothingQuality = 'high'; x.drawImage(rec.c, g.l, g.t, g.dw, g.dh); }
+    marksOf().forEach(function (m) { drawMark(x, m, g); }); if (temp) temp.forEach(function (m) { drawMark(x, m, g); });
+    if (!rec || !rec.c || rec.busy) { x.fillStyle = 'rgba(0,0,0,.45)'; x.fillRect(TW - 190, 14, 176, 38); x.fillStyle = '#fff'; x.font = '20px Georgia'; x.textAlign = 'center'; x.fillText('Оновлення…', TW - 102, 40); }
+  }
+  var raf = 0; function schedule() { if (!raf) raf = requestAnimationFrame(function () { raf = 0; if (dirty) render(); }); }
+  function changed(pub) { dirty = true; schedule(); if (pub !== false) pubSoon(); }
+
+  /* ---------- виділення тексту ---------- */
+  function pick(a, b, kind) {
+    var p = pg(), res = [], c = kind === 'h' ? HL[col] : UL[col];
+    if (p.lines && p.lines.length) {
+      if (a[1] > b[1] || (Math.abs(a[1] - b[1]) < 0.004 && a[0] > b[0])) { var t = a; a = b; b = t; }
+      function near(yy) { var bi = 0, bd = 9; p.lines.forEach(function (l, k) { var d = yy < l.top ? l.top - yy : yy > l.bot ? yy - l.bot : 0; if (d < bd) { bd = d; bi = k; } }); return bi; }
+      var i0 = near(a[1]), i1 = near(b[1]);
+      for (var i = i0; i <= i1; i++) {
+        var l = p.lines[i], xa = l.x0, xb = l.x1; if (i === i0) xa = Math.max(l.x0, Math.min(l.x1, a[0])); if (i === i1) xb = Math.max(l.x0, Math.min(l.x1, b[0])); if (i0 === i1) { xa = Math.max(l.x0, Math.min(l.x1, Math.min(a[0], b[0]))); xb = Math.max(l.x0, Math.min(l.x1, Math.max(a[0], b[0]))); }
+        if (xb - xa < 0.002) continue;
+        res.push(kind === 'h' ? { k: 'h', c: c, x: xa, y: l.top, w: xb - xa, h: l.bot - l.top } : { k: 'u', c: c, x: xa, y: l.bot - (l.bot - l.top) * 0.08, w: xb - xa, h: 0 });
+      }
+    } else {
+      var xl = Math.min(a[0], b[0]), xr = Math.max(a[0], b[0]), yt = Math.min(a[1], b[1]), yb = Math.max(a[1], b[1]);
+      res.push(kind === 'h' ? { k: 'h', c: c, x: xl, y: yt, w: xr - xl, h: Math.max(0.012, yb - yt) } : { k: 'u', c: c, x: xl, y: a[1], w: xr - xl, h: 0 });
+    }
+    return res;
+  }
+  function erase(n) {
+    var ms = marksOf(), hit = -1;
+    for (var i = ms.length - 1; i >= 0; i--) { var m = ms[i], inx = n[0] >= m.x - 0.01 && n[0] <= m.x + m.w + 0.01, iny = m.k === 'h' ? (n[1] >= m.y - 0.01 && n[1] <= m.y + m.h + 0.01) : Math.abs(n[1] - m.y) < 0.012; if (inx && iny) { hit = m.g; break; } }
+    if (hit < 0) return false; doc.marks[pageIdx] = ms.filter(function (m) { return m.g !== hit; }); return true;
+  }
+
+  /* ---------- вхід: миша й дотик ---------- */
+  var ptrs = {}, startD = 0, startZ = 1, sel0 = null, last = null, overs = 0;
+  function bindStage() {
+    vc.style.touchAction = 'none';
+    vc.addEventListener('pointerdown', function (e) {
+      if (!doc) return; vc.setPointerCapture(e.pointerId); ptrs[e.pointerId] = pos(e); var ids = Object.keys(ptrs);
+      if (ids.length === 2) { var a = ptrs[ids[0]], b = ptrs[ids[1]]; startD = Math.hypot(a[0] - b[0], a[1] - b[1]); startZ = V.z; sel0 = null; temp = null; return; }
+      last = pos(e); if (tool === 'h' || tool === 'u') { sel0 = toN(last[0], last[1]); }
+      else if (tool === 'e') { if (erase(toN(last[0], last[1]))) changed(); }
+    });
+    vc.addEventListener('pointermove', function (e) {
+      if (!doc || !ptrs[e.pointerId]) return; var np = pos(e), ids = Object.keys(ptrs);
+      if (ids.length >= 2) {
+        var o = ptrs[e.pointerId]; ptrs[e.pointerId] = np; var a = ptrs[ids[0]], b = ptrs[ids[1]], d = Math.hypot(a[0] - b[0], a[1] - b[1]);
+        if (startD > 20) { var mx = (a[0] + b[0]) / 2, my = (a[1] + b[1]) / 2, nb = toN(mx, my); V.z = startZ * d / startD; var g = geom(); V.cx = nb[0] - (mx - TW / 2) / g.dw; V.cy = nb[1] - (my - TH / 2) / g.dh; clampV(); need(); changed(false); pubSoon(); }
+        return;
+      }
+      ptrs[e.pointerId] = np;
+      if (tool === 'move') { var g2 = geom(); V.cx -= (np[0] - last[0]) / g2.dw; V.cy -= (np[1] - last[1]) / g2.dh; last = np; clampV(); changed(); }
+      else if ((tool === 'h' || tool === 'u') && sel0) { temp = pick(sel0, toN(np[0], np[1]), tool); changed(false); }
+      else if (tool === 'e') { if (erase(toN(np[0], np[1]))) changed(); }
+    });
+    function up(e) {
+      var had = !!ptrs[e.pointerId]; delete ptrs[e.pointerId];
+      if (had && sel0 && temp) { groups++; temp.forEach(function (m) { m.g = groups; marksOf().push(m); }); temp = null; sel0 = null; changed(); } else { sel0 = null; temp = null; }
+      if (Object.keys(ptrs).length === 1) { var k = Object.keys(ptrs)[0]; last = ptrs[k]; }
+    }
+    vc.addEventListener('pointerup', up); vc.addEventListener('pointercancel', up);
+    vc.addEventListener('wheel', function (e) {
+      if (!doc) return; e.preventDefault(); var p = pos(e);
+      if (e.ctrlKey || e.shiftKey) { var nb = toN(p[0], p[1]); V.z *= Math.exp(-e.deltaY * 0.0016); var g = geom(); V.cx = nb[0] - (p[0] - TW / 2) / g.dw; V.cy = nb[1] - (p[1] - TH / 2) / g.dh; clampV(); need(); changed(); return; }
+      var g3 = geom(), before = V.cy; V.cy += e.deltaY / g3.dh; clampV();
+      if (Math.abs(V.cy - before) < 1e-5 && g3.dh > TH) {
+        overs += e.deltaY; if (overs > 260 && pageIdx < doc.n - 1) { overs = 0; goPage(pageIdx + 1); } else if (overs < -260 && pageIdx > 0) { overs = 0; goPage(pageIdx - 1); setTimeout(function () { var q = geom(); V.cy = Math.max(0, 1 - TH / 2 / q.dh); clampV(); changed(); }, 120); }
+      } else overs = 0;
+      changed();
+    }, { passive: false });
+  }
+
+  /* ---------- трансляція на телевізор ---------- */
+  function tvApi() { return (window.__tvApis && window.__tvApis[cur.id]) || null; }
+  var pending = false;
+  function pubSoon() { if (!tvOn || !doc) return; pending = true; clearTimeout(pubT); pubT = setTimeout(publish, 450); }
+  function snapshot(q) { return vc.toDataURL('image/jpeg', q); }
+  function publish() {
+    pending = false; var a = tvApi(); thumb(); if (!a || !tvOn || !doc) return; render();
+    var q = 0.8, d = snapshot(q); while (d.length > 420000 && q > 0.35) { q -= 0.1; d = snapshot(q); }
+    a.publish(d); lastPub = Date.now(); setStat();
+  }
+  function thumb() { if (!vc) return; scrX.fillStyle = '#000'; scrX.fillRect(0, 0, 780, 400); scrX.drawImage(vc, (780 - 711) / 2, 0, 711, 400); scrT.needsUpdate = true; }
+  function setStat() {
+    if (!ui.stat) return; var a = tvApi(), st = a && a.state && a.state();
+    ui.stat.textContent = !a ? 'Тут немає телевізора' : (st ? 'Телевізор показує' + (st.by ? ': ' + st.by : '') : 'Телевізор вимкнено');
+    ui.tvb.textContent = st ? 'Вимкнути телевізор' : 'Увімкнути телевізор'; ui.tvb.style.opacity = a ? 1 : 0.4;
+  }
+
+  /* ---------- інтерфейс на весь екран ---------- */
+  var CSS = '#tbo{position:fixed;inset:0;z-index:60;background:#05070b;display:flex;align-items:center;justify-content:center;padding:8px;box-sizing:border-box;font-family:Georgia,serif;color:#e6eefb}' +
+    '#tbo .bz{width:100%;height:100%;max-width:1500px;border:9px solid #0f1217;border-radius:26px;background:#0c1118;box-shadow:0 0 0 2px #2a313c,0 10px 50px #000;display:flex;flex-direction:column;overflow:hidden}' +
+    '#tbo .tp{display:flex;align-items:center;gap:8px;padding:8px 12px;background:#10161f;border-bottom:1px solid #222b38;flex-wrap:wrap}' +
+    '#tbo .tp b{font-size:16px;color:#9fc4ee}#tbo .tp .sp{flex:1}' +
+    '#tbo .bd{flex:1;display:flex;min-height:0}#tbo .sd{width:200px;padding:10px;overflow-y:auto;border-right:1px solid #222b38;background:#0e141c;display:flex;flex-direction:column;gap:6px}' +
+    '#tbo .sd h4{margin:8px 0 2px;font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:#6f8fb4;font-weight:normal}' +
+    '#tbo button{font:14px Georgia,serif;padding:9px 10px;background:#17202c;color:#e6eefb;border:1px solid #33445a;border-radius:8px;cursor:pointer;text-align:left}' +
+    '#tbo button.on{background:#1f4f8a;border-color:#9fc4ee}#tbo button.main{background:#1f4f8a;border-color:#7fb0e8}#tbo button.x{background:#5a2226;border-color:#b0565c;text-align:center;padding:7px 14px}' +
+    '#tbo .sw{display:flex;gap:6px}#tbo .sw i{width:26px;height:26px;border-radius:50%;border:2px solid #33445a;cursor:pointer}#tbo .sw i.on{border-color:#fff}' +
+    '#tbo .mn{flex:1;display:flex;flex-direction:column;min-width:0;padding:8px;gap:8px}#tbo .st{flex:1;display:flex;align-items:center;justify-content:center;min-height:0}' +
+    '#tbo canvas{max-width:100%;max-height:100%;background:#1b2026;border-radius:6px;box-shadow:0 0 0 1px #2a313c;cursor:grab}' +
+    '#tbo .bt{display:flex;align-items:center;justify-content:center;gap:8px;flex-wrap:wrap}#tbo .bt span{min-width:90px;text-align:center;font-size:15px}' +
+    '@media(max-width:820px){#tbo .bd{flex-direction:column}#tbo .sd{width:auto;flex-direction:row;flex-wrap:wrap;border-right:0;border-bottom:1px solid #222b38;max-height:34vh}#tbo .sd h4{display:none}#tbo .bz{border-width:5px;border-radius:14px}}';
+  function el(tag, cls, txt, p) { var e = document.createElement(tag); if (cls) e.className = cls; if (txt) e.textContent = txt; if (p) p.appendChild(e); return e; }
+  function btn(p, txt, fn, cls) { var b = el('button', cls || '', txt, p); b.type = 'button'; b.addEventListener('click', fn); return b; }
+  function openUI() {
+    if (overlay || !holding) return; if (modalOpen) closeModal();
+    if (!document.getElementById('tbcss')) { var st = el('style'); st.id = 'tbcss'; st.textContent = CSS; document.head.appendChild(st); }
+    overlay = el('div'); overlay.id = 'tbo'; var bz = el('div', 'bz', '', overlay), tp = el('div', 'tp', '', bz);
+    el('b', '', 'Планшет викладача', tp); ui.stat = el('span', '', '', tp); ui.stat.style.cssText = 'font-size:13px;color:#8fa6c2'; el('span', 'sp', '', tp);
+    btn(tp, 'Покласти на стіл', putBack); btn(tp, 'Закрити  ✕', closeUI, 'x');
+    var bd = el('div', 'bd', '', bz), sd = el('div', 'sd', '', bd), mn = el('div', 'mn', '', bd);
+    el('h4', '', 'Телевізор', sd); ui.tvb = btn(sd, 'Увімкнути телевізор', function () {
+      var a = tvApi(); if (!a) { toast('У цьому місці немає телевізора.', 2500); return; }
+      if (a.state()) { a.off(); tvOn = false; ui.live.textContent = 'Транслювати: ні'; } else if (doc) { tvOn = true; ui.live.textContent = 'Транслювати: так'; publish(); } else toast('Спершу завантажте файл.', 2500); setStat();
+    });
+    ui.live = btn(sd, 'Транслювати: так', function () { tvOn = !tvOn; this.textContent = 'Транслювати: ' + (tvOn ? 'так' : 'ні'); if (tvOn) pubSoon(); });
+    el('h4', '', 'Джерело', sd);
+    var fi = el('input'); fi.type = 'file'; fi.style.display = 'none'; fi.addEventListener('change', function () { var f = fi.files && fi.files[0]; fi.value = ''; openFile(f); }); overlay.appendChild(fi);
+    btn(sd, 'Завантажити файл', function () { fi.click(); }, 'main');
+    var vrow = el('div', '', '', sd); vrow.style.cssText = 'display:none;flex-direction:column;gap:6px'; var vin = el('input', '', '', vrow); vin.placeholder = 'Посилання YouTube / Диск'; vin.style.cssText = 'padding:8px;border-radius:8px;border:1px solid #33445a;background:#0a1017;color:#e6eefb;font:14px Georgia,serif;min-width:0';
+    btn(vrow, 'Показати на телевізорі', function () {
+      var a = tvApi(); if (!a || !a.video) { toast('Тут немає телевізора.', 2500); return; } if (!vin.value.trim()) return;
+      if (!a.video(vin.value)) toast('Посилання не розпізнано.', 3500); else { toast('Відео на телевізорі.', 2500); vrow.style.display = 'none'; setStat(); }
+    }, 'main');
+    btn(sd, 'Відео за посиланням', function () { vrow.style.display = vrow.style.display === 'none' ? 'flex' : 'none'; if (vrow.style.display === 'flex') vin.focus(); });
+    btn(sd, 'Тема з сайту', function () { var a = tvApi(); if (!a || !a.pick) { toast('Тут немає телевізора.', 2500); return; } closeUI(); a.pick(); });
+    el('h4', '', 'Інструменти', sd);
+    var tools = [['move', 'Рух і масштаб'], ['h', 'Маркер (виділити)'], ['u', 'Підкреслити'], ['e', 'Гумка']]; ui.tools = {};
+    tools.forEach(function (t) { ui.tools[t[0]] = btn(sd, t[1], function () { tool = t[0]; syncUI(); vc.style.cursor = tool === 'move' ? 'grab' : 'crosshair'; }); });
+    var sw = el('div', 'sw', '', sd); ui.sw = HL.map(function (c, i) { var s = el('i', '', '', sw); s.style.background = c; s.addEventListener('click', function () { col = i; syncUI(); }); return s; });
+    btn(sd, 'Скасувати відмітку', function () { if (!doc) return; var ms = marksOf(); if (!ms.length) return; var g = ms[ms.length - 1].g; doc.marks[pageIdx] = ms.filter(function (m) { return m.g !== g; }); changed(); });
+    btn(sd, 'Стерти все на сторінці', function () { if (!doc) return; doc.marks[pageIdx] = []; changed(); });
+    var st = el('div', 'st', '', mn); vc = el('canvas', '', '', st); vc.width = TW; vc.height = TH; vx = vc.getContext('2d'); bindStage();
+    var bt = el('div', 'bt', '', mn);
+    btn(bt, '◀', function () { goPage(pageIdx - 1); }); ui.pg = el('span', '', '1 / 1', bt); btn(bt, '▶', function () { goPage(pageIdx + 1); });
+    btn(bt, '−', function () { zoomBy(1 / 1.3); }); btn(bt, '+', function () { zoomBy(1.3); });
+    btn(bt, 'Вмістити', function () { var p = pg(); if (!p) return; V.z = Math.min(1, TH * p.ar / TW); clampV(); need(); changed(); });
+    btn(bt, 'По ширині', function () { V.z = 1; var p = pg(); if (p) { V.cy = TH / 2 / (TW / p.ar); } clampV(); need(); changed(); });
+    document.body.appendChild(overlay); modalOpen = true; syncUI(); setStat(); dirty = true; render(); ui.tick = setInterval(setStat, 800);
+    ['keydown'].forEach(function () { }); if (doc) { need(); }
+  }
+  function zoomBy(k) { if (!doc) return; V.z *= k; clampV(); need(); changed(); }
+  function syncUI() {
+    if (!overlay) return; Object.keys(ui.tools).forEach(function (k) { ui.tools[k].className = k === tool ? 'on' : ''; });
+    ui.sw.forEach(function (s, i) { s.className = i === col ? 'on' : ''; }); ui.pg.textContent = doc ? (pageIdx + 1) + ' / ' + doc.n : '—';
+  }
+  function closeUI() {
+    if (!overlay) return; clearInterval(ui.tick); clearTimeout(pubT); if (pending && tvOn && doc) { try { publish(); } catch (e) { } } overlay.remove(); overlay = null; vc = null; vx = null; modalOpen = false;
+  }
+  addEventListener('keydown', function (e) {
+    if (!overlay) return; if (e.key === 'Escape') { e.stopPropagation(); e.preventDefault(); closeUI(); return; }
+    e.stopPropagation(); if (e.key === 'ArrowRight' || e.key === 'PageDown') goPage(pageIdx + 1); else if (e.key === 'ArrowLeft' || e.key === 'PageUp') goPage(pageIdx - 1);
+  }, true);
+  window.__tablet = { dxf: dxfDoc, take: take, open: openUI, close: closeUI, put: putBack, holding: function () { return holding; }, openFile: openFile, doc: function () { return doc; }, view: function () { return V; }, tool: function (t) { tool = t; syncUI(); } };
 })();
 
 /* ====== ГРАФІКА: окремі налаштування (дошка й телевізор не змінюються) ====== */
