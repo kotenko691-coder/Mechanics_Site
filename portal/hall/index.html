@@ -2979,7 +2979,7 @@ var RB = (function () {
     if (drawing !== e.pointerId || !cur_) return; drawing = null;
     var s = cur_; cur_ = null;
     if (s.p.length > 400) { var k = Math.ceil(s.p.length / 400), r = []; s.p.forEach(function (q, i) { if (i % k === 0 || i === s.p.length - 1) r.push(q); }); s.p = r; }
-    mine.push(s); if (mine.length > 150) mine.shift(); renderAll(); push(s);
+    mine.push(s); if (mine.length > 1000) mine.shift(); renderAll(); push(s);
   }
   ovCanvas.addEventListener('pointerup', endStroke); ovCanvas.addEventListener('pointercancel', endStroke);
   ov.addEventListener('pointerdown', function (e) { if (e.target === ov) e.preventDefault(); });
@@ -3215,7 +3215,7 @@ var RB = (function () {
   function wire() {
     var f = fb(); if (!f || wired) return; wired = true;
     if (SEP) f.db.ref('board/' + KEY + '/' + f.uid).onDisconnect().remove().catch(function () {});
-    else f.db.ref('board/' + KEY + '/' + f.uid).orderByChild('t').limitToLast(150).once('value').then(function (sn) {
+    else f.db.ref('board/' + KEY + '/' + f.uid).orderByChild('t').limitToLast(1000).once('value').then(function (sn) {
       /* переговорна: дошка зберігається, власні штрихи повертаються після повторного входу */
       var arr = []; sn.forEach(function (st) { var v = st.val(); if (v && v.c && v.p) arr.push({ c: String(v.c).slice(0, 9), w: +v.w || 4, p: dec(v.p) }); });
       if (arr.length && !mine.length) { mine = arr; renderAll(); }
