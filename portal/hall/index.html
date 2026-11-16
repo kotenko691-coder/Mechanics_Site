@@ -2437,7 +2437,7 @@ function mxBuild(g, o, m, A) {
   if (o.r) chRobe(g, rig, null, s);
   g.add(mg); chRigs.push(rig); return rig;
 }
-var MX_AX = new THREE.Vector3(0, 0, 1), MX_UA = new THREE.Vector3(1, 0, 0), MX_CUP = [0, 8, 0], MX_DW = new THREE.Vector3(), MX_QI = new THREE.Quaternion();
+var MX_AX = new THREE.Vector3(0, 0, 1), MX_UA = new THREE.Vector3(1, 0, 0), MX_CUP = [0, 0.08, 0], MX_DW = new THREE.Vector3(), MX_QI = new THREE.Quaternion();
 var MX_QA = new THREE.Quaternion(), MX_QB = new THREE.Quaternion(), MX_PW = new THREE.Quaternion(), MX_AXX = new THREE.Vector3(1, 0, 0), MX_AXZ = new THREE.Vector3(0, 0, 1);
 function mxChain(bone) { var l = [], p = bone.parent; while (p && p.isBone) { l.unshift(p); p = p.parent; } return l; }
 function mxOv(r, bone, ch, ax, az, k) { // додатковий поворот кінцівки в «світі» персонажа: ax вперед/вгору, az вбік (як у проксі-кінцівок)
@@ -2459,8 +2459,8 @@ function mxPose(r) {
   var hold = cm && cm.visible && !down;
   if (hold) {
     var dk = u.dk ? 0.5 + 0.5 * Math.sin(now / 1000 * 2.2) : 0;
-    if (cm.parent !== r.hand) { r.hand.add(cm); cm.scale.setScalar(2.3 / r.s); }
-    r.hand.getWorldQuaternion(MX_QA); MX_QI.copy(MX_QA).invert(); MX_DW.set(0, -0.05, 0).applyQuaternion(MX_QI).divideScalar(r.s); cm.position.set(MX_CUP[0] + MX_DW.x, MX_CUP[1] + MX_DW.y, MX_CUP[2] + MX_DW.z); r.g.getWorldQuaternion(MX_PW); MX_QB.setFromAxisAngle(MX_AXX, -dk * 0.9);
+    if (cm.parent !== r.hand) { r.hand.add(cm); cm.scale.setScalar(2.2 / r.s); }
+    r.hand.getWorldQuaternion(MX_QA); MX_QI.copy(MX_QA).invert(); MX_DW.set(0, -0.04, 0).applyQuaternion(MX_QI).divideScalar(r.s); cm.position.set(MX_CUP[0] + MX_DW.x, MX_CUP[1] + MX_DW.y, MX_CUP[2] + MX_DW.z); r.g.getWorldQuaternion(MX_PW); MX_QB.setFromAxisAngle(MX_AXX, -dk * 0.9);
     cm.quaternion.copy(MX_QA.invert()).multiply(MX_PW).multiply(MX_QB);
     r.qt.setFromAxisAngle(MX_AX, -(1.45 + dk * 0.75)); r.fa.quaternion.multiply(r.qt);
     r.qt.setFromAxisAngle(MX_UA, 0.35 + dk * 0.25); r.ua.quaternion.multiply(r.qt);
@@ -2759,6 +2759,7 @@ var VP = (function () {
     ro.style.display = on ? 'block' : 'none';
   }
   function destroy() {
+    vfCleanup();
     clearInterval(loop); loop = null; if (evRef && evCb) { try { evRef.off('value', evCb); } catch (e) { /* ігноруємо */ } } evRef = null; evCb = null; lpIfr = null; lpSend = null; if (pbig) pbig.style.display = 'none'; try { if (ytP && ytP.destroy) ytP.destroy(); } catch (e) { /* ігноруємо */ } ytP = null; ytReady = false; shown = '';
     if (vtv) { var f = vtv.querySelector('#vpf'); f.innerHTML = ''; var n = document.createElement('div'); n.id = 'vpf'; n.style.cssText = 'position:absolute;inset:0'; f.parentNode.replaceChild(n, f); }
   }
@@ -2769,6 +2770,67 @@ var VP = (function () {
     try { if (muted) { if (ytP.mute) ytP.mute(); } else if (ytP.unMute) ytP.unMute(); } catch (e) { /* ігноруємо */ }
     ytCmd('setVolume', [vol]); ytCmd(muted ? 'mute' : 'unMute');
   }
+
+
+  /* ---------- відеофайл з комп'ютера викладача: пряма трансляція WebRTC, файл нікуди не вантажиться ---------- */
+  var vfV = null, vfUrl = '', vfOn = false, vfPc = {}, vfRx = null, vfAskT = null, vfGot = 0, vfS = null, vfTick = null;
+  function vfCleanup() {
+    vfOn = false; clearInterval(vfAskT); clearInterval(vfTick); vfAskT = null; vfTick = null; vfGot = 0;
+    Object.keys(vfPc).forEach(function (k) { try { vfPc[k].pc.close(); } catch (e) { /* ігноруємо */ } }); vfPc = {};
+    if (vfRx) { try { vfRx.pc.close(); } catch (e) { /* ігноруємо */ } vfRx = null; }
+    if (vfV) { try { vfV.pause(); vfV.srcObject = null; vfV.removeAttribute('src'); vfV.load(); } catch (e) { /* ігноруємо */ } vfV = null; }
+    if (vfUrl) { try { URL.revokeObjectURL(vfUrl); } catch (e) { /* ігноруємо */ } vfUrl = ''; } vfS = null;
+    if (pbig && pbig._vf) { pbig._vf = 0; pbig.style.display = 'none'; }
+  }
+  function vfPrompt(txt) {
+    playBtn(false); if (!pbig) return; pbig.textContent = txt; pbig._vf = 1; pbig.style.display = 'block';
+  }
+  function vfPlay() { if (!vfV) return; var p = vfV.play(); if (p && p.catch) p.catch(function () { vfPrompt(ctl ? 'Натисніть, щоб запустити відео' : 'Натисніть, щоб увімкнути звук і відео'); if (!ctl) { vfV.muted = true; var q = vfV.play(); if (q && q.catch) q.catch(function () {}); } }); }
+  function vfIce(o, d) { if (o.pc.remoteDescription) o.pc.addIceCandidate(d).catch(function () {}); else o.pend.push(d); }
+  function vfFlush(o) { while (o.pend.length) o.pc.addIceCandidate(o.pend.shift()).catch(function () {}); }
+  function vfServe(id) {
+    var R = window.__rtc; if (!R || !vfV) return;
+    if (vfPc[id]) { try { vfPc[id].pc.close(); } catch (e) { /* ігноруємо */ } delete vfPc[id]; }
+    var go = function () {
+      if (!vfV) return; var pc = new RTCPeerConnection(R.ice), o = vfPc[id] = { pc: pc, pend: [] };
+      if (!vfS) vfS = vfV.captureStream ? vfV.captureStream() : (vfV.mozCaptureStream ? vfV.mozCaptureStream() : null);
+      if (!vfS) return; vfS.getTracks().forEach(function (t) { pc.addTrack(t, vfS); });
+      pc.onicecandidate = function (e) { if (e.candidate) R.send(id, 'vc', e.candidate); };
+      pc.createOffer().then(function (of) { return pc.setLocalDescription(of).then(function () { R.send(id, 'vo', pc.localDescription); }); }).catch(function () {});
+    };
+    if (vfV.readyState >= 2) go(); else vfV.addEventListener('loadeddata', go, { once: true });
+  }
+  window.__vfSig = function (from, t, d) {
+    if (!vfOn || !vfV) return; var R = window.__rtc; if (!R) return;
+    if (ctl) {
+      if (t === 'vr') vfServe(from);
+      else if (t === 'va' && vfPc[from]) { var o = vfPc[from]; o.pc.setRemoteDescription(d).then(function () { vfFlush(o); o.pc.getSenders().forEach(function (sn) { if (sn.track && sn.track.kind === 'video') { try { var pr = sn.getParameters(); if (!pr.encodings || !pr.encodings.length) pr.encodings = [{}]; pr.encodings[0].maxBitrate = 1200000; sn.setParameters(pr).catch(function () {}); } catch (e) { /* ігноруємо */ } } }); }).catch(function () {}); }
+      else if (t === 'vc' && vfPc[from]) vfIce(vfPc[from], d);
+    } else {
+      if (t === 'vo') {
+        if (vfRx) { try { vfRx.pc.close(); } catch (e) { /* ігноруємо */ } }
+        var pc = new RTCPeerConnection(R.ice), o2 = vfRx = { pc: pc, pend: [] };
+        pc.onicecandidate = function (e) { if (e.candidate) R.send(from, 'vc', e.candidate); };
+        pc.ontrack = function (e) { if (!vfV) return; var ms = e.streams && e.streams[0] ? e.streams[0] : new MediaStream([e.track]); if (vfV.srcObject !== ms) vfV.srcObject = ms; vfGot = 1; vfPlay(); };
+        pc.onconnectionstatechange = function () { if (pc.connectionState === 'failed' || pc.connectionState === 'closed' || pc.connectionState === 'disconnected') vfGot = 0; };
+        pc.setRemoteDescription(d).then(function () { return pc.createAnswer(); }).then(function (a) { return pc.setLocalDescription(a).then(function () { R.send(from, 'va', pc.localDescription); vfFlush(o2); }); }).catch(function () {});
+      } else if (t === 'vc' && vfRx) vfIce(vfRx, d);
+    }
+  };
+  function mountVf(st, f, sig) {
+    var v = document.createElement('video'); v.setAttribute('playsinline', ''); v.playsInline = true; v.style.cssText = 'width:100%;height:100%;background:#000;object-fit:contain'; f.appendChild(v); vfV = v; vfOn = true; vfGot = 0;
+    var msg = document.createElement('div'); msg.style.cssText = 'position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#f2e2c0;font:34px Georgia,serif;pointer-events:none;text-align:center;padding:0 40px'; f.appendChild(msg);
+    if (ctl) {
+      var file = window.__vfFile; if (!file) { msg.textContent = 'Файл відео недоступний. Виберіть його ще раз.'; return; }
+      vfUrl = URL.createObjectURL(file); v.src = vfUrl; v.addEventListener('playing', function () { msg.style.display = 'none'; }); vfPlay();
+      vfTick = setInterval(function () { var r = box && box.querySelector('#vfr'), tt = box && box.querySelector('#vft'); if (!vfV) return; if (r && !r._d) { r.max = Math.floor(vfV.duration || 0); r.value = Math.floor(vfV.currentTime); } if (tt) tt.textContent = fmtT(vfV.currentTime) + ' / ' + fmtT(vfV.duration); }, 500);
+    } else {
+      msg.textContent = 'Чекаємо відео від викладача…'; v.addEventListener('playing', function () { msg.style.display = 'none'; }); v.autoplay = true;
+      var ask = function () { var R = window.__rtc; if (R && !vfGot && st.u) R.send(st.u, 'vr', 1); };
+      setTimeout(ask, 700); vfAskT = setInterval(ask, 5000);
+    }
+  }
+  function fmtT(x) { x = Math.max(0, Math.floor(x || 0)); return Math.floor(x / 60) + ':' + ('0' + (x % 60)).slice(-2); }
 
   /* ---------- тема з сайту на екрані ТВ (конспект або презентація), керує викладач ---------- */
   var lpIfr = null, lpSend = null;
@@ -2855,6 +2917,18 @@ var VP = (function () {
       function mkb(t, fn) { var b = document.createElement('button'); b.type = 'button'; b.textContent = t; b.style.cssText = 'padding:5px 9px;font:13px Georgia,serif;background:#241a10;color:#f2e2c0;border:1px solid #8a7347;cursor:pointer'; b.addEventListener('click', fn); c.appendChild(b); }
       if (st.by && ctl) { mkb('◀ Назад', function () { lpKey('ArrowLeft'); }); mkb('Далі ▶', function () { lpKey('ArrowRight'); }); mkb('▲', function () { lpScroll(-0.8); }); mkb('▼', function () { lpScroll(0.8); }); }
       else { var tt = document.createElement('span'); tt.style.color = '#a89468'; tt.textContent = 'Слайди й прокручування керує викладач.'; c.appendChild(tt); }
+    } else if (st.k === 'vf') {
+      function vb(tx, fn) { var b = document.createElement('button'); b.type = 'button'; b.textContent = tx; b.style.cssText = 'padding:5px 9px;font:13px Georgia,serif;background:#241a10;color:#f2e2c0;border:1px solid #8a7347;cursor:pointer'; b.addEventListener('click', fn); c.appendChild(b); return b; }
+      if (ctl) {
+        vb('Пауза / грати', function () { if (!vfV) return; if (vfV.paused) vfV.play().catch(function () {}); else vfV.pause(); });
+        var rr = document.createElement('input'); rr.type = 'range'; rr.id = 'vfr'; rr.min = 0; rr.max = 0; rr.value = 0; rr.style.cssText = 'flex:1;min-width:80px';
+        rr.addEventListener('input', function () { rr._d = 1; }); rr.addEventListener('change', function () { if (vfV) vfV.currentTime = +rr.value; rr._d = 0; }); c.appendChild(rr);
+        var tt2 = document.createElement('span'); tt2.id = 'vft'; tt2.style.cssText = 'min-width:70px;text-align:right'; tt2.textContent = '0:00'; c.appendChild(tt2);
+      } else {
+        var mb2 = vb(muted ? 'Звук вимкнено' : 'Звук увімкнено', function () { muted = !muted; if (vfV) { vfV.muted = muted; if (!muted) vfPlay(); } mb2.textContent = muted ? 'Звук вимкнено' : 'Звук увімкнено'; });
+        var rg2 = document.createElement('input'); rg2.type = 'range'; rg2.min = 0; rg2.max = 100; rg2.value = vol; rg2.style.cssText = 'flex:1;min-width:60px';
+        rg2.addEventListener('input', function () { vol = +rg2.value; if (vfV) vfV.volume = vol / 100; }); c.appendChild(rg2);
+      }
     } else if (st.k === 'yt') {
       var mb = document.createElement('button'); mb.type = 'button'; mb.textContent = muted ? 'Звук вимкнено' : 'Звук увімкнено'; mb.style.cssText = 'padding:5px 9px;font:13px Georgia,serif;background:#241a10;color:#f2e2c0;border:1px solid #8a7347;cursor:pointer';
       var rg = document.createElement('input'); rg.type = 'range'; rg.min = 0; rg.max = 100; rg.value = vol; rg.style.cssText = 'flex:1;min-width:60px';
@@ -2878,7 +2952,7 @@ var VP = (function () {
       pbig = document.createElement('button'); pbig.type = 'button'; pbig.textContent = 'Натисніть, щоб увімкнути відео разом з викладачем';
       pbig.style.cssText = 'position:fixed;left:50%;transform:translateX(-50%);bottom:90px;z-index:8;padding:14px 18px;font:16px Georgia,serif;background:#7a5a1e;color:#fff4d8;border:2px solid #f2d9a0;cursor:pointer;display:none;max-width:90vw';
       if (innerWidth < 820 || (window.matchMedia && matchMedia('(pointer:coarse)').matches)) { pbig.style.transform = 'translateX(-50%) scale(.6)'; pbig.style.transformOrigin = 'bottom center'; }
-      pbig.addEventListener('click', function () { var st = pbig._st; if (!st || !ytReady) return; try { ytP.unMute(); muted = false; applyVol(); var s0 = states[st.room] || st; var ex = (s0.pos || 0) + (s0.st !== 'pause' ? Math.max(0, (srv() - (s0.at || srv())) / 1000) : 0); ytP.seekTo(ex, true); if (s0.st !== 'pause') ytP.playVideo(); } catch (e) { /* ігноруємо */ } pbig.style.display = 'none'; });
+      pbig.addEventListener('click', function () { if (pbig._vf) { pbig._vf = 0; pbig.style.display = 'none'; if (vfV) { vfV.muted = false; var pp = vfV.play(); if (pp && pp.catch) pp.catch(function () {}); } return; } var st = pbig._st; if (!st || !ytReady) return; try { ytP.unMute(); muted = false; applyVol(); var s0 = states[st.room] || st; var ex = (s0.pos || 0) + (s0.st !== 'pause' ? Math.max(0, (srv() - (s0.at || srv())) / 1000) : 0); ytP.seekTo(ex, true); if (s0.st !== 'pause') ytP.playVideo(); } catch (e) { /* ігноруємо */ } pbig.style.display = 'none'; });
       document.body.appendChild(pbig);
     }
     pbig.style.display = show ? 'block' : 'none';
@@ -2901,8 +2975,9 @@ var VP = (function () {
     build(); var sig = st.room + st.vid + st.t; shown = sig; var f = vtv.querySelector('#vpf');
     box.querySelector('#vpt').textContent = st.ti + ' · показує ' + String(st.by || '').slice(0, 30);
     var fx = fbx(); ctl = !!(fx && st.u === fx.uid); controls(st); box.style.display = 'block'; vtv.style.display = 'block'; reopen(false); layout();
-    vw = st.k === 'lp' ? 1280 : 640; vh = st.k === 'lp' ? 720 : 360;
+    vw = st.k === 'lp' || st.k === 'vf' ? 1280 : 640; vh = st.k === 'lp' || st.k === 'vf' ? 720 : 360;
     if (st.k === 'lp') { mountLp(st, f, sig); return; }
+    if (st.k === 'vf') { mountVf(st, f, sig); return; }
     if (st.k === 'gd') {
       if (!/^https:\/\/(drive|docs)\.google\.com\//.test(st.vid)) return;
       var ifr = document.createElement('iframe'); ifr.src = st.vid; ifr.setAttribute('allow', 'autoplay; fullscreen'); ifr.setAttribute('allowfullscreen', ''); ifr.style.cssText = 'width:100%;height:100%;border:0'; f.appendChild(ifr); return;
@@ -3451,7 +3526,7 @@ var RB = (function () {
     if (q('#tvp')) q('#tvp').addEventListener('click', function () { closeModal(); gotoPage(myIdx - 1); });
     if (q('#tvn')) q('#tvn').addEventListener('click', function () { closeModal(); gotoPage(myIdx + 1); });
   }
-  var __tvApi = { open: openPanel, publish: function (d) { myPages = [d]; myPdf = null; tvPublish(0); }, off: tvOff, state: function () { return tvState; }, pick: function () { lecPicker(); }, frame: function () { return tvState && tvState.d && tvState.k !== 'yt' ? tvc : null; }, video: function (u) { var pr = VP.parse(u); if (!pr) return false; startVideo(pr); return true; } };
+  var __tvApi = { open: openPanel, publish: function (d) { myPages = [d]; myPdf = null; tvPublish(0); }, off: tvOff, state: function () { return tvState; }, pick: function () { lecPicker(); }, frame: function () { return tvState && tvState.d && tvState.k !== 'yt' ? tvc : null; }, video: function (u) { var pr = VP.parse(u); if (!pr) return false; startVideo(pr); return true; }, videoFile: function (file) { if (!file || !(/^video\//.test(file.type) || /\.(mp4|webm|mov|m4v|ogv)$/i.test(file.name))) return false; window.__vfFile = file; startVideo({ k: 'vf', vid: 'f' + Date.now().toString(36), pos: 0, ti: String(file.name).replace(/\.[^.]+$/, '').slice(0, 80) }); return true; } };
   (window.__tvApis = window.__tvApis || {})[KEY] = __tvApi;
   if (KEY === 'meet') window.__tv = __tvApi;
 
@@ -3526,6 +3601,7 @@ var RB = (function () {
   micLabel();
   function vloc() { return cur && VOICE[cur.id] ? cur.id : null; }
   function send(to, type, data) { var f = fb(); if (!f) return; f.db.ref('rtc/' + to).push({ f: f.uid, t: type, d: JSON.stringify(data), ts: Date.now() + (window.__srvOff || 0) }).catch(function () {}); }
+  window.__rtc = { send: send, ice: ICE };
   function track() { return localStream && localStream.getAudioTracks()[0]; }
   function attachMic(p) { var t = micOn ? track() : null; if (p.tr && p.tr.sender) p.tr.sender.replaceTrack(t).catch(function () {}); }
   function closePeer(id) {
@@ -3596,6 +3672,7 @@ var RB = (function () {
   function onSignal(m) {
     if (!m || !m.f || !vloc() || Date.now() + (window.__srvOff || 0) - (m.ts || 0) > 90000) return;
     var d; try { d = JSON.parse(m.d); } catch (e) { return; }
+    if (m.t === 'vo' || m.t === 'va' || m.t === 'vc' || m.t === 'vr') { if (window.__vfSig) window.__vfSig(m.f, m.t, d); return; }
     if (m.t === 'v') { if (Date.now() + (window.__srvOff || 0) - (m.ts || 0) < 8000) playClip(m.f, d, m.ts); return; }
     var p = peers[m.f];
     if (m.t === 'o') {
@@ -3948,9 +4025,8 @@ if (window.__hall) { window.__hall.setEmo = setEmo; window.__hall.WSS = WSS; }
     modal('<h3>Фото готове</h3><p class="muted">Файл збережеться на цьому пристрої, на сервер нічого не йде.</p><img src="' + url + '" style="width:100%;max-height:55vh;object-fit:contain;background:#000"><p><a id="crpa" download="' + nm + '" href="' + url + '" style="display:inline-block;padding:10px 16px;background:#1f4f8a;color:#fff;text-decoration:none">Зберегти фото</a></p>');
   }
   var sf = mk('Селфі', 'position:fixed;left:12px;bottom:214px;z-index:6;display:none', function () { selfie(); });
-  function selfie() {
-    if (!allowed() || !held || !window.__mirrorSelf) return;
-    var W = 1080, H = 1350, fx = -Math.sin(yaw), fz = -Math.cos(yaw), bd = cur.bounds, d = 1.7, px = camera.position.x, pz = camera.position.z;
+  function selfShot(ang) {
+    var W = 1080, H = 1350, yw = yaw + ang, fx = -Math.sin(yw), fz = -Math.cos(yw), bd = cur.bounds, d = 1.7, px = camera.position.x, pz = camera.position.z;
     if (bd) for (var i = 0; i < 12 && d > 0.7; i++) { var cx0 = px + fx * d, cz0 = pz + fz * d; if (cx0 > bd.x1 + 0.25 && cx0 < bd.x2 - 0.25 && cz0 > bd.z1 + 0.25 && cz0 < bd.z2 - 0.25) break; d -= 0.2; }
     var pc = new THREE.PerspectiveCamera(46, W / H, 0.05, 80); pc.position.set(px + fx * d, 1.35, pz + fz * d); pc.lookAt(px, 1.0, pz); pc.updateMatrixWorld(true);
     var rtp = new THREE.WebGLRenderTarget(W, H, { minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter, samples: renderer.capabilities.isWebGL2 ? 4 : 0 }), old = renderer.getRenderTarget(), vis = cam3 ? cam3.visible : false;
@@ -3960,9 +4036,18 @@ if (window.__hall) { window.__hall.setEmo = setEmo; window.__hall.WSS = WSS; }
     var buf = new Uint8Array(W * H * 4); renderer.readRenderTargetPixels(rtp, 0, 0, W, H, buf); rtp.dispose();
     var cv = document.createElement('canvas'); cv.width = W; cv.height = H; var cx = cv.getContext('2d'), id = cx.createImageData(W, H), y;
     for (y = 0; y < H; y++) id.data.set(buf.subarray((H - 1 - y) * W * 4, (H - y) * W * 4), y * W * 4); cx.putImageData(id, 0, 0);
-    var url = cv.toDataURL('image/jpeg', 0.93), dd = new Date(), nm = 'hall-selfi-' + dd.getFullYear() + ('0' + (dd.getMonth() + 1)).slice(-2) + ('0' + dd.getDate()).slice(-2) + '-' + ('0' + dd.getHours()).slice(-2) + ('0' + dd.getMinutes()).slice(-2) + '.jpg';
+    return cv.toDataURL('image/jpeg', 0.93);
+  }
+  function selfie() {
+    if (!allowed() || !held || !window.__mirrorSelf) return;
+    var ang = 0, url = selfShot(ang), dd = new Date(), nm = 'hall-selfi-' + dd.getFullYear() + ('0' + (dd.getMonth() + 1)).slice(-2) + ('0' + dd.getDate()).slice(-2) + '-' + ('0' + dd.getHours()).slice(-2) + ('0' + dd.getMinutes()).slice(-2) + '.jpg';
     var fl = document.createElement('div'); fl.className = 'crk'; fl.style.cssText = 'position:fixed;inset:0;z-index:7;background:#fff;opacity:.85;pointer-events:none;transition:opacity .35s'; document.body.appendChild(fl); setTimeout(function () { fl.style.opacity = 0; }, 30); setTimeout(function () { fl.remove(); }, 500);
-    modal('<h3>Селфі готове</h3><p class="muted">Файл збережеться на цьому пристрої, на сервер нічого не йде. Позу можна змінити через меню дій, потім зняти ще раз.</p><img src="' + url + '" style="max-width:100%;max-height:58vh;display:block;margin:0 auto;background:#000"><p><a download="' + nm + '" href="' + url + '" style="display:inline-block;padding:10px 16px;background:#1f4f8a;color:#fff;text-decoration:none">Зберегти селфі</a></p>');
+    var bs = 'padding:9px 12px;font:14px Georgia,serif;background:#241a10;color:#f2e2c0;border:1px solid #8a7347;cursor:pointer;text-decoration:none;display:inline-block';
+    modal('<h3>Селфі готове</h3><p class="muted">Крутіть камеру навколо себе, потім збережіть. Файл збережеться на цьому пристрої, на сервер нічого не йде. Позу можна змінити через меню дій.</p><img id="sfi" src="' + url + '" style="max-width:100%;max-height:56vh;object-fit:contain;background:#000;display:block;margin:0 auto"><p style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center"><button type="button" id="sfl" style="' + bs + '">◀ Крутити</button><button type="button" id="sfr" style="' + bs + '">Крутити ▶</button><a id="sfa" download="' + nm + '" href="' + url + '" style="' + bs + ';background:#7a5a1e">Зберегти</a><button type="button" id="sfd" style="' + bs + ';background:#5a1c1c;border-color:#c62828">Видалити</button></p>');
+    var im = document.getElementById('sfi'), a = document.getElementById('sfa'), rot = function (da) { ang += da; var u2 = selfShot(ang); if (im) im.src = u2; if (a) a.href = u2; };
+    var l = document.getElementById('sfl'), r = document.getElementById('sfr'), del = document.getElementById('sfd');
+    if (l) l.addEventListener('click', function () { rot(-0.6); }); if (r) r.addEventListener('click', function () { rot(0.6); });
+    if (del) del.addEventListener('click', function () { closeModal(); toast('Селфі видалено.', 2000); });
   }
   var vf = document.createElement('div'); vf.className = 'crk'; vf.style.cssText = 'position:fixed;inset:22px;z-index:4;pointer-events:none;display:none';
   vf.innerHTML = ['left:0;top:0;border-left:3px solid #fff;border-top:3px solid #fff', 'right:0;top:0;border-right:3px solid #fff;border-top:3px solid #fff', 'left:0;bottom:0;border-left:3px solid #fff;border-bottom:3px solid #fff', 'right:0;bottom:0;border-right:3px solid #fff;border-bottom:3px solid #fff'].map(function (s) { return '<i style="position:absolute;width:34px;height:34px;opacity:.85;' + s + '"></i>'; }).join('') + '<b id="crt" style="position:absolute;left:44px;top:6px;color:#ff4a4a;font:bold 16px Georgia,serif;text-shadow:0 0 4px #000"></b>';
@@ -4201,7 +4286,7 @@ if (window.__hall) { window.__hall.setEmo = setEmo; window.__hall.WSS = WSS; }
   function holdSync() {
     window.__cupK = held === 'coffee' ? 1 + 10 * (VK.indexOf(heldV) + 1) : held === 'tea' ? 2 + 10 * (VK.indexOf(heldV) + 1) : 0;
     if (hcup) { camera.remove(hcup); hcup = null; }
-    if (held) { scene.add(camera); hcup = cupMesh(held, heldV); hcup.scale.setScalar(hcup.userData.v ? 1.3 : 1.7); hcup.position.set(0.2, -0.2, -0.45); hcup.rotation.set(0.15, 0.5, 0); camera.add(hcup); }
+    if (held) { scene.add(camera); hcup = cupMesh(held, heldV); hcup.scale.setScalar(hcup.userData.v ? 0.85 : 1.2); hcup.position.set(0.24, -0.26, -0.5); hcup.rotation.set(0.15, 0.5, 0); camera.add(hcup); }
     bDrink.style.display = bPut.style.display = held ? 'flex' : 'none';
   }
   function drink() {
@@ -4684,7 +4769,7 @@ if (window.__hall) { window.__hall.setEmo = setEmo; window.__hall.WSS = WSS; }
       }; f4.readAsArrayBuffer(file);
     }
     else if (/^(docx?|pptx?|xlsx?|odt|odp)$/.test(ext)) bad('Файл ' + ext.toUpperCase() + ' не відображається в браузері. Збережіть його як PDF і завантажте PDF.');
-    else if (/^video\//.test(file.type)) bad('Відеофайли не передаються на телевізор. Скористайтеся кнопкою «Відео за посиланням» (YouTube чи Диск).');
+    else if (/^video\//.test(file.type) || /^(mp4|webm|mov|m4v|ogv)$/.test(ext)) { var av = tvApi(); if (!av || !av.videoFile) bad('Тут немає телевізора.'); else if (av.videoFile(file)) { toast('Відео з файлу на телевізорі. Студенти отримують його напряму від вас, тримайте вкладку відкритою.', 5000); setStat(); } else bad('Не вдалося відкрити відео.'); }
     else bad('Формат .' + ext + ' не підтримується. Можна: PDF, зображення, DXF, текст.');
   }
 
@@ -4808,7 +4893,7 @@ if (window.__hall) { window.__hall.setEmo = setEmo; window.__hall.WSS = WSS; }
   }
   var deckOn = false;
   function deckSync(st) {
-    if (!ui.st) return; var want = !!(st && (st.k === 'lp' || st.k === 'gd' || st.k === 'yt') && window.__vp && __vp.active());
+    if (!ui.st) return; var want = !!(st && (st.k === 'lp' || st.k === 'gd' || st.k === 'yt' || st.k === 'vf') && window.__vp && __vp.active());
     if (want !== deckOn) { deckOn = want; vc.style.visibility = want ? 'hidden' : 'visible'; ui.bt.style.display = want ? 'none' : 'flex'; ui.dk.style.display = want && st.k === 'lp' ? 'flex' : 'none'; ui.dh.style.display = want ? 'block' : 'none'; if (!want) __vp.dock(null); }
     if (want) { var r = vc.getBoundingClientRect(), sr = ui.st.getBoundingClientRect(), w = Math.min(sr.width, sr.height * 16 / 9), h = w * 9 / 16; __vp.dock({ l: sr.left + (sr.width - w) / 2, t: sr.top + (sr.height - h) / 2, w: w, h: h }); }
   }
@@ -4849,6 +4934,7 @@ if (window.__hall) { window.__hall.setEmo = setEmo; window.__hall.WSS = WSS; }
       var a = tvApi(); if (!a || !a.video) { toast('Тут немає телевізора.', 2500); return; } if (!vin.value.trim()) return;
       if (!a.video(vin.value)) toast('Посилання не розпізнано.', 3500); else { toast('Відео на телевізорі.', 2500); vrow.style.display = 'none'; setStat(); }
     }, 'main');
+    btn(sd, 'Відео з файлу', function () { fi.click(); });
     btn(sd, 'Відео за посиланням', function () { vrow.style.display = vrow.style.display === 'none' ? 'flex' : 'none'; if (vrow.style.display === 'flex') vin.focus(); });
     btn(sd, 'Тема з сайту', function () {
       var a = tvApi(); if (!a || !a.pick) { toast('Тут немає телевізора.', 2500); return; } closeUI(); a.pick();
