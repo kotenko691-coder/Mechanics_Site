@@ -2376,19 +2376,6 @@ function mxRecolor(m, rgb, kind) { // перефарбування одягу (�
   });
 }
 
-function mxJacket(m, mesh, root) { // піджак викладача: окрема сітка на тому ж скелеті (ваги перенесені з тіла)
-  fetch(CH_BASE + 'mx/jacket/' + m.nm + '.json?v=1').then(function (r) { if (!r.ok) throw 0; return r.json(); }).then(function (d) {
-    var n = d.n, g = new THREE.BufferGeometry(), p = new Int16Array(mxB64(d.p)), pos = new Float32Array(n * 3), i, k;
-    for (i = 0; i < n; i++) for (k = 0; k < 3; k++) pos[i * 3 + k] = p[i * 3 + k] / 32767 * d.e[k] + d.c[k];
-    g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
-    var nn = new Int8Array(mxB64(d.nn)), nf = new Float32Array(n * 3); for (i = 0; i < n * 3; i++) nf[i] = nn[i] / 127; g.setAttribute('normal', new THREE.BufferAttribute(nf, 3));
-    var si = new Uint8Array(mxB64(d.si)), si2 = new Uint16Array(n * 4); for (i = 0; i < n * 4; i++) si2[i] = si[i]; g.setAttribute('skinIndex', new THREE.BufferAttribute(si2, 4));
-    var sw = new Uint8Array(mxB64(d.sw)), swf = new Float32Array(n * 4); for (i = 0; i < n * 4; i++) swf[i] = sw[i] / 255; g.setAttribute('skinWeight', new THREE.BufferAttribute(swf, 4));
-    g.setIndex(new THREE.BufferAttribute(new Uint16Array(mxB64(d.i)), 1));
-    var mt = new THREE.MeshStandardMaterial({ color: 0x1d2a45, roughness: 0.92, metalness: 0, skinning: true, side: THREE.DoubleSide });
-    var jm = new THREE.SkinnedMesh(g, mt); jm.frustumCulled = false; jm.raycast = function () {}; root.add(jm); jm.bind(mesh.skeleton, mesh.bindMatrix);
-  }).catch(function () {});
-}
 function mxBuild(g, o, m, A) {
   var d = m.d, bones = d.names.map(function (nm, i) { var b = new THREE.Bone(), r = d.rest[i]; b.name = nm; b.position.set(r[0], r[1], r[2]); b.quaternion.set(r[3], r[4], r[5], r[6]); return b; });
   d.par.forEach(function (p, i) { if (p >= 0) bones[p].add(bones[i]); });
@@ -2409,7 +2396,7 @@ function mxBuild(g, o, m, A) {
   var rig = { g: g, mg: mg, mx: 1, fa: bones[d.names.indexOf('RightForeArm')], ua: bones[d.names.indexOf('RightArm')], qt: new THREE.Quaternion(), mixer: mixer, acts: acts, w: { walk: 0, sit: 0, idle: 1 }, s: s, bones: bones, hand: bones[d.names.indexOf('RightHand')], t: Date.now(), my: 0, hipY: d.rest[0][1], ov: [0, 0], ovL: [0, 0], wkT: 0 };
   rig.arm = [bones[d.names.indexOf('LeftArm')], bones[d.names.indexOf('RightArm')]]; rig.armC = rig.arm.map(mxChain);
   rig.leg = [bones[d.names.indexOf('LeftUpLeg')], bones[d.names.indexOf('RightUpLeg')]]; rig.legC = rig.leg.map(mxChain);
-  if (o.r) mxJacket(m, mesh, root);
+  if (o.r) chRobe(g, rig, null, s);
   g.add(mg); chRigs.push(rig); return rig;
 }
 var MX_AX = new THREE.Vector3(0, 0, 1), MX_UA = new THREE.Vector3(1, 0, 0), MX_CUP = [0, 0.1, 0.04];
