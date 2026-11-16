@@ -2500,7 +2500,7 @@ function makeFigure(o) {
 
 function selfCup(g) { // чашка у «власній» фігурі (дзеркало, вид зі спини)
   var u = g.userData, k = window.__cupK | 0;
-  if (k && window.__cupMesh) { if (u.cupK !== k) { if (u.cupM && u.cupM.parent) u.cupM.parent.remove(u.cupM); u.cupM = window.__cupMesh(k === 2 ? 'tea' : 'coffee'); u.cupM.scale.setScalar(1.6); g.add(u.cupM); u.cupK = k; } u.cupM.visible = true; u.dk = window.__cupD | 0; }
+  if (k && window.__cupMesh) { if (u.cupK !== k) { if (u.cupM && u.cupM.parent) u.cupM.parent.remove(u.cupM); u.cupM = window.__cupMesh(k); u.cupM.scale.setScalar(1.6); g.add(u.cupM); u.cupK = k; } u.cupM.visible = true; u.dk = window.__cupD | 0; }
   else if (u.cupM) { u.cupM.visible = false; u.cupK = 0; }
 }
 
@@ -2651,7 +2651,7 @@ function selfCup(g) { // чашка у «власній» фігурі (дзер
         g.position.y = ty0;
         if (u.bub) { var wv = Math.sin(nowMs / 130); u.arms[1].rotation.x = -2.5; u.arms[1].rotation.z = -0.3 + wv * 0.35; }
         if ((u.cp | 0) && window.__cupMesh) {
-          if (u.cupK !== u.cp) { if (u.cupM && u.cupM.parent) u.cupM.parent.remove(u.cupM); u.cupM = window.__cupMesh(u.cp === 2 ? 'tea' : 'coffee'); u.cupM.scale.setScalar(1.6); g.add(u.cupM); u.cupK = u.cp; }
+          if (u.cupK !== u.cp) { if (u.cupM && u.cupM.parent) u.cupM.parent.remove(u.cupM); u.cupM = window.__cupMesh(u.cp); u.cupM.scale.setScalar(1.6); g.add(u.cupM); u.cupK = u.cp; }
           var dkm = u.dk ? 0.5 + 0.5 * Math.sin(ts * 2.2) : 0;
           if (!u.bub) { u.arms[1].rotation.x = 0.5 + dkm * 0.5; u.arms[1].rotation.z = -0.12; u.elb = [null, 1.5 + dkm * 0.9]; u.knee = u.knee; }
           u.cupM.visible = true; if (!u.mx) { u.cupM.position.set(0.2 - dkm * 0.12, 1.08 + dkm * 0.3, -0.34 + dkm * 0.1); u.cupM.rotation.set(dkm * 0.9, 0, 0); }
@@ -4149,9 +4149,14 @@ if (window.__hall) { window.__hall.setEmo = setEmo; window.__hall.WSS = WSS; }
   var bDrink = mkb('Випити', 'position:fixed;left:12px;bottom:70px;z-index:6;display:none', function () { drink(); }, 'cup');
   var bPut = mkb('Поставити', 'position:fixed;left:12px;bottom:118px;z-index:6;display:none', function () { if (!held) return; var k = held; held = ''; holdSync(); if (typeof cur !== 'undefined' && cur === CAFE) { putReady(k, heldV); toast('Чашку поставлено на стійку.'); } else toast('Чашку відставлено.'); }, 'put');
   var bBadge = document.createElement('div'); bBadge.style.cssText = 'position:fixed;left:12px;top:150px;z-index:6;display:none;font-size:13px;line-height:1.6;color:#f2e2c0;background:rgba(36,26,16,.85);border:1px solid #8a7347;padding:6px 10px;pointer-events:none'; document.body.appendChild(bBadge);
-  window.__cupMesh = function (k) { return cupMesh(k, ''); }; window.__hcupVis = function (v) { if (hcup) hcup.visible = v; };
+  var VK = Object.keys(VESS);
+  window.__cupMesh = function (code) {
+    var kind = code % 10 === 2 ? 'tea' : 'coffee', v = VK[Math.floor(code / 10) - 1], g = new THREE.Group(), old = cupMesh(kind, ''); g.add(old);
+    if (v) needData(function () { var nm = cupMesh(kind, v); nm.scale.setScalar(0.75); g.remove(old); g.add(nm); });
+    return g;
+  }; window.__hcupVis = function (v) { if (hcup) hcup.visible = v; };
   function holdSync() {
-    window.__cupK = held === 'coffee' ? 1 : held === 'tea' ? 2 : 0;
+    window.__cupK = held === 'coffee' ? 1 + 10 * (VK.indexOf(heldV) + 1) : held === 'tea' ? 2 + 10 * (VK.indexOf(heldV) + 1) : 0;
     if (hcup) { camera.remove(hcup); hcup = null; }
     if (held) { scene.add(camera); hcup = cupMesh(held, heldV); hcup.scale.setScalar(hcup.userData.v ? 1.3 : 1.7); hcup.position.set(0.2, -0.2, -0.45); hcup.rotation.set(0.15, 0.5, 0); camera.add(hcup); }
     bDrink.style.display = bPut.style.display = held ? 'flex' : 'none';
