@@ -2431,10 +2431,26 @@ function mxBuild(g, o, m, A) {
   acts.walk.timeScale = 1.7; acts.idle.time = Math.random() * 5;
   g.userData.legs = [new THREE.Object3D(), new THREE.Object3D()]; g.userData.arms = [new THREE.Object3D(), new THREE.Object3D()];
   g.userData.arms[0].rotation.z = 0.04; g.userData.arms[1].rotation.z = -0.04; g.userData.mx = 1;
-  var rig = { g: g, mg: mg, mx: 1, fa: bones[d.names.indexOf('RightForeArm')], ua: bones[d.names.indexOf('RightArm')], qt: new THREE.Quaternion(), mixer: mixer, acts: acts, w: { walk: 0, sit: 0, idle: 1 }, s: s, bones: bones, hand: bones[d.names.indexOf('RightHand')], t: Date.now(), my: 0, hipY: d.rest[0][1], ov: [0, 0], ovL: [0, 0], wkT: 0 };
+  var rig = { names: d.names, g: g, mg: mg, mx: 1, fa: bones[d.names.indexOf('RightForeArm')], ua: bones[d.names.indexOf('RightArm')], qt: new THREE.Quaternion(), mixer: mixer, acts: acts, w: { walk: 0, sit: 0, idle: 1 }, s: s, bones: bones, hand: bones[d.names.indexOf('RightHand')], t: Date.now(), my: 0, hipY: d.rest[0][1], ov: [0, 0], ovL: [0, 0], wkT: 0 };
   rig.arm = [bones[d.names.indexOf('LeftArm')], bones[d.names.indexOf('RightArm')]]; rig.armC = rig.arm.map(mxChain);
   rig.leg = [bones[d.names.indexOf('LeftUpLeg')], bones[d.names.indexOf('RightUpLeg')]]; rig.legC = rig.leg.map(mxChain);
-  if (o.r) chRobe(g, rig, null, s);
+  if (o.r) {
+    var n0 = g.children.length; chRobe(g, rig, null, s);
+    try { // прив'язка шапочки й коміра до справжньої висоти голови й шиї цього персонажа
+      mg.updateMatrix(); root.updateMatrixWorld(true);
+      var bp = function (nm) { var b = bones[d.names.indexOf(nm)]; return b ? new THREE.Vector3().setFromMatrixPosition(b.matrixWorld).applyMatrix4(mg.matrix) : null; };
+      var ht = bp('HeadTop_End') || bp('Head'), nk = bp('Neck'), hd = bp('Head');
+      window.__robeDbg = (window.__robeDbg || []).concat([[o.s, o.k, ht && +ht.y.toFixed(3), nk && +nk.y.toFixed(3), hd && +hd.y.toFixed(3)]]);
+      if (ht && nk) {
+        var dc = (ht.y + 0.015) - 1.66, dn = (nk.y - 0.03) - 1.4;
+        var kids = g.children.slice(n0), cp0 = g.userData.cape; kids.forEach(function (ch) { ch.userData.hd = ch.position.y > 1.5 ? 1 : 0; ch.position.y += ch.position.y > 1.5 ? dc : dn; });
+        g.add(mg); g.updateMatrixWorld(true); rig.robeKids = kids.filter(function (ch) { return ch !== cp0; });
+        var hb = bones[d.names.indexOf('Head')], sb = bones[d.names.indexOf('Spine2')] || bones[d.names.indexOf('Spine1')] || bones[d.names.indexOf('Spine')];
+        rig.robeKids.forEach(function (ch) { var tb = ch.userData.hd ? hb : sb; if (tb) tb.attach(ch); });
+        chRigs.push(rig); return rig;
+      }
+    } catch (e) { /* ігноруємо */ }
+  }
   g.add(mg); chRigs.push(rig); return rig;
 }
 var MX_AX = new THREE.Vector3(0, 0, 1), MX_UA = new THREE.Vector3(1, 0, 0), MX_CUP = [0, 0.08, 0], MX_DW = new THREE.Vector3(), MX_QI = new THREE.Quaternion();
@@ -4081,8 +4097,8 @@ if (window.__hall) { window.__hall.setEmo = setEmo; window.__hall.WSS = WSS; }
   function fmt(s) { return Math.floor(s / 60) + ':' + ('0' + (s % 60)).slice(-2); }
   function pickMime() { var c = ['video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm', 'video/mp4'], i; if (!window.MediaRecorder) return ''; for (i = 0; i < c.length; i++) if (MediaRecorder.isTypeSupported(c[i])) return c[i]; return ''; }
   function hideHud(on) {
-    if (on) { hidden = []; Array.prototype.forEach.call(document.body.children, function (e) { if (e.tagName === 'CANVAS' || e.id === 'vtv' || e.classList.contains('crk') || e.tagName === 'SCRIPT' || e.tagName === 'STYLE') return; hidden.push([e, e.style.visibility]); e.style.visibility = 'hidden'; }); }
-    else { hidden.forEach(function (h) { h[0].style.visibility = h[1]; }); hidden = []; }
+    if (on) { hidden = []; Array.prototype.forEach.call(document.body.children, function (e) { if (e.tagName === 'CANVAS' || e.id === 'vtv' || e.classList.contains('crk') || e.tagName === 'SCRIPT' || e.tagName === 'STYLE') return; hidden.push([e, e.style.opacity]); e.style.opacity = '0'; }); }
+    else { hidden.forEach(function (h) { h[0].style.opacity = h[1]; }); hidden = []; }
   }
   function start() {
     if (!window.MediaRecorder) { toast('Цей браузер не вміє записувати відео.', 4000); return; }
