@@ -2437,7 +2437,7 @@ function mxBuild(g, o, m, A) {
   if (o.r) chRobe(g, rig, null, s);
   g.add(mg); chRigs.push(rig); return rig;
 }
-var MX_AX = new THREE.Vector3(0, 0, 1), MX_UA = new THREE.Vector3(1, 0, 0), MX_CUP = [0, 0.1, 0.04];
+var MX_AX = new THREE.Vector3(0, 0, 1), MX_UA = new THREE.Vector3(1, 0, 0), MX_CUP = [0, 8, 0], MX_DW = new THREE.Vector3(), MX_QI = new THREE.Quaternion();
 var MX_QA = new THREE.Quaternion(), MX_QB = new THREE.Quaternion(), MX_PW = new THREE.Quaternion(), MX_AXX = new THREE.Vector3(1, 0, 0), MX_AXZ = new THREE.Vector3(0, 0, 1);
 function mxChain(bone) { var l = [], p = bone.parent; while (p && p.isBone) { l.unshift(p); p = p.parent; } return l; }
 function mxOv(r, bone, ch, ax, az, k) { // додатковий поворот кінцівки в «світі» персонажа: ax вперед/вгору, az вбік (як у проксі-кінцівок)
@@ -2459,8 +2459,8 @@ function mxPose(r) {
   var hold = cm && cm.visible && !down;
   if (hold) {
     var dk = u.dk ? 0.5 + 0.5 * Math.sin(now / 1000 * 2.2) : 0;
-    if (cm.parent !== r.hand) { r.hand.add(cm); cm.scale.setScalar(1.6 / r.s); cm.position.set(MX_CUP[0], MX_CUP[1], MX_CUP[2]); }
-    r.hand.getWorldQuaternion(MX_QA); r.g.getWorldQuaternion(MX_PW); MX_QB.setFromAxisAngle(MX_AXX, -dk * 0.9);
+    if (cm.parent !== r.hand) { r.hand.add(cm); cm.scale.setScalar(2.3 / r.s); }
+    r.hand.getWorldQuaternion(MX_QA); MX_QI.copy(MX_QA).invert(); MX_DW.set(0, -0.05, 0).applyQuaternion(MX_QI).divideScalar(r.s); cm.position.set(MX_CUP[0] + MX_DW.x, MX_CUP[1] + MX_DW.y, MX_CUP[2] + MX_DW.z); r.g.getWorldQuaternion(MX_PW); MX_QB.setFromAxisAngle(MX_AXX, -dk * 0.9);
     cm.quaternion.copy(MX_QA.invert()).multiply(MX_PW).multiply(MX_QB);
     r.qt.setFromAxisAngle(MX_AX, -(1.45 + dk * 0.75)); r.fa.quaternion.multiply(r.qt);
     r.qt.setFromAxisAngle(MX_UA, 0.35 + dk * 0.25); r.ua.quaternion.multiply(r.qt);
