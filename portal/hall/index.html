@@ -2644,7 +2644,7 @@ var VP = (function () {
     var s = document.createElement('script'); s.src = 'https://www.youtube.com/iframe_api'; document.head.appendChild(s);
     window.onYouTubeIframeAPIReady = function () { waitYT.splice(0).forEach(function (f) { f(); }); };
   }
-  var vw = 640, vh = 360, evRef = null, evCb = null, vtv = null, poppedOut = false, scrPl = {}, layoutOn = false, extraPl = null;
+  var dockR = null, vw = 640, vh = 360, evRef = null, evCb = null, vtv = null, poppedOut = false, scrPl = {}, layoutOn = false, extraPl = null;
   function build() {
     if (box) return;
     vtv = document.createElement('div'); vtv.id = 'vtv'; vtv.style.cssText = 'position:fixed;left:0;top:0;width:640px;height:360px;z-index:5;background:#000;display:none;transform-origin:0 0;overflow:hidden;clip-path:inset(0)';
@@ -2678,6 +2678,7 @@ var VP = (function () {
   var _v = null, _n = null, lastPl = null;
   function layout() {
     if (!vtv || !shown) return;
+    if (dockR) { vtv.style.width = dockR.w + 'px'; vtv.style.height = dockR.h + 'px'; vtv.style.transform = 'translate(' + dockR.l + 'px,' + dockR.t + 'px)'; vtv.style.zIndex = 70; vtv.style.pointerEvents = 'auto'; vtv.style.opacity = 1; vtv.style.display = 'block'; if (box) box.style.display = 'none'; return; }
     if (poppedOut) {
       var w = Math.min(innerWidth * 0.92, 980), hh = w * 9 / 16; vtv.style.width = w + 'px'; vtv.style.height = hh + 'px'; vtv.style.transform = 'translate(' + ((innerWidth - w) / 2) + 'px,' + (innerHeight * 0.2) + 'px)';
       vtv.style.pointerEvents = 'auto'; vtv.style.opacity = 1; vtv.style.display = 'block'; return;
@@ -2879,6 +2880,8 @@ var VP = (function () {
     extraIs: function (pl) { return extraPl === pl; },
     active: function () { return !!shown; },
     lpGoto: lpGoto, lpInfo: lpInfo, lpHead: lpHead,
+    dock: function (r) { dockR = r; if (vtv) { if (!r) { vtv.style.zIndex = 5; if (box && shown) box.style.display = 'block'; } if (shown) layout(); } },
+    lpKey: function (k) { lpKey(k); }, lpScroll: function (d) { lpScroll(d); }, ctl: function () { return ctl; }, cur: function () { return states[cur.id] || null; },
     set: function (room, st) { states[room] = st && st.k ? st : null; tick(); var s2 = states[room]; if (s2 && ytReady && !ctl && shown) { s2.room = room; follow(s2); } }
   };
 })();
@@ -4536,6 +4539,13 @@ if (window.__hall) { window.__hall.setEmo = setEmo; window.__hall.WSS = WSS; }
     if (!ui.stat) return; var a = tvApi(), st = a && a.state && a.state();
     ui.stat.textContent = !a ? 'Тут немає телевізора' : (st ? 'Телевізор показує' + (st.by ? ': ' + st.by : '') : 'Телевізор вимкнено');
     ui.tvb.textContent = st ? 'Вимкнути телевізор' : 'Увімкнути телевізор'; ui.tvb.style.opacity = a ? 1 : 0.4;
+    deckSync(st);
+  }
+  var deckOn = false;
+  function deckSync(st) {
+    if (!ui.st) return; var want = !!(st && (st.k === 'lp' || st.k === 'gd' || st.k === 'yt') && window.__vp && __vp.active());
+    if (want !== deckOn) { deckOn = want; vc.style.visibility = want ? 'hidden' : 'visible'; ui.bt.style.display = want ? 'none' : 'flex'; ui.dk.style.display = want && st.k === 'lp' ? 'flex' : 'none'; ui.dh.style.display = want ? 'block' : 'none'; if (!want) __vp.dock(null); }
+    if (want) { var r = vc.getBoundingClientRect(), sr = ui.st.getBoundingClientRect(), w = Math.min(sr.width, sr.height * 16 / 9), h = w * 9 / 16; __vp.dock({ l: sr.left + (sr.width - w) / 2, t: sr.top + (sr.height - h) / 2, w: w, h: h }); }
   }
 
   /* ---------- інтерфейс на весь екран ---------- */
@@ -4575,15 +4585,22 @@ if (window.__hall) { window.__hall.setEmo = setEmo; window.__hall.WSS = WSS; }
       if (!a.video(vin.value)) toast('Посилання не розпізнано.', 3500); else { toast('Відео на телевізорі.', 2500); vrow.style.display = 'none'; setStat(); }
     }, 'main');
     btn(sd, 'Відео за посиланням', function () { vrow.style.display = vrow.style.display === 'none' ? 'flex' : 'none'; if (vrow.style.display === 'flex') vin.focus(); });
-    btn(sd, 'Тема з сайту', function () { var a = tvApi(); if (!a || !a.pick) { toast('Тут немає телевізора.', 2500); return; } closeUI(); a.pick(); });
+    btn(sd, 'Тема з сайту', function () {
+      var a = tvApi(); if (!a || !a.pick) { toast('Тут немає телевізора.', 2500); return; } closeUI(); a.pick();
+      var n = 0, iv = setInterval(function () { n++; var s2 = a.state(); if (s2 && s2.k === 'lp' && !overlay && holding && !modalOpen) { clearInterval(iv); openUI(); } else if (n > 120 || overlay) clearInterval(iv); }, 1000);
+    });
     el('h4', '', 'Інструменти', sd);
     var tools = [['move', 'Рух і масштаб'], ['h', 'Маркер (виділити)'], ['u', 'Підкреслити'], ['e', 'Гумка']]; ui.tools = {};
     tools.forEach(function (t) { ui.tools[t[0]] = btn(sd, t[1], function () { tool = t[0]; syncUI(); vc.style.cursor = tool === 'move' ? 'grab' : 'crosshair'; }); });
     var sw = el('div', 'sw', '', sd); ui.sw = HL.map(function (c, i) { var s = el('i', '', '', sw); s.style.background = c; s.addEventListener('click', function () { col = i; syncUI(); }); return s; });
     btn(sd, 'Скасувати відмітку', function () { if (!doc) return; var ms = marksOf(); if (!ms.length) return; var g = ms[ms.length - 1].g; doc.marks[pageIdx] = ms.filter(function (m) { return m.g !== g; }); changed(); });
     btn(sd, 'Стерти все на сторінці', function () { if (!doc) return; doc.marks[pageIdx] = []; changed(); });
-    var st = el('div', 'st', '', mn); vc = el('canvas', '', '', st); vc.width = TW; vc.height = TH; vx = vc.getContext('2d'); bindStage();
-    var bt = el('div', 'bt', '', mn);
+    var st = el('div', 'st', '', mn); ui.st = st; vc = el('canvas', '', '', st); vc.width = TW; vc.height = TH; vx = vc.getContext('2d'); bindStage();
+    var dk = el('div', 'bt', '', mn); dk.style.display = 'none'; ui.dk = dk;
+    btn(dk, '◀ Назад', function () { VP.lpKey('ArrowLeft'); }); btn(dk, 'Далі ▶', function () { VP.lpKey('ArrowRight'); }); btn(dk, '▲', function () { VP.lpScroll(-0.8); }); btn(dk, '▼', function () { VP.lpScroll(0.8); });
+    btn(dk, 'Зупинити показ', function () { var a = tvApi(); if (a) a.off(); setStat(); });
+    var dh = el('div', '', 'Клацайте по презентації прямо тут: кнопки й слайди повторюються на телевізорі та в студентів.', mn); dh.style.cssText = 'display:none;font-size:13px;color:#8fa6c2;text-align:center'; ui.dh = dh;
+    var bt = el('div', 'bt', '', mn); ui.bt = bt;
     btn(bt, '◀', function () { goPage(pageIdx - 1); }); ui.pg = el('span', '', '1 / 1', bt); btn(bt, '▶', function () { goPage(pageIdx + 1); });
     btn(bt, '−', function () { zoomBy(1 / 1.3); }); btn(bt, '+', function () { zoomBy(1.3); });
     btn(bt, 'Вмістити', function () { var p = pg(); if (!p) return; V.z = Math.min(1, TH * p.ar / TW); clampV(); need(); changed(); });
@@ -4597,7 +4614,7 @@ if (window.__hall) { window.__hall.setEmo = setEmo; window.__hall.WSS = WSS; }
     ui.sw.forEach(function (s, i) { s.className = i === col ? 'on' : ''; }); ui.pg.textContent = doc ? (pageIdx + 1) + ' / ' + doc.n : '—';
   }
   function closeUI() {
-    if (!overlay) return; clearInterval(ui.tick); clearTimeout(pubT); if (pending && tvOn && doc) { try { publish(); } catch (e) { } } overlay.remove(); overlay = null; vc = null; vx = null; modalOpen = false;
+    if (!overlay) return; if (window.__vp) __vp.dock(null); deckOn = false; clearInterval(ui.tick); clearTimeout(pubT); if (pending && tvOn && doc) { try { publish(); } catch (e) { } } overlay.remove(); overlay = null; vc = null; vx = null; modalOpen = false;
   }
   addEventListener('keydown', function (e) {
     if (!overlay) return; if (e.key === 'Escape') { e.stopPropagation(); e.preventDefault(); closeUI(); return; }
