@@ -215,6 +215,54 @@ function wsGeo(name) {
 var wsMat = null;
 function wsMesh(name) { if (!wsMat) wsMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.6, metalness: 0.1 }); return new THREE.Mesh(wsGeo(name), wsMat); }
 
+/* ====== Моделі з .blend користувача: годинник TROMMA (реальний час), чашки, склянки, лампа, дзеркало ====== */
+var P2 = (function () {
+  var cache = {}, wait = {}, mats = {};
+  function dec(d) {
+    var b = function (s, T) { var bin = atob(s), u = new Uint8Array(bin.length); for (var i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i); return new T(u.buffer); };
+    var p = b(d.p, Int16Array), nn = b(d.nn, Int8Array), c = b(d.c, Uint8Array), ix = b(d.i, d.big ? Uint32Array : Uint16Array), n = d.n, pf = new Float32Array(n * 3), nf = new Float32Array(n * 3), cf = new Float32Array(n * 3);
+    for (var i = 0; i < n * 3; i++) { pf[i] = p[i] / d.k; nf[i] = nn[i] / 127; cf[i] = c[i] / 255; }
+    var g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(pf, 3)); g.setAttribute('normal', new THREE.BufferAttribute(nf, 3)); g.setAttribute('color', new THREE.BufferAttribute(cf, 3)); g.setIndex(new THREE.BufferAttribute(ix, 1));
+    return g;
+  }
+  function file(name, cb) {
+    if (cache[name]) { cb(cache[name]); return; }
+    (wait[name] = wait[name] || []).push(cb); if (wait[name].length > 1) return;
+    fetch(name + '.json?v=1').then(function (r) { return r.ok ? r.json() : Promise.reject(); }).then(function (d) { cache[name] = d; var w = wait[name]; wait[name] = []; w.forEach(function (f) { f(d); }); }, function () { wait[name] = []; });
+  }
+  function mat(k) {
+    if (!mats[k]) mats[k] = k === 'glass' ? new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.05, metalness: 0.1, transparent: true, opacity: 0.5, depthWrite: false, side: THREE.DoubleSide }) : new THREE.MeshStandardMaterial({ vertexColors: true, roughness: k === 'metal' ? 0.35 : 0.6, metalness: k === 'metal' ? 0.6 : 0.05, side: THREE.DoubleSide });
+    return mats[k];
+  }
+  function mesh(d, k) { return new THREE.Mesh(dec(d), mat(k || 'v')); }
+  return { file: file, mesh: mesh, dec: dec };
+})();
+
+var CLOCKS = [];
+function realClock(r) {
+  var g = new THREE.Group(), s = r / 0.1246; g.scale.setScalar(s);
+  var cv = document.createElement('canvas'); cv.width = cv.height = 512; var x = cv.getContext('2d');
+  x.fillStyle = '#f6f2e8'; x.fillRect(0, 0, 512, 512); x.fillStyle = '#2a2420'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.font = 'bold 56px Georgia';
+  for (var i = 1; i <= 12; i++) { var a = i * Math.PI / 6; x.fillText(String(i), 256 + Math.sin(a) * 196, 256 - Math.cos(a) * 196); }
+  for (i = 0; i < 60; i++) { var b = i * Math.PI / 30, l = i % 5 ? 8 : 0; x.lineWidth = i % 5 ? 2 : 4; x.beginPath(); x.moveTo(256 + Math.sin(b) * 240, 256 - Math.cos(b) * 240); x.lineTo(256 + Math.sin(b) * (232 - l), 256 - Math.cos(b) * (232 - l)); x.stroke(); }
+  var tx = new THREE.CanvasTexture(cv); tx.anisotropy = 4;
+  var dial = new THREE.Mesh(new THREE.CircleGeometry(0.1174, 48), new THREE.MeshStandardMaterial({ map: tx, roughness: 0.7, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 })); dial.position.z = 0.0229; g.add(dial);
+  var hh = new THREE.Group(), mh = new THREE.Group(), sh = new THREE.Group(); hh.position.z = mh.position.z = 0.0008; sh.position.z = 0.0318;
+  var sw = new THREE.Mesh(new THREE.BoxGeometry(0.0022, 0.105, 0.0012), new THREE.MeshBasicMaterial({ color: 0xc02a22 })); sw.position.y = 0.03; sh.add(sw); g.add(hh, mh, sh);
+  var gl = new THREE.Mesh(new THREE.CircleGeometry(0.1174, 40), new THREE.MeshBasicMaterial({ color: 0xcfe6ff, transparent: true, opacity: 0.08, depthWrite: false })); gl.position.z = 0.0409; g.add(gl);
+  P2.file('props_clock', function (d) {
+    g.add(P2.mesh(d.clockBody)); var hub = P2.mesh(d.clockHub); hub.position.z = 0.0008; g.add(hub);
+    mh.add(P2.mesh(d.handM)); hh.add(P2.mesh(d.handH));
+  });
+  g.userData.upd = function () {
+    var t = new Date(), sec = t.getSeconds() + t.getMilliseconds() / 1000, min = t.getMinutes() + sec / 60, hr = (t.getHours() % 12) + min / 60;
+    sh.rotation.z = -sec * Math.PI / 30; mh.rotation.z = -min * Math.PI / 30; hh.rotation.z = -hr * Math.PI / 6;
+  };
+  g.userData.upd(); CLOCKS.push(g); if (!ckReg) { ckReg = 1; updaters.push(ckTick); } return g;
+}
+var ckReg = 0;
+function ckTick() { var n = Date.now(); if (n - (ckTick.t || 0) < 200) return; ckTick.t = n; for (var i = 0; i < CLOCKS.length; i++) CLOCKS[i].userData.upd(); }
+
 /* ====== ЯДРО: сцена, камера, ходьба, клік, вікна, таймер ====== */
 var $ = function (i) { return document.getElementById(i); };
 var CFG = { SEQUENTIAL: false };        // true: двері відкриваються по черзі
@@ -628,8 +676,8 @@ function blue(x, w, h) { x.fillStyle = '#0f2236'; x.fillRect(0, 0, w, h); x.stro
     painting(a[0], a[1], 2.0, 0.9, 0.7, function (x, w, h) { blue(x, w, h); x.font = '22px Georgia'; x.fillText(['σ = N / A', 'M = F · a', 'Δl = N·l / EA', 'n = σт / σ'][i], 14, h / 2 + 8); }, 'Формула', ['Нормальне напруження: сила, поділена на площу перерізу.', 'Момент сили: сила на плече.', 'Закон Гука для розтягу.', 'Коефіцієнт запасу міцності.'][i]);
   });
   // меблі
-  var rug = new THREE.Mesh(new THREE.CircleGeometry(2.7, 48), mat(0x5a1f1f)); rug.rotation.x = -Math.PI / 2; rug.position.y = 0.012; hallG.add(rug);
-  var rug2 = new THREE.Mesh(new THREE.RingGeometry(2.2, 2.4, 48), mat(0xb08d3c)); rug2.rotation.x = -Math.PI / 2; rug2.position.y = 0.014; hallG.add(rug2);
+  var rugM = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.95 }), rug = new THREE.Mesh(new THREE.PlaneGeometry(2, 3), rugM); rug.rotation.x = -Math.PI / 2; rug.rotation.z = Math.PI / 2; rug.scale.setScalar(1.7); rug.position.y = 0.012; hallG.add(rug);
+  (function () { var im = new Image(); im.onload = function () { var t = new THREE.Texture(im); t.anisotropy = ANISO; t.needsUpdate = true; rugM.map = t; rugM.needsUpdate = true; }; im.src = 'tex/rug.jpg?v=1'; })();
   // центральний стіл із глобусом і свічкою
   var tb = grp(0, 0, -0.6, hallG);
   cyl(0.8, 0.8, 0.07, M.wood, 0, 0.82, 0, tb, 32); cyl(0.09, 0.14, 0.8, M.wood, 0, 0.4, 0, tb); cyl(0.45, 0.5, 0.06, M.wood, 0, 0.03, 0, tb);
@@ -774,13 +822,10 @@ function dark(loc) { return !loc.lit; }
   act(vise, 'Лещата', function () { if (needLight()) return; toast('Лещата затиснули, але вона порожня. Щось тут не так.'); }); act(ham, 'Молоток', function () { if (needLight()) return; toast('Молоток. Для сейфа він не годиться: тут потрібна голова.'); });
   obs(loc, 0, 1.2, 1.2, 0.5);
   // годинник (північ, ліворуч)
-  var wc = wallAt(loc, 0, -2.6, 1.9); cyl(0.4, 0.4, 0.06, mat(0xe9e1c9), 0, 0, 0.09, wc, 28).rotation.x = Math.PI / 2; var rim = new THREE.Mesh(new THREE.TorusGeometry(0.4, 0.04, 8, 28), mat(0x5a3a1b)); rim.position.z = 0.1; wc.add(rim);
-  box(0.02, 0.28, 0.01, M.black, 0, 0.1, 0.13, wc); box(0.02, 0.2, 0.01, M.black, 0.08, 0, 0.13, wc).rotation.z = 1.2;
-  var pend = grp(0, -0.4, 0.1, wc); box(0.015, 0.4, 0.01, M.brass, 0, -0.2, 0, pend); cyl(0.06, 0.06, 0.01, M.brass, 0, -0.42, 0, pend, 14).rotation.x = Math.PI / 2;
-  loc.update = function (s) { pend.rotation.z = 0.3 * Math.sin(s * 3); };
+  var wc = wallAt(loc, 0, -2.6, 1.9); wc.add(realClock(0.4));
   act(wc, 'Годинник', function () {
     if (needLight()) return; if (F(id).load) { toast('Годинник іде: ' + mmss(elapsed(id)) + ' з початку. Чим швидше, тим більше балів.'); return; }
-    F(id).load = true; modal('<h3>Годинник</h3><p>За маятником приклеєна записка:</p>' + note('<p><b>«Навантаження на балку: сила 12 кН, прикладена на відстані 2 м від опори A».</b></p>'));
+    F(id).load = true; modal('<h3>Годинник</h3><p>За годинником приклеєна записка:</p>' + note('<p><b>«Навантаження на балку: сила 12 кН, прикладена на відстані 2 м від опори A».</b></p>'));
   });
   // вікно (захід)
   var win = wallAt(loc, 3, 0.4, 1.5); box(1.3, 1.4, 0.12, M.darkwood, 0, 0.7, 0.06, win); var gl = box(1.1, 1.2, 0.04, mat(0x0b1830, { emissive: 0x16284a, ei: .8 }), 0, 0.7, 0.1, win); box(0.05, 1.2, 0.06, M.darkwood, 0, 0.7, 0.12, win); box(1.1, 0.05, 0.06, M.darkwood, 0, 0.7, 0.12, win);
@@ -1349,7 +1394,7 @@ function wsStation(loc, G, x, zd, seat) {
   act(hl, 'Показати телевізор', function () { if (w.state === 'menu') w.set('tv'); }, { reach: 3 });
   act(hr, 'Показати дошку', function () { if (w.state === 'menu') w.set('board'); }, { reach: 3 });
   act(back, 'Меню екрана', function () { if (w.state === 'tv' || w.state === 'board') w.set('menu'); }, { reach: 3 });
-  w.tick = function (now) { if (w.state === 'tv' && now - w.last > 600) { w.last = now; draw(VP.active() ? 'Телевізор' : 'Телевізор: поки нічого не показують'); } };
+  w.tick = function (now) { if (w.state === 'tv' && now - w.last > 600) { w.last = now; var ap = window.__tvApis && window.__tvApis[loc.id], fr = !VP.active() && ap && ap.frame && ap.frame(); if (fr) { cx.fillStyle = '#000'; cx.fillRect(0, 0, 640, 340); cx.drawImage(fr, 18, 0, 604, 340); tex.needsUpdate = true; } else draw(VP.active() ? 'Телевізор' : 'Телевізор: поки нічого не показують'); } };
   w.set('off'); WSS.push(w); return w;
 }
 updaters.push(function () {
@@ -1457,16 +1502,9 @@ function sconce(loc, wi, lx, y) {
   var s = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.1, 0.2, 10, 1, true), new THREE.MeshBasicMaterial({ color: 0xffe2a0, side: THREE.DoubleSide })); s.position.set(0, 0.03, 0.12); g.add(s);
 }
 function clock(loc, wi, lx, ly, r) {
-  var g = wallAt(loc, wi, lx, ly), t = canvasTex(256, 256, function (x, w, h) {
-    x.fillStyle = '#f4efe2'; x.beginPath(); x.arc(w / 2, h / 2, w / 2 - 4, 0, 6.2832); x.fill(); x.strokeStyle = '#1a120a'; x.lineWidth = 6; x.stroke();
-    for (var i = 0; i < 12; i++) { var a = i * Math.PI / 6; x.lineWidth = i % 3 ? 3 : 6; x.beginPath(); x.moveTo(w / 2 + Math.sin(a) * (w / 2 - 22), h / 2 - Math.cos(a) * (h / 2 - 22)); x.lineTo(w / 2 + Math.sin(a) * (w / 2 - 12), h / 2 - Math.cos(a) * (h / 2 - 12)); x.stroke(); }
-    var d = new Date(), ha = ((d.getHours() % 12) + d.getMinutes() / 60) * Math.PI / 6, ma = d.getMinutes() * Math.PI / 30;
-    x.lineCap = 'round'; x.lineWidth = 9; x.beginPath(); x.moveTo(w / 2, h / 2); x.lineTo(w / 2 + Math.sin(ha) * 60, h / 2 - Math.cos(ha) * 60); x.stroke();
-    x.lineWidth = 6; x.beginPath(); x.moveTo(w / 2, h / 2); x.lineTo(w / 2 + Math.sin(ma) * 92, h / 2 - Math.cos(ma) * 92); x.stroke();
-  });
-  box(r * 2 + 0.1, r * 2 + 0.1, 0.05, M.darkwood, 0, 0, 0.03, g);
-  var p = new THREE.Mesh(new THREE.CircleGeometry(r, 32), new THREE.MeshBasicMaterial({ map: t })); p.position.z = 0.06; g.add(p);
-  act(p, 'Годинник', say('Час іде, пара теж.'), { reach: 5 });
+  var g = wallAt(loc, wi, lx, ly), c = realClock(r); g.add(c);
+  var p = new THREE.Mesh(new THREE.CircleGeometry(r, 24), new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false })); p.position.z = 0.05; g.add(p);
+  act(p, 'Годинник', function () { var d = new Date(); toast('Зараз ' + ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2) + '. Час іде, пара теж.'); }, { reach: 5 });
 }
 function cooler(loc, lx, lz) {
   var g = grp(lx, 0, lz, loc.group); box(0.36, 0.95, 0.36, M.white, 0, 0.48, 0, g); cyl(0.14, 0.14, 0.42, mat(0x6aa8e0, { rough: .2 }), 0, 1.2, 0, g, 16); box(0.08, 0.06, 0.04, mat(0x2a6ac0), -0.08, 0.8, 0.19, g); box(0.08, 0.06, 0.04, mat(0xc02a22), 0.08, 0.8, 0.19, g);
@@ -3396,7 +3434,7 @@ var RB = (function () {
     if (q('#tvp')) q('#tvp').addEventListener('click', function () { closeModal(); gotoPage(myIdx - 1); });
     if (q('#tvn')) q('#tvn').addEventListener('click', function () { closeModal(); gotoPage(myIdx + 1); });
   }
-  var __tvApi = { open: openPanel, publish: function (d) { myPages = [d]; myPdf = null; tvPublish(0); }, off: tvOff, state: function () { return tvState; }, pick: function () { lecPicker(); }, video: function (u) { var pr = VP.parse(u); if (!pr) return false; startVideo(pr); return true; } };
+  var __tvApi = { open: openPanel, publish: function (d) { myPages = [d]; myPdf = null; tvPublish(0); }, off: tvOff, state: function () { return tvState; }, pick: function () { lecPicker(); }, frame: function () { return tvState && tvState.d && tvState.k !== 'yt' ? tvc : null; }, video: function (u) { var pr = VP.parse(u); if (!pr) return false; startVideo(pr); return true; } };
   (window.__tvApis = window.__tvApis || {})[KEY] = __tvApi;
   if (KEY === 'meet') window.__tv = __tvApi;
 
@@ -4021,7 +4059,7 @@ if (window.__hall) { window.__hall.setEmo = setEmo; window.__hall.WSS = WSS; }
       BG.add(m);
     }, function () { loaded = false; });
   }
-  updaters.push(function () { if (!loaded && typeof cur !== 'undefined' && cur === CAFE) loadBar(); });
+  updaters.push(function () { if (!loaded && typeof cur !== 'undefined' && cur === CAFE) { loadBar(); needData(decorate); } });
 
   /* ---------- кавомашина на стійці ---------- */
   var mach = wsMesh('cm'); mach.scale.setScalar(0.8); mach.position.set(-0.75, ISL_Y, 1.0); mach.rotation.y = 0; BG.add(mach);
@@ -4029,17 +4067,25 @@ if (window.__hall) { window.__hall.setEmo = setEmo; window.__hall.WSS = WSS; }
 
   /* ---------- чашки ---------- */
   var LIQ = { coffee: 0x3a1f10, tea: 0xb8681c };
-  function cupMesh(kind) {
+  var VESS = { paper: { n: 'Паперовий стаканчик з кришкою', key: 'cup1', lid: 1 }, ceramic: { n: 'Керамічна чашка', key: 'cup2' }, g1: { n: 'Склянка синя', key: 'glass1', glass: 1 }, g2: { n: 'Склянка біла', key: 'glass2', glass: 1 }, g3: { n: 'Склянка сіра', key: 'glass3', glass: 1 } };
+  var cafeData = null;
+  function needData(cb) { P2.file('props_cafe', function (d) { cafeData = d; if (cb) cb(); }); }
+  function cupMesh(kind, v) {
+    if (v && cafeData && VESS[v]) {
+      var vg = new THREE.Group(), vd = VESS[v], dd = cafeData[vd.key]; vg.add(P2.mesh(dd, vd.glass ? 'glass' : 'v'));
+      if (!vd.lid) { var ld = new THREE.Mesh(new THREE.CircleGeometry(Math.min(dd.w, dd.d) * (vd.glass ? 0.36 : 0.4), 20), new THREE.MeshBasicMaterial({ color: LIQ[kind] })); ld.rotation.x = -Math.PI / 2; ld.position.y = dd.h * 0.82; vg.add(ld); }
+      vg.userData.v = 1; return vg;
+    }
     var g = new THREE.Group(), m = wsMesh('cup'); g.add(m);
     var d = new THREE.Mesh(new THREE.CircleGeometry(0.029, 20), new THREE.MeshBasicMaterial({ color: LIQ[kind] })); d.rotation.x = -Math.PI / 2; d.position.y = 0.035; g.add(d);
     return g;
   }
-  var ready = null, rdyKind = '', pickG = new THREE.Group(); pickG.position.set(1.3, ISL_Y, 1.0); BG.add(pickG);
+  var ready = null, rdyKind = '', rdyV = '', pickG = new THREE.Group(); pickG.position.set(1.3, ISL_Y, 1.0); BG.add(pickG);
   var phit = hit(BG, 0.5, 0.35, 0.5, 1.3, ISL_Y + 0.15, 1.0);
-  function putReady(kind) {
+  function putReady(kind, v) {
     if (ready) { pickG.remove(ready); ready = null; }
-    if (!kind) { rdyKind = ''; return; }
-    ready = cupMesh(kind); ready.scale.setScalar(2.4); ready.rotation.y = 0.5; pickG.add(ready); rdyKind = kind;
+    if (!kind) { rdyKind = ''; rdyV = ''; return; }
+    ready = cupMesh(kind, v); ready.scale.setScalar(ready.userData.v ? 1.5 : 2.4); ready.rotation.y = 0.5; pickG.add(ready); rdyKind = kind; rdyV = v || '';
   }
 
   /* ---------- пара ---------- */
@@ -4050,11 +4096,26 @@ if (window.__hall) { window.__hall.setEmo = setEmo; window.__hall.WSS = WSS; }
     sp.position.set(x, y, z); sp.scale.setScalar(0.1); parent.add(sp); puffs.push({ s: sp, t0: Date.now(), life: life || 1400, y0: y });
   }
 
+  /* ---------- лампи-свічки, склянки й дзеркало (з .blend) ---------- */
+  var decorated = false, flames = [];
+  function decorate() {
+    if (decorated || !cafeData) return; decorated = true;
+    [[-3.0, 0.4, 'glass1', 0.35], [3.0, 0.4, 'glass2', -0.3], [3.2, -1.6, 'glass3', 0.3]].forEach(function (p, i) {
+      var lg = new THREE.Group(); lg.position.set(p[0], 0.75, p[1]); lg.scale.setScalar(1.35); var lm = P2.mesh(cafeData.lamp, 'v'); lm.material = lm.material.clone(); lm.material.color.setScalar(0.62); lg.add(lm);
+      var f = cafeData.lamp.f, fl = new THREE.Mesh(new THREE.SphereGeometry(0.016, 8, 8), new THREE.MeshBasicMaterial({ color: 0xffc860 })); fl.scale.y = 1.6; fl.position.set(f[0], f[1] + 0.012, f[2]); lg.add(fl);
+      var li = new THREE.PointLight(0xffb060, 0.4, 5); li.position.set(p[0], 1.25, p[1]); CAFE.group.add(li); flames.push({ f: fl, l: li, s: i * 1.7 });
+      CAFE.group.add(lg);
+      var gg = P2.mesh(cafeData[p[2]], 'glass'); gg.position.set(p[0] + p[3], 0.75, p[1] + 0.2); gg.scale.setScalar(1.2); CAFE.group.add(gg);
+    });
+    var mr = P2.mesh(cafeData.mirror, 'metal'); mr.position.set(-4.2, 0, -1.6); mr.rotation.y = Math.PI / 2 - 0.12; CAFE.group.add(mr);
+  }
+  updaters.push(function () { if (!flames.length) return; var t = Date.now() / 1000; flames.forEach(function (q) { var k = 0.85 + 0.15 * Math.sin(t * 9 + q.s) * Math.sin(t * 5.3 + q.s * 2); q.l.intensity = 0.4 * k; q.f.scale.y = 1.6 * k; }); });
+
   /* ---------- бариста-бот ---------- */
   var bot = makeFigure({ s: 'f', k: 3, c: 2, h: 2, r: 0, old: 1 }); bot.scale.setScalar(1 / BS); bot.position.set(-0.15, 0, 0.1); bot.rotation.y = Math.PI; BG.add(bot);
   var lab = signPlane(['Бариста-бот'], 1.2, 0.3, { bg: '#17110b', fg: '#f2d9a0', px: 90 }); lab.scale.setScalar(1 / BS); lab.position.set(-0.15, 2.55, 0.1); BG.add(lab);
   var bhit = hit(BG, 0.8, 1.3, 0.7, -0.15, 1.9, 0.1);
-  var brew = null;
+  var brew = null, heldV = '';
 
   function order() {
     if (busy || modalOpen) return;
@@ -4062,17 +4123,23 @@ if (window.__hall) { window.__hall.setEmo = setEmo; window.__hall.WSS = WSS; }
     if (held) { toast('У руках уже є чашка. Спершу випийте її або поставте.'); return; }
     var bd = modal('<h3>Бариста-бот</h3><p class="muted">Що приготувати? Після напою діє бонус, поки не мине час.</p>' +
       ['coffee', 'tea'].map(function (k) { var d = DRINKS[k]; return '<button class="cfo" data-k="' + k + '" style="display:block;width:100%;text-align:left;margin:8px 0;padding:12px 14px;font-family:inherit;font-size:16px;background:rgba(36,26,16,.92);color:#f2e2c0;border:1px solid #8a7347;cursor:pointer"><b>' + d.name + '</b><br><span style="font-size:13px;opacity:.85">' + d.buff + ': ' + d.txt + ', ' + Math.round(d.sec / 60 * 10) / 10 + ' хв</span></button>'; }).join(''));
-    Array.prototype.forEach.call(bd.querySelectorAll('.cfo'), function (b) { b.addEventListener('click', function () { var k = b.getAttribute('data-k'); closeModal(); start(k); }); });
+    Array.prototype.forEach.call(bd.querySelectorAll('.cfo'), function (b) { b.addEventListener('click', function () { var k = b.getAttribute('data-k'); closeModal(); chooseVessel(k); }); });
   }
-  function start(k) {
-    putReady(''); brew = { k: k, t0: Date.now(), n: 0 };
+  function chooseVessel(k) {
+    needData(function () {
+      var bd = modal('<h3>Оберіть посуд</h3><p class="muted">У що налити: ' + DRINKS[k].name.toLowerCase() + '?</p>' + Object.keys(VESS).map(function (v) { return '<button class="cfv" data-v="' + v + '" style="display:block;width:100%;text-align:left;margin:6px 0;padding:11px 14px;font-family:inherit;font-size:16px;background:rgba(36,26,16,.92);color:#f2e2c0;border:1px solid #8a7347;cursor:pointer">' + VESS[v].n + '</button>'; }).join(''));
+      Array.prototype.forEach.call(bd.querySelectorAll('.cfv'), function (b) { b.addEventListener('click', function () { var v = b.getAttribute('data-v'); closeModal(); start(k, v); }); });
+    });
+  }
+  function start(k, v) {
+    putReady(''); brew = { k: k, v: v, t0: Date.now(), n: 0 };
     toast('Бот: «Хвилинку, ' + (k === 'coffee' ? 'мелю каву' : 'заварюю чай') + '…»', 3200);
   }
   [bot, bhit, mach, mhit].forEach(function (o) { act(o, 'Замовити напій', order, { reach: 4.5 }); });
   var held = '', hcup = null, drinking = 0;
   function take() {
     if (!rdyKind) return; if (held) return;
-    held = rdyKind; putReady(''); holdSync(); toast('Чашку взято. Кнопки «Випити» і «Поставити» зліва внизу.', 3500);
+    held = rdyKind; heldV = rdyV; putReady(''); holdSync(); toast('Чашку взято. Кнопки «Випити» і «Поставити» зліва внизу.', 3500);
   }
   [phit].forEach(function (o) { act(o, 'Взяти чашку', take, { reach: 4 }); });
 
@@ -4080,13 +4147,13 @@ if (window.__hall) { window.__hall.setEmo = setEmo; window.__hall.WSS = WSS; }
   var css = 'display:flex;align-items:center;justify-content:center;width:46px;height:46px;padding:0;font-family:inherit;font-size:14px;background:rgba(36,26,16,.92);color:#f2e2c0;border:1px solid #8a7347;cursor:pointer';
   function mkb(txt, st, fn, ic) { var b = document.createElement('button'); b.type = 'button'; b.className = 'cfb ib'; if (ic) b.innerHTML = ico(ic); else b.textContent = txt; b.title = txt; b.style.cssText = css + ';' + st; b.addEventListener('click', fn); document.body.appendChild(b); return b; }
   var bDrink = mkb('Випити', 'position:fixed;left:12px;bottom:70px;z-index:6;display:none', function () { drink(); }, 'cup');
-  var bPut = mkb('Поставити', 'position:fixed;left:12px;bottom:118px;z-index:6;display:none', function () { if (!held) return; var k = held; held = ''; holdSync(); if (typeof cur !== 'undefined' && cur === CAFE) { putReady(k); toast('Чашку поставлено на стійку.'); } else toast('Чашку відставлено.'); }, 'put');
+  var bPut = mkb('Поставити', 'position:fixed;left:12px;bottom:118px;z-index:6;display:none', function () { if (!held) return; var k = held; held = ''; holdSync(); if (typeof cur !== 'undefined' && cur === CAFE) { putReady(k, heldV); toast('Чашку поставлено на стійку.'); } else toast('Чашку відставлено.'); }, 'put');
   var bBadge = document.createElement('div'); bBadge.style.cssText = 'position:fixed;left:12px;top:150px;z-index:6;display:none;font-size:13px;line-height:1.6;color:#f2e2c0;background:rgba(36,26,16,.85);border:1px solid #8a7347;padding:6px 10px;pointer-events:none'; document.body.appendChild(bBadge);
-  window.__cupMesh = function (k) { return cupMesh(k); }; window.__hcupVis = function (v) { if (hcup) hcup.visible = v; };
+  window.__cupMesh = function (k) { return cupMesh(k, ''); }; window.__hcupVis = function (v) { if (hcup) hcup.visible = v; };
   function holdSync() {
     window.__cupK = held === 'coffee' ? 1 : held === 'tea' ? 2 : 0;
     if (hcup) { camera.remove(hcup); hcup = null; }
-    if (held) { scene.add(camera); hcup = cupMesh(held); hcup.scale.setScalar(1.7); hcup.position.set(0.2, -0.2, -0.45); hcup.rotation.set(0.15, 0.5, 0); camera.add(hcup); }
+    if (held) { scene.add(camera); hcup = cupMesh(held, heldV); hcup.scale.setScalar(hcup.userData.v ? 1.3 : 1.7); hcup.position.set(0.2, -0.2, -0.45); hcup.rotation.set(0.15, 0.5, 0); camera.add(hcup); }
     bDrink.style.display = bPut.style.display = held ? 'flex' : 'none';
   }
   function drink() {
@@ -4128,7 +4195,7 @@ if (window.__hall) { window.__hall.setEmo = setEmo; window.__hall.WSS = WSS; }
       var t = now - brew.t0;
       if (t > brew.n * 450 && t < 3500) { brew.n++; puff(BG, -0.75 + (Math.random() - 0.5) * 0.05, ISL_Y + 0.35, 1.05, 1500); }
       bot.rotation.x = t < 3500 ? 0.12 * Math.sin(t / 220) : 0;
-      if (t >= 3600) { var k = brew.k; brew = null; putReady(k); toast('Бот: «' + DRINKS[k].say + '»', 4200); }
+      if (t >= 3600) { var k = brew.k, brew0 = brew; brew = null; putReady(k, brew0.v); toast('Бот: «' + DRINKS[k].say + '»', 4200); }
     }
     // випиваємо: підносимо чашку до обличчя й повертаємо
     if (drinking && hcup) {
@@ -4183,16 +4250,19 @@ if (window.__hall) { window.__hall.setEmo = setEmo; window.__hall.WSS = WSS; }
   /* ---------- стіл викладача й планшет на ньому ---------- */
   var deskTabs = {}, deskRec = {}, mpx = innerWidth / 2, mpy = innerHeight / 2;
   addEventListener('pointermove', function (e) { mpx = e.clientX; mpy = e.clientY; }, true);
-  function setDesk(id, x, z) { var r = deskRec[id]; if (!r) return; var L = LOC[id]; r.d.position.set(x, 0, z); r.ob.x1 = L.X + x - 0.9; r.ob.x2 = L.X + x + 0.9; r.ob.z1 = z - 0.45; r.ob.z2 = z + 0.45; }
+  function setDesk(id, x, z, ry) { var r = deskRec[id]; if (!r) return; var L = LOC[id], q = Math.abs(Math.sin(ry || 0)) > 0.5, hw = q ? 0.45 : 0.9, hd = q ? 0.9 : 0.45; r.d.position.set(x, 0, z); r.d.rotation.y = ry || 0; r.ob.x1 = L.X + x - hw; r.ob.x2 = L.X + x + hw; r.ob.z1 = z - hd; r.ob.z2 = z + hd; }
   function placeDesk() {
     var id = cur.id, L = LOC[id]; if (!deskRec[id]) { toast('Стіл можна ставити в навчальному кабінеті.', 2800); return; }
     var r = new THREE.Raycaster(); r.setFromCamera(new THREE.Vector2(mpx / innerWidth * 2 - 1, -(mpy / innerHeight) * 2 + 1), camera);
     var o = r.ray.origin, dr = r.ray.direction; if (dr.y > -0.02) { toast('Наведіть мишку на підлогу.', 2500); return; }
     var k = -o.y / dr.y, wx = o.x + dr.x * k, wz = o.z + dr.z * k, gx = L.group.position.x, gz = L.group.position.z, b = L.bounds;
     var lx = wx - gx, lz = wz - gz; if (Math.hypot(wx - camera.position.x, wz - camera.position.z) > 9) { toast('Занадто далеко. Підійдіть ближче.', 2500); return; }
-    var mg = 1.2; lx = Math.max(b.x1 - gx + mg, Math.min(b.x2 - gx - mg, lx)); lz = Math.max(b.z1 - gz + mg, Math.min(b.z2 - gz - mg, lz));
-    if (Math.hypot(wx - camera.position.x, wz - camera.position.z) < 1.2) { toast('Відійдіть від місця, куди ставите стіл.', 2500); return; }
-    setDesk(id, lx, lz); try { localStorage.setItem('deskpos_' + id, JSON.stringify({ x: lx, z: lz })); } catch (e) { } toast('Стіл поставлено.', 1800);
+    var X1 = b.x1 - gx, X2 = b.x2 - gx, Z1 = b.z1 - gz, Z2 = b.z2 - gz, ry = 0, SN = 2.2, OFF = 0.75;
+    var dn = [[lz - Z1, 0], [Z2 - lz, Math.PI], [lx - X1, -Math.PI / 2], [X2 - lx, Math.PI / 2]].sort(function (p, q) { return p[0] - q[0]; })[0];
+    if (dn[0] < SN) { ry = dn[1]; if (ry === 0) lz = Z1 + OFF; else if (ry === Math.PI) lz = Z2 - OFF; else if (ry < 0) lx = X1 + OFF; else lx = X2 - OFF; }
+    lx = Math.max(X1 + 0.5, Math.min(X2 - 0.5, lx)); lz = Math.max(Z1 + 0.5, Math.min(Z2 - 0.5, lz));
+    if (Math.hypot(lx + gx - camera.position.x, lz + gz - camera.position.z) < 1.0) { toast('Відійдіть від місця, куди ставите стіл.', 2500); return; }
+    setDesk(id, lx, lz, ry); try { localStorage.setItem('deskpos_' + id, JSON.stringify({ x: lx, z: lz, r: ry })); } catch (e) { } toast('Стіл поставлено.', 1800);
   }
   ROOMS.forEach(function (id) {
     var L = LOC[id]; if (!L) return; var G = L.group;
@@ -4201,7 +4271,7 @@ if (window.__hall) { window.__hall.setEmo = setEmo; window.__hall.WSS = WSS; }
     [-0.78, 0.78].forEach(function (lx) { [-0.34, 0.34].forEach(function (lz) { box(0.06, 0.75, 0.06, M.darkwood, lx, 0.375, lz, d); }); });
     box(1.5, 0.12, 0.02, M.darkwood, 0, 0.68, 0.36, d); box(0.5, 0.2, 0.7, mat(0x4a321c, { rough: .6 }), 0.55, 0.62, 0, d);
     var dob = obs(L, 0, DESK_Z, 0.9, 0.45); deskRec[id] = { d: d, ob: dob };
-    try { var sv = JSON.parse(localStorage.getItem('deskpos_' + id) || 'null'); if (sv && isFinite(sv.x) && isFinite(sv.z)) setDesk(id, sv.x, sv.z); } catch (e) { }
+    try { var sv = JSON.parse(localStorage.getItem('deskpos_' + id) || 'null'); if (sv && isFinite(sv.x) && isFinite(sv.z)) setDesk(id, sv.x, sv.z, sv.r || 0); } catch (e) { }
     var t = grp(-0.1, 0.835, 0.0, d, Math.PI); t.scale.setScalar(0.85); var tab = mkTablet(); t.add(tab);
     var hit = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.24, 0.12), new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false })); hit.position.set(0, 0.1, -0.02); tab.add(hit);
     act(hit, 'Взяти планшет', take, { reach: 4.5 }); deskTabs[id] = t;
