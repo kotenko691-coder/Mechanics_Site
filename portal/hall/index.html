@@ -2466,7 +2466,7 @@ function mxPose(r) {
     r.qt.setFromAxisAngle(MX_UA, 0.35 + dk * 0.25); r.ua.quaternion.multiply(r.qt);
   } else if (cm && cm.parent === r.hand) { r.g.add(cm); cm.scale.setScalar(1.6); }
   for (i = 0; i < 2; i++) { // руки: «вгору», махання, рука на запитання, руки на колінах при сидінні на підлозі
-    var ax = u.arms[i].rotation.x, az = u.arms[i].rotation.z, on = (floor ? Math.abs(ax) > 0.5 : Math.abs(ax) > 0.9) && !(hold && i === 1) ? 1 : 0;
+    var ax = u.arms[i].rotation.x, az = u.arms[i].rotation.z, on = (floor ? Math.abs(ax) > 0.5 : (Math.abs(ax) > 0.9 || Math.abs(az) > 0.3)) && !(hold && i === 1) ? 1 : 0;
     r.ov[i] += (on - r.ov[i]) * Math.min(1, dt * 16);
     if (r.ov[i] > 0.01) mxOv(r, r.arm[i], r.armC[i], ax, az, r.ov[i]);
     r.ovL[i] += ((floor ? 1 : 0) - r.ovL[i]) * Math.min(1, dt * 10);
@@ -2502,6 +2502,20 @@ function selfCup(g) { // чашка у «власній» фігурі (дзер
   var u = g.userData, k = window.__cupK | 0;
   if (k && window.__cupMesh) { if (u.cupK !== k) { if (u.cupM && u.cupM.parent) u.cupM.parent.remove(u.cupM); u.cupM = window.__cupMesh(k); u.cupM.scale.setScalar(1.6); g.add(u.cupM); u.cupK = k; } u.cupM.visible = true; u.dk = window.__cupD | 0; }
   else if (u.cupM) { u.cupM.visible = false; u.cupK = 0; }
+}
+
+/* фотопози (EMO 5..9), які ставить дзеркало; повертає зсув по y */
+var PHOTO_POSES = [[0, 'Стоячи'], [5, 'Привіт'], [6, 'Розслаблено'], [7, 'Розкинув руки'], [8, 'Поза'], [9, 'Крок'], [3, 'Руки вгору'], [2, 'Танець']];
+function poseStatic(u, e, ts) {
+  if (u.elbP) { u.elb = null; u.elbP = 0; }
+  if (e < 5) return 0;
+  u.elbP = 1;
+  if (e === 5) { u.arms[1].rotation.x = 2.9; u.arms[1].rotation.z = -0.25 - Math.sin(ts * 6) * 0.3; u.elb = [null, 0]; }
+  else if (e === 6) { u.arms[0].rotation.x = u.arms[1].rotation.x = 0.1; u.arms[0].rotation.z = 0.55; u.arms[1].rotation.z = -0.55; u.elb = [1.9, 1.9]; }
+  else if (e === 7) { u.arms[0].rotation.x = u.arms[1].rotation.x = 0; u.arms[0].rotation.z = 1.45; u.arms[1].rotation.z = -1.45; u.elb = [0.1, 0.1]; }
+  else if (e === 8) { u.arms[0].rotation.x = 3.0; u.arms[0].rotation.z = 0.3; u.arms[1].rotation.x = 0.1; u.arms[1].rotation.z = -0.55; u.elb = [0, 1.9]; u.legs[0].rotation.x = -0.18; u.legs[1].rotation.x = 0.1; }
+  else if (e === 9) { u.legs[0].rotation.x = 0.45; u.legs[1].rotation.x = -0.35; u.arms[0].rotation.x = -0.45; u.arms[1].rotation.x = 0.45; u.elb = [0.3, 0.3]; }
+  return 0;
 }
 
 
@@ -2559,7 +2573,7 @@ function selfCup(g) { // чашка у «власній» фігурі (дзер
       if (!d || now - d.t > 25000) return; seen[id] = 1;
       var g = ghosts[id];
       if (!g || g.userData.name !== d.n || g.userData.sub !== (d.g || '') || g.userData.key !== [d.s, d.c, d.h, d.k, d.l, d.r | 0].join()) { if (g && g.parent) g.parent.remove(g); if (Object.keys(ghosts).length > 40) return; g = ghosts[id] = makeGhost(id, d); }
-      g.userData.tx = d.x; g.userData.tz = d.z; g.userData.ty = d.y; g.userData.e = d.e | 0; g.userData.mic = d.v | 0; g.userData.hd = d.hd | 0; g.userData.cp = d.cp | 0; g.userData.dk = d.dk | 0; g.userData.tb = d.tb | 0; g.userData.pt = typeof d.pt === 'string' ? d.pt.slice(0, 40) : '';
+      g.userData.tx = d.x; g.userData.tz = d.z; g.userData.ty = d.y; g.userData.e = d.e | 0; g.userData.mic = d.v | 0; g.userData.hd = d.hd | 0; g.userData.cp = d.cp | 0; g.userData.dk = d.dk | 0; g.userData.tb = d.tb | 0; g.userData.mj = d.mj || 0; g.userData.mp = d.mp | 0; g.userData.mpt = d.mpt || 0; g.userData.pt = typeof d.pt === 'string' ? d.pt.slice(0, 40) : '';
       if (d.m && d.mt && d.mt > (seenMt[id] || 0)) { if ((seenMt[id] !== undefined || now - d.mt < 20000) && (d.l || 'hall') === (cur && cur.id)) { say(g, String(d.m)); logMsg(d.n, String(d.m)); } seenMt[id] = d.mt; } else if (seenMt[id] === undefined) seenMt[id] = d.mt || 0;
     });
     Object.keys(ghosts).forEach(function (id) { if (!seen[id]) { if (ghosts[id].parent) ghosts[id].parent.remove(ghosts[id]); delete ghosts[id]; } });
@@ -2609,12 +2623,13 @@ function selfCup(g) { // чашка у «власній» фігурі (дзер
     function send(force) {
       var inHall = !inRoom();
       if (!inHall) { if (last.x !== 1e9) { myRef.remove(); last.x = 1e9; } return; }
-      var p = camera.position, nowMs = Date.now(), moved = Math.abs(p.x - last.x) > 0.05 || Math.abs(p.z - last.z) > 0.05 || Math.abs(yaw - last.y) > 0.08 || (window.__ptStr || '') !== (last.pt || '') || (window.__hand | 0) !== (last.hd | 0) || (window.__tbH | 0) !== (last.tb | 0) || (window.__cupK | 0) !== (last.cp | 0) || (window.__cupD | 0) !== (last.dk | 0);
+      var p = camera.position, nowMs = Date.now(), moved = Math.abs(p.x - last.x) > 0.05 || Math.abs(p.z - last.z) > 0.05 || Math.abs(yaw - last.y) > 0.08 || (window.__ptStr || '') !== (last.pt || '') || (window.__hand | 0) !== (last.hd | 0) || (window.__tbH | 0) !== (last.tb | 0) || (window.__cupK | 0) !== (last.cp | 0) || (window.__cupD | 0) !== (last.dk | 0) || (window.__mj || 0) !== (last.mj || 0) || (window.__mpt || 0) !== (last.mpt || 0);
       if (!force && !moved && nowMs - lastSent < 8000) return;
-      lastSent = nowMs; last = { x: p.x, z: p.z, y: yaw, pt: window.__ptStr || '', tb: window.__tbH | 0, hd: window.__hand | 0, cp: window.__cupK | 0, dk: window.__cupD | 0 };
+      lastSent = nowMs; last = { x: p.x, z: p.z, y: yaw, pt: window.__ptStr || '', tb: window.__tbH | 0, hd: window.__hand | 0, cp: window.__cupK | 0, dk: window.__cupD | 0, mj: window.__mj || 0, mpt: window.__mpt || 0 };
       var rec = { n: w.name, g: w.group, s: AV.s, c: AV.c, h: AV.h, k: AV.k, e: EMO, r: isTeacher() ? 1 : 0, l: cur.id, v: (window.__micOn ? 1 : 0), x: Math.round((p.x - cur.group.position.x) * 100) / 100, z: Math.round((p.z - cur.group.position.z) * 100) / 100, y: Math.round(yaw * 100) / 100, t: firebase.database.ServerValue.TIMESTAMP };
       if (window.__ptStr) rec.pt = window.__ptStr;
       if (window.__tbH) rec.tb = 1;
+      if (window.__mj) { rec.mj = window.__mj; rec.mp = window.__mp | 0; rec.mpt = window.__mpt || 0; }
       if (window.__hand && EMO === 4) rec.hd = 1;
       if (window.__cupK) { rec.cp = window.__cupK | 0; if (window.__cupD) rec.dk = 1; }
       if (me.m && Date.now() + offset - me.mt < 30000) { rec.m = me.m; rec.mt = me.mt; }
@@ -2643,6 +2658,7 @@ function selfCup(g) { // чашка у «власній» фігурі (дзер
         g.scale.y = 1 + br; u.arms[0].rotation.z = 0.04 + br * 2; u.arms[1].rotation.z = -0.04 - br * 2;
         var ts = nowMs / 1000, ee = u.e | 0; if (u.amp > 0.1) ee = 0;
         var ty0 = 0;
+        if (ee >= 5) { ty0 = poseStatic(u, ee, ts); } else poseStatic(u, 0, ts);
         if (ee === 1) { ty0 = -0.7; u.legs[0].rotation.x = u.legs[1].rotation.x = 1.5; u.arms[0].rotation.x = u.arms[1].rotation.x = 0.7; }
         else if (ee === 4) { ty0 = -0.32; u.legs[0].rotation.x = u.legs[1].rotation.x = 1.4; u.arms[0].rotation.x = u.arms[1].rotation.x = 0.6; if (u.hd) { u.arms[1].rotation.x = 3.05; u.arms[1].rotation.z = -0.08 + Math.sin(ts * 4) * 0.05; } }
         else if (ee === 2) { var dd = Math.sin(ts * 7); ty0 = Math.abs(dd) * 0.07; u.legs[0].rotation.x = dd * 0.55; u.legs[1].rotation.x = -dd * 0.55; u.arms[0].rotation.x = 2.6 + Math.sin(ts * 7) * 0.5; u.arms[1].rotation.x = 2.6 - Math.sin(ts * 7) * 0.5; u.arms[0].rotation.z = 0.35; u.arms[1].rotation.z = -0.35; g.rotation.z = Math.sin(ts * 3.5) * 0.06; }
@@ -3690,9 +3706,9 @@ var RB = (function () {
   act(plane, 'Дзеркало', function () { toast('Дзеркало. Так вас бачать інші. Змінити вигляд можна в шафі в холі.', 3600); }, { reach: 5 });
   var vcam = new THREE.PerspectiveCamera(60, W / H, 0.1, 60), self = null, selfKey = '', prev = { x: 0, z: 0 }, ph = 0, amp = 0;
   var cen = new THREE.Vector3(sx, CY, F2.group.position.z), fw = new THREE.Vector3();
-  function ensureSelf() {
-    var k = AV.s + AV.c + AV.h + AV.k + (isTeacher() ? 'T' : ''); if (self && selfKey === k) return; if (self) F2.group.remove(self);
-    self = makeFigure({ s: AV.s, c: AV.c, h: AV.h, k: AV.k, r: isTeacher() ? 1 : 0 }); self.visible = false; F2.group.add(self); selfKey = k;
+  function ensureSelf(loc) {
+    var k = AV.s + AV.c + AV.h + AV.k + (isTeacher() ? 'T' : ''); if (self && selfKey === k) { if (loc && self.parent !== loc.group) loc.group.add(self); return; } if (self && self.parent) self.parent.remove(self);
+    self = makeFigure({ s: AV.s, c: AV.c, h: AV.h, k: AV.k, r: isTeacher() ? 1 : 0 }); self.visible = false; (loc || F2).group.add(self); selfKey = k;
   }
   function pose(dt, nowMs) {
     var u = self.userData, sp = Math.hypot(camera.position.x - prev.x, camera.position.z - prev.z) / (dt || 0.016); prev.x = camera.position.x; prev.z = camera.position.z;
@@ -3703,14 +3719,15 @@ var RB = (function () {
     else if (e === 4) { y0 = -0.32; u.legs[0].rotation.x = u.legs[1].rotation.x = 1.4; u.arms[0].rotation.x = u.arms[1].rotation.x = 0.6; if (window.__hand) { u.arms[1].rotation.x = 3.05; u.arms[1].rotation.z = -0.08 + Math.sin(ts * 4) * 0.05; } }
     else if (e === 2) { var d = Math.sin(ts * 7); y0 = Math.abs(d) * 0.07; u.legs[0].rotation.x = d * 0.55; u.legs[1].rotation.x = -d * 0.55; u.arms[0].rotation.x = 2.6 + d * 0.5; u.arms[1].rotation.x = 2.6 - d * 0.5; u.arms[0].rotation.z = 0.35; u.arms[1].rotation.z = -0.35; self.rotation.z = Math.sin(ts * 3.5) * 0.06; }
     else if (e === 3) { y0 = Math.abs(Math.sin(ts * 6)) * 0.1; u.arms[0].rotation.x = u.arms[1].rotation.x = 3.0; u.arms[0].rotation.z = 0.28 + Math.sin(ts * 6) * 0.1; u.arms[1].rotation.z = -0.28 - Math.sin(ts * 6) * 0.1; }
-    self.position.set(camera.position.x - F2.group.position.x, y0, camera.position.z - F2.group.position.z); self.rotation.y = yaw;
+    if (e >= 5) y0 = poseStatic(u, e, ts); else poseStatic(u, 0, ts);
+    var pp = self.parent ? self.parent.position : F2.group.position; self.position.set(camera.position.x - pp.x, y0, camera.position.z - pp.z); self.rotation.y = yaw;
   }
   var lastT = 0;
   updaters.push(function (s) {
     if (cur.id !== 'f2') return;
     if (window.__gfx && !window.__gfx.mirror()) return;
     var dt = lastT ? Math.min(0.1, s - lastT) : 0.016; lastT = s;
-    ensureSelf();
+    ensureSelf(F2);
     camera.getWorldDirection(fw); var to = cen.clone().sub(camera.position), dist = to.length();
     if (dist > 16 || to.normalize().dot(fw) < 0.2) return;
     var px = camera.position.x, py = camera.position.y, pz = camera.position.z, d = px - sx; if (d < 0.2) return;
@@ -3722,6 +3739,7 @@ var RB = (function () {
     self.visible = false; plane.visible = true; if (window.__hcupVis) window.__hcupVis(true);
   });
   window.__mirror = { plane: plane, vcam: vcam };
+  window.__mirrorSelf = { show: function (loc, dt, now) { ensureSelf(loc); pose(dt, now); selfCup(self); self.visible = true; }, hide: function () { if (self) self.visible = false; } };
 })();
 
 
@@ -3920,6 +3938,31 @@ if (window.__hall) { window.__hall.setEmo = setEmo; window.__hall.WSS = WSS; }
   function mk(txt, st, fn) { var b = document.createElement('button'); b.type = 'button'; b.className = 'crk'; b.textContent = txt; b.style.cssText = css + ';' + st; b.addEventListener('click', fn); document.body.appendChild(b); return b; }
   var take = mk('Взяти камеру', 'position:fixed;left:12px;bottom:70px;z-index:6;display:none', function () { held = false; sync(); toast('Камеру покладено на тумбочку в переговорній.', 3000); });
   var rb = mk('● Запис', 'position:fixed;left:12px;bottom:118px;z-index:6;display:none;color:#ff9a9a', function () { if (rec) stop(); else start(); });
+  var ph = mk('Фото', 'position:fixed;left:12px;bottom:166px;z-index:6;display:none', function () { shot(); });
+  function shot() {
+    if (!allowed() || !held) return; var cv = renderer.domElement, vis = cam3 ? cam3.visible : false, ofs = vf.style.display; if (cam3) cam3.visible = false;
+    var hc = typeof __hcupVis === 'function'; renderer.render(scene, camera); var url = cv.toDataURL('image/jpeg', 0.92); if (cam3) cam3.visible = vis;
+    var d = new Date(), nm = 'hall-foto-' + d.getFullYear() + ('0' + (d.getMonth() + 1)).slice(-2) + ('0' + d.getDate()).slice(-2) + '-' + ('0' + d.getHours()).slice(-2) + ('0' + d.getMinutes()).slice(-2) + ('0' + d.getSeconds()).slice(-2) + '.jpg';
+    var fl = document.createElement('div'); fl.className = 'crk'; fl.style.cssText = 'position:fixed;inset:0;z-index:7;background:#fff;opacity:.85;pointer-events:none;transition:opacity .35s'; document.body.appendChild(fl); setTimeout(function () { fl.style.opacity = 0; }, 30); setTimeout(function () { fl.remove(); }, 500);
+    modal('<h3>Фото готове</h3><p class="muted">Файл збережеться на цьому пристрої, на сервер нічого не йде.</p><img src="' + url + '" style="width:100%;max-height:55vh;object-fit:contain;background:#000"><p><a id="crpa" download="' + nm + '" href="' + url + '" style="display:inline-block;padding:10px 16px;background:#1f4f8a;color:#fff;text-decoration:none">Зберегти фото</a></p>');
+  }
+  var sf = mk('Селфі', 'position:fixed;left:12px;bottom:214px;z-index:6;display:none', function () { selfie(); });
+  function selfie() {
+    if (!allowed() || !held || !window.__mirrorSelf) return;
+    var W = 1080, H = 1350, fx = -Math.sin(yaw), fz = -Math.cos(yaw), bd = cur.bounds, d = 1.7, px = camera.position.x, pz = camera.position.z;
+    if (bd) for (var i = 0; i < 12 && d > 0.7; i++) { var cx0 = px + fx * d, cz0 = pz + fz * d; if (cx0 > bd.x1 + 0.25 && cx0 < bd.x2 - 0.25 && cz0 > bd.z1 + 0.25 && cz0 < bd.z2 - 0.25) break; d -= 0.2; }
+    var pc = new THREE.PerspectiveCamera(46, W / H, 0.05, 80); pc.position.set(px + fx * d, 1.35, pz + fz * d); pc.lookAt(px, 1.0, pz); pc.updateMatrixWorld(true);
+    var rtp = new THREE.WebGLRenderTarget(W, H, { minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter, samples: renderer.capabilities.isWebGL2 ? 4 : 0 }), old = renderer.getRenderTarget(), vis = cam3 ? cam3.visible : false;
+    if (cam3) cam3.visible = false; if (window.__hcupVis) window.__hcupVis(false); window.__mirrorSelf.show(cur, 0.016, performance.now());
+    renderer.setRenderTarget(rtp); renderer.render(scene, pc); renderer.setRenderTarget(old);
+    window.__mirrorSelf.hide(); if (window.__hcupVis) window.__hcupVis(true); if (cam3) cam3.visible = vis;
+    var buf = new Uint8Array(W * H * 4); renderer.readRenderTargetPixels(rtp, 0, 0, W, H, buf); rtp.dispose();
+    var cv = document.createElement('canvas'); cv.width = W; cv.height = H; var cx = cv.getContext('2d'), id = cx.createImageData(W, H), y;
+    for (y = 0; y < H; y++) id.data.set(buf.subarray((H - 1 - y) * W * 4, (H - y) * W * 4), y * W * 4); cx.putImageData(id, 0, 0);
+    var url = cv.toDataURL('image/jpeg', 0.93), dd = new Date(), nm = 'hall-selfi-' + dd.getFullYear() + ('0' + (dd.getMonth() + 1)).slice(-2) + ('0' + dd.getDate()).slice(-2) + '-' + ('0' + dd.getHours()).slice(-2) + ('0' + dd.getMinutes()).slice(-2) + '.jpg';
+    var fl = document.createElement('div'); fl.className = 'crk'; fl.style.cssText = 'position:fixed;inset:0;z-index:7;background:#fff;opacity:.85;pointer-events:none;transition:opacity .35s'; document.body.appendChild(fl); setTimeout(function () { fl.style.opacity = 0; }, 30); setTimeout(function () { fl.remove(); }, 500);
+    modal('<h3>Селфі готове</h3><p class="muted">Файл збережеться на цьому пристрої, на сервер нічого не йде. Позу можна змінити через меню дій, потім зняти ще раз.</p><img src="' + url + '" style="max-width:100%;max-height:58vh;display:block;margin:0 auto;background:#000"><p><a download="' + nm + '" href="' + url + '" style="display:inline-block;padding:10px 16px;background:#1f4f8a;color:#fff;text-decoration:none">Зберегти селфі</a></p>');
+  }
   var vf = document.createElement('div'); vf.className = 'crk'; vf.style.cssText = 'position:fixed;inset:22px;z-index:4;pointer-events:none;display:none';
   vf.innerHTML = ['left:0;top:0;border-left:3px solid #fff;border-top:3px solid #fff', 'right:0;top:0;border-right:3px solid #fff;border-top:3px solid #fff', 'left:0;bottom:0;border-left:3px solid #fff;border-bottom:3px solid #fff', 'right:0;bottom:0;border-right:3px solid #fff;border-bottom:3px solid #fff'].map(function (s) { return '<i style="position:absolute;width:34px;height:34px;opacity:.85;' + s + '"></i>'; }).join('') + '<b id="crt" style="position:absolute;left:44px;top:6px;color:#ff4a4a;font:bold 16px Georgia,serif;text-shadow:0 0 4px #000"></b>';
   document.body.appendChild(vf);
@@ -3997,7 +4040,7 @@ if (window.__hall) { window.__hall.setEmo = setEmo; window.__hall.WSS = WSS; }
   }
   updaters.push(function () {
     var ok = allowed(), show = ok && !modalOpen;
-    take.style.display = show && held ? 'block' : 'none'; rb.style.display = (show && held) || rec ? 'block' : 'none';
+    take.style.display = show && held ? 'block' : 'none'; ph.style.display = show && held ? 'block' : 'none'; sf.style.display = show && held ? 'block' : 'none'; rb.style.display = (show && held) || rec ? 'block' : 'none';
     if (cam3 && cam3.visible && cam3.userData.led && rec) cam3.userData.led.visible = (Date.now() % 1000) < 700; else if (cam3) cam3.userData.led.visible = true;
     if (held && !rec && !modalOpen) vf.style.display = 'block'; else if (!rec) vf.style.display = 'none';
     if (!ok && (held || rec)) { held = false; sync(); }
@@ -4107,7 +4150,6 @@ if (window.__hall) { window.__hall.setEmo = setEmo; window.__hall.WSS = WSS; }
       CAFE.group.add(lg);
       var gg = P2.mesh(cafeData[p[2]], 'glass'); gg.position.set(p[0] + p[3], 0.75, p[1] + 0.2); gg.scale.setScalar(1.2); CAFE.group.add(gg);
     });
-    var mr = P2.mesh(cafeData.mirror, 'metal'); mr.position.set(-4.2, 0, -1.6); mr.rotation.y = Math.PI / 2 - 0.12; CAFE.group.add(mr);
   }
   updaters.push(function () { if (!flames.length) return; var t = Date.now() / 1000; flames.forEach(function (q) { var k = 0.85 + 0.15 * Math.sin(t * 9 + q.s) * Math.sin(t * 5.3 + q.s * 2); q.l.intensity = 0.4 * k; q.f.scale.y = 1.6 * k; }); });
 
@@ -4211,10 +4253,134 @@ if (window.__hall) { window.__hall.setEmo = setEmo; window.__hall.WSS = WSS; }
   });
 })();
 
+/* ====== ДЗЕРКАЛО В КАФЕ: справжнє віддзеркалення, групові пози, фото для інстаграма ======
+   Натиснули на дзеркало — ви учасник. Будь-який учасник міняє позу всім учасникам. Фото зберігає лише той, хто підійшов першим. */
+(function () {
+  var L = LOC.cafe; if (!L) return;
+  var S = 1.35, MG = new THREE.Group(); MG.position.set(-4.5 + 0.178 * S + 0.03, 0, -1.6); MG.rotation.y = Math.PI / 2; MG.scale.setScalar(S); L.group.add(MG);
+  /* скло: арка 0.54 x 1.66 на похилій площині (нахил моделі 11.6 градуса) */
+  var gw = 0.52, gh = 1.66, gr = gw / 2, sh = new THREE.Shape(); sh.moveTo(-gr, -gh / 2); sh.lineTo(gr, -gh / 2); sh.lineTo(gr, gh / 2 - gr); sh.absarc(0, gh / 2 - gr, gr, 0, Math.PI, false); sh.lineTo(-gr, -gh / 2);
+  var uni = { map: { value: null }, tm: { value: new THREE.Matrix4() } };
+  var mm = new THREE.ShaderMaterial({ uniforms: uni, vertexShader: 'uniform mat4 tm; varying vec4 vUv; void main(){ vUv = tm * vec4(position, 1.0); gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }', fragmentShader: 'uniform sampler2D map; varying vec4 vUv; void main(){ vec4 c = texture2DProj(map, vUv); gl_FragColor = vec4(c.rgb * 0.93, 1.0); }' });
+  var glass = new THREE.Mesh(new THREE.ShapeGeometry(sh, 24), mm); glass.position.set(0, 0.842, 0.0095); glass.rotation.x = -0.203; MG.add(glass);
+  var baseMat = new THREE.MeshStandardMaterial({ color: 0x9aa0a6, roughness: 0.3, metalness: 0.4, side: THREE.DoubleSide }), baseGlass = new THREE.Mesh(new THREE.ShapeGeometry(sh, 24), baseMat); baseGlass.position.copy(glass.position); baseGlass.rotation.copy(glass.rotation); baseGlass.position.z -= 0.004; MG.add(baseGlass);
+  var loaded = false;
+  function loadModel() { if (loaded) return; loaded = true; P2.file('props_cafe', function (d) { MG.add(P2.mesh(d.mirror, 'metal')); }); }
+
+  /* ---- відбиття (Reflector) ---- */
+  var vcam = new THREE.PerspectiveCamera(), rt = null, rtW = 0, rtH = 0;
+  var mp = new THREE.Vector3(), nrm = new THREE.Vector3(), view = new THREE.Vector3(), tgt = new THREE.Vector3(), la = new THREE.Vector3(), rot = new THREE.Matrix4(), cpos = new THREE.Vector3(), pl = new THREE.Plane(), qv = new THREE.Vector4(), cp4 = new THREE.Vector4();
+  function setupV(src) {
+    glass.updateWorldMatrix(true, false); src.updateMatrixWorld(true);
+    mp.setFromMatrixPosition(glass.matrixWorld); rot.extractRotation(glass.matrixWorld); nrm.set(0, 0, 1).applyMatrix4(rot);
+    cpos.setFromMatrixPosition(src.matrixWorld); view.subVectors(mp, cpos); if (view.dot(nrm) > 0) return false;
+    view.reflect(nrm).negate().add(mp);
+    rot.extractRotation(src.matrixWorld); la.set(0, 0, -1).applyMatrix4(rot).add(cpos); tgt.subVectors(mp, la).reflect(nrm).negate().add(mp);
+    vcam.position.copy(view); vcam.up.set(0, 1, 0).applyMatrix4(rot).reflect(nrm); vcam.lookAt(tgt); vcam.far = src.far; vcam.updateMatrixWorld(); vcam.matrixWorldInverse.copy(vcam.matrixWorld).invert(); vcam.projectionMatrix.copy(src.projectionMatrix);
+    var tm = uni.tm.value; tm.set(0.5, 0, 0, 0.5, 0, 0.5, 0, 0.5, 0, 0, 0.5, 0.5, 0, 0, 0, 1); tm.multiply(vcam.projectionMatrix); tm.multiply(vcam.matrixWorldInverse); tm.multiply(glass.matrixWorld);
+    pl.setFromNormalAndCoplanarPoint(nrm, mp); pl.applyMatrix4(vcam.matrixWorldInverse); cp4.set(pl.normal.x, pl.normal.y, pl.normal.z, pl.constant);
+    var pm = vcam.projectionMatrix; qv.x = (Math.sign(cp4.x) + pm.elements[8]) / pm.elements[0]; qv.y = (Math.sign(cp4.y) + pm.elements[9]) / pm.elements[5]; qv.z = -1; qv.w = (1 + pm.elements[10]) / pm.elements[14];
+    cp4.multiplyScalar(2 / cp4.dot(qv)); pm.elements[2] = cp4.x; pm.elements[6] = cp4.y; pm.elements[10] = cp4.z + 1 - 0.003; pm.elements[14] = cp4.w;
+    vcam.projectionMatrixInverse.copy(vcam.projectionMatrix).invert(); return true;
+  }
+  function sizeRT() {
+    var w = Math.min(1280, Math.max(256, Math.round(innerWidth * 0.7))), h = Math.min(1280, Math.max(256, Math.round(innerHeight * 0.7)));
+    if (rt && w === rtW && h === rtH) return; if (rt) rt.dispose(); rt = new THREE.WebGLRenderTarget(w, h, { minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter }); rtW = w; rtH = h; uni.map.value = rt.texture;
+  }
+  function withSelf(fn) {
+    var ms = window.__mirrorSelf; if (ms) ms.show(L, 0.016, performance.now()); if (window.__hcupVis) window.__hcupVis(false); glass.visible = false; baseGlass.visible = false;
+    try { fn(); } finally { glass.visible = live; baseGlass.visible = !live; if (ms) ms.hide(); if (window.__hcupVis) window.__hcupVis(true); }
+  }
+  var lastT = 0, live = false;
+  function setLive(v) { live = v; glass.visible = v; baseGlass.visible = !v; }
+  setLive(false);
+  updaters.push(function (s) {
+    if (cur !== L) { lastT = 0; if (window.__mj) leave(); return; }
+    loadModel();
+    var dt = lastT ? Math.min(0.1, s - lastT) : 0.016; lastT = s;
+    sync();
+    if (window.__gfx && !window.__gfx.mirror()) { if (G.m === 0 && live) setLive(false); return; }
+    var to = new THREE.Vector3().setFromMatrixPosition(glass.matrixWorld).sub(camera.position), dist = to.length(), fw = new THREE.Vector3(); camera.getWorldDirection(fw);
+    if (dist > 14 || to.normalize().dot(fw) < 0.15) return;
+    sizeRT(); camera.updateMatrixWorld(true); if (!setupV(camera)) return;
+    withSelf(function () { var old = renderer.getRenderTarget(); renderer.setRenderTarget(rt); renderer.render(scene, vcam); renderer.setRenderTarget(old); });
+    if (!live) setLive(true);
+  });
+
+  /* ---- сесія: учасники, пози, власник ---- */
+  var applied = 0, panel = null, shooting = false;
+  function nowS() { return Date.now() + (window.__srvOff || 0); }
+  function myName() { try { return (NET && NET.who && NET.who().name) || 'Ви'; } catch (e) { return 'Ви'; } }
+  function parts() {
+    var out = []; if (window.__mj) out.push({ me: 1, mj: window.__mj, mp: window.__mp | 0, mpt: window.__mpt || 0, name: myName() });
+    var gh = (window.__pres && window.__pres.ghosts) || {};
+    Object.keys(gh).forEach(function (id) { var u = gh[id].userData; if (u.mj && u.loc === 'cafe') out.push({ me: 0, mj: u.mj, mp: u.mp | 0, mpt: u.mpt || 0, name: u.name || 'Гість', g: gh[id] }); });
+    return out;
+  }
+  function owner(ps) { var o = null; ps.forEach(function (p) { if (!o || p.mj < o.mj || (p.mj === o.mj && p.name < o.name)) o = p; }); return o; }
+  function join() { if (window.__mj) return; window.__mj = nowS(); window.__mp = 0; window.__mpt = 0; applied = 0; toast('Ви біля дзеркала. Пози міняються для всіх, хто теж натиснув на дзеркало.', 4200); showPanel(); }
+  function leave() { window.__mj = 0; window.__mp = 0; window.__mpt = 0; applied = 0; if (EMO >= 5) setEmo(0); hidePanel(); }
+  function setPose(n) { window.__mp = n; window.__mpt = nowS(); applied = window.__mpt; setEmo(n); }
+  function sync() {
+    if (!window.__mj) return; var ps = parts(), lat = null, me = new THREE.Vector3().setFromMatrixPosition(glass.matrixWorld);
+    if (Math.hypot(camera.position.x - me.x, camera.position.z - me.z) > 8) { leave(); toast('Ви відійшли від дзеркала.', 2200); return; }
+    ps.forEach(function (p) { if (p.mpt && (!lat || p.mpt > lat.mpt)) lat = p; });
+    if (lat && lat.mpt > applied) { applied = lat.mpt; if (!lat.me) setEmo(lat.mp); }
+    if (panel) { var o = owner(ps); panel.info.textContent = 'Біля дзеркала: ' + ps.length + ' · фото робить: ' + (o && o.me ? 'ви' : (o ? o.name : '')); panel.shot.style.display = o && o.me && !shooting ? 'inline-block' : 'none'; panel.btns.forEach(function (b) { b.b.className = (EMO | 0) === b.n ? 'on' : ''; }); panel.root.style.display = modalOpen ? 'none' : 'block'; }
+  }
+  function showPanel() {
+    if (panel) { panel.root.style.display = 'block'; return; }
+    var r = document.createElement('div'); r.className = 'mrp'; r.style.cssText = 'position:fixed;left:50%;transform:translateX(-50%);top:64px;z-index:6;max-width:94vw;padding:8px 10px;background:rgba(24,17,10,.93);border:1px solid #8a7347;color:#f2e2c0;font:14px Georgia,serif;text-align:center';
+    var st = document.createElement('style'); st.textContent = '.mrp button{font:14px Georgia,serif;margin:3px;padding:7px 10px;background:rgba(48,34,20,.95);color:#f2e2c0;border:1px solid #8a7347;cursor:pointer}.mrp button.on{background:#7a5a1e;border-color:#f2d9a0}.mrp button.sh{background:#1f4f8a;border-color:#7fb0e8}'; r.appendChild(st);
+    var info = document.createElement('div'); info.style.cssText = 'margin-bottom:4px;font-size:13px;opacity:.9'; r.appendChild(info);
+    var btns = []; PHOTO_POSES.forEach(function (p) { var b = document.createElement('button'); b.type = 'button'; b.textContent = p[1]; b.addEventListener('click', function () { setPose(p[0]); }); r.appendChild(b); btns.push({ n: p[0], b: b }); });
+    var row = document.createElement('div'); r.appendChild(row);
+    var shot = document.createElement('button'); shot.type = 'button'; shot.className = 'sh'; shot.textContent = 'Зробити фото'; shot.addEventListener('click', takePhoto); row.appendChild(shot);
+    var ex = document.createElement('button'); ex.type = 'button'; ex.textContent = 'Відійти від дзеркала'; ex.addEventListener('click', leave); row.appendChild(ex);
+    document.body.appendChild(r); panel = { root: r, info: info, btns: btns, shot: shot };
+  }
+  function hidePanel() { if (panel) panel.root.style.display = 'none'; }
+  var gAct = function () { join(); showPanel(); };
+  act(glass, 'Дзеркало', gAct, { reach: 6 }); act(baseGlass, 'Дзеркало', gAct, { reach: 6 });
+
+  /* ---- фото 4:5 ---- */
+  function takePhoto() {
+    if (shooting || !window.__mj) return; var ps = parts(), o = owner(ps); if (!o || !o.me) { toast('Фото робить той, хто підійшов до дзеркала першим.', 3000); return; }
+    shooting = true; var n = 3; panel.shot.style.display = 'none';
+    var big = document.createElement('div'); big.style.cssText = 'position:fixed;left:50%;top:40%;transform:translate(-50%,-50%);z-index:7;font:bold 120px Georgia,serif;color:#fff;text-shadow:0 0 12px #000;pointer-events:none'; document.body.appendChild(big);
+    (function tick() { if (n > 0) { big.textContent = n; n--; setTimeout(tick, 900); } else { big.remove(); capture(); } })();
+  }
+  function capture() {
+    var W = 1080, H = 1350, pts = [], c = new THREE.Vector3(), ps = parts();
+    ps.forEach(function (p) { if (p.me) pts.push(camera.position.clone()); else if (p.g) { p.g.getWorldPosition(c); pts.push(c.clone()); } });
+    var cen = new THREE.Vector3(); pts.forEach(function (p) { cen.add(p); }); cen.multiplyScalar(1 / Math.max(1, pts.length)); cen.y = 1.0;
+    var spread = 0; pts.forEach(function (p) { spread = Math.max(spread, Math.hypot(p.x - cen.x, p.z - cen.z)); });
+    glass.updateWorldMatrix(true, false); mp.setFromMatrixPosition(glass.matrixWorld); rot.extractRotation(glass.matrixWorld); nrm.set(0, 0, 1).applyMatrix4(rot);
+    var ce = camera.position.clone(); /* камера фото стоїть там, де гравець; дивиться на образ групи в дзеркалі */
+    var d0 = cen.clone().sub(mp).dot(nrm), img = cen.clone().addScaledVector(nrm, -2 * d0); /* образ групи за дзеркалом */
+    var pc = new THREE.PerspectiveCamera(50, W / H, 0.05, 80); pc.position.copy(ce); pc.lookAt(img); pc.updateMatrixWorld(true);
+    var D = Math.max(0.8, ce.distanceTo(img)), cover = Math.max(2.5, (spread * 2 + 1.5) / 0.8); pc.fov = Math.max(18, Math.min(75, 2 * Math.atan(cover / 2 / D) * 180 / Math.PI)); pc.updateProjectionMatrix();
+    var rtp = new THREE.WebGLRenderTarget(W, H, { minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter, samples: renderer.capabilities.isWebGL2 ? 4 : 0 });
+    var ok = setupV(pc); if (!ok) { rtp.dispose(); shooting = false; toast('Станьте перед дзеркалом, обличчям до нього.', 3500); return; }
+    withSelf(function () { var old = renderer.getRenderTarget(); renderer.setRenderTarget(rtp); renderer.render(scene, vcam); renderer.setRenderTarget(old); });
+    var buf = new Uint8Array(W * H * 4); renderer.readRenderTargetPixels(rtp, 0, 0, W, H, buf); rtp.dispose();
+    var cv = document.createElement('canvas'); cv.width = W; cv.height = H; var cx = cv.getContext('2d'), id = cx.createImageData(W, H), y;
+    for (y = 0; y < H; y++) id.data.set(buf.subarray((H - 1 - y) * W * 4, (H - y) * W * 4), y * W * 4);
+    cx.putImageData(id, 0, 0);
+    var dd = new Date(), stamp = ('0' + dd.getDate()).slice(-2) + '.' + ('0' + (dd.getMonth() + 1)).slice(-2) + '.' + dd.getFullYear();
+    cx.font = '34px Georgia'; cx.fillStyle = '#fff'; cx.shadowColor = 'rgba(0,0,0,.8)'; cx.shadowBlur = 8; cx.textAlign = 'left'; cx.fillText('Кав\'ярня · Хол', 36, H - 40); cx.textAlign = 'right'; cx.fillText(stamp, W - 36, H - 40);
+    var url = cv.toDataURL('image/jpeg', 0.93), nm = 'dzerkalo-' + dd.getFullYear() + ('0' + (dd.getMonth() + 1)).slice(-2) + ('0' + dd.getDate()).slice(-2) + '-' + ('0' + dd.getHours()).slice(-2) + ('0' + dd.getMinutes()).slice(-2) + '.jpg';
+    var fl = document.createElement('div'); fl.style.cssText = 'position:fixed;inset:0;z-index:7;background:#fff;opacity:.9;pointer-events:none;transition:opacity .4s'; document.body.appendChild(fl); setTimeout(function () { fl.style.opacity = 0; }, 30); setTimeout(function () { fl.remove(); }, 520);
+    shooting = false;
+    modal('<h3>Фото з дзеркала</h3><p class="muted">Файл збережеться на цьому пристрої, на сервер нічого не йде. Зберегти може лише той, хто підійшов до дзеркала першим.</p><img src="' + url + '" style="max-width:100%;max-height:58vh;display:block;margin:0 auto;background:#000"><p><a download="' + nm + '" href="' + url + '" style="display:inline-block;padding:10px 16px;background:#1f4f8a;color:#fff;text-decoration:none">Зберегти фото</a></p>');
+  }
+  window.__mirror2 = { capture: capture, join: join, leave: leave, setPose: setPose, parts: parts };
+})();
+
 /* ====== ПЛАНШЕТ ВИКЛАДАЧА: лежить на столі викладача перед першою партою; викладач бере його в руку, відкриває на весь екран
    і керує телевізором кабінету: файли (PDF, зображення, DXF, текст), гортання, збільшення, виділення й підкреслення тексту. ====== */
 (function () {
-  var ROOMS = ['arch', 'build', 'road'], DESK_Z = -3.9;
+  var ROOMS = ['arch', 'build', 'road', 'meet'], DESK_Z = -3.9;
   var TW = 1280, TH = 720;
   var model = null, loading = false, tabs = [], holding = false, held = null, heldBtns = null, overlay = null, api = null;
   var scrC = document.createElement('canvas'); scrC.width = 780; scrC.height = 400; var scrX = scrC.getContext('2d'), scrT = new THREE.CanvasTexture(scrC);
@@ -4270,14 +4436,16 @@ if (window.__hall) { window.__hall.setEmo = setEmo; window.__hall.WSS = WSS; }
     setDesk(id, lx, lz, ry); try { localStorage.setItem('deskpos_' + id, JSON.stringify({ x: lx, z: lz, r: ry })); } catch (e) { } toast('Стіл поставлено.', 1800);
   }
   ROOMS.forEach(function (id) {
-    var L = LOC[id]; if (!L) return; var G = L.group;
-    var d = grp(0, 0, DESK_Z, G);
-    box(1.7, 0.05, 0.8, mat(0x6b4a2a, { rough: .55 }), 0, 0.775, 0, d); box(1.64, 0.02, 0.74, mat(0x7a5532, { rough: .45 }), 0, 0.808, 0, d);
-    [-0.78, 0.78].forEach(function (lx) { [-0.34, 0.34].forEach(function (lz) { box(0.06, 0.75, 0.06, M.darkwood, lx, 0.375, lz, d); }); });
-    box(1.5, 0.12, 0.02, M.darkwood, 0, 0.68, 0.36, d); box(0.5, 0.2, 0.7, mat(0x4a321c, { rough: .6 }), 0.55, 0.62, 0, d);
-    var dob = obs(L, 0, DESK_Z, 0.9, 0.45); deskRec[id] = { d: d, ob: dob };
-    try { var sv = JSON.parse(localStorage.getItem('deskpos_' + id) || 'null'); if (sv && isFinite(sv.x) && isFinite(sv.z)) setDesk(id, sv.x, sv.z, sv.r || 0); } catch (e) { }
-    var t = grp(-0.1, 0.835, 0.0, d, Math.PI); t.scale.setScalar(0.85); var tab = mkTablet(); t.add(tab);
+    var L = LOC[id]; if (!L) return; var G = L.group, shared = id === 'meet';
+    var d = grp(0, 0, shared ? 0.45 : DESK_Z, G);
+    if (!shared) {
+      box(1.7, 0.05, 0.8, mat(0x6b4a2a, { rough: .55 }), 0, 0.775, 0, d); box(1.64, 0.02, 0.74, mat(0x7a5532, { rough: .45 }), 0, 0.808, 0, d);
+      [-0.78, 0.78].forEach(function (lx) { [-0.34, 0.34].forEach(function (lz) { box(0.06, 0.75, 0.06, M.darkwood, lx, 0.375, lz, d); }); });
+      box(1.5, 0.12, 0.02, M.darkwood, 0, 0.68, 0.36, d); box(0.5, 0.2, 0.7, mat(0x4a321c, { rough: .6 }), 0.55, 0.62, 0, d);
+      var dob = obs(L, 0, DESK_Z, 0.9, 0.45); deskRec[id] = { d: d, ob: dob };
+      try { var sv = JSON.parse(localStorage.getItem('deskpos_' + id) || 'null'); if (sv && isFinite(sv.x) && isFinite(sv.z)) setDesk(id, sv.x, sv.z, sv.r || 0); } catch (e) { }
+    }
+    var t = grp(shared ? 0 : -0.1, shared ? 0.79 : 0.835, 0.0, d, Math.PI); t.scale.setScalar(0.85); var tab = mkTablet(); t.add(tab);
     var hit = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.24, 0.12), new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false })); hit.position.set(0, 0.1, -0.02); tab.add(hit);
     act(hit, 'Взяти планшет', take, { reach: 4.5 }); deskTabs[id] = t;
   });
@@ -4292,6 +4460,7 @@ if (window.__hall) { window.__hall.setEmo = setEmo; window.__hall.WSS = WSS; }
     Object.keys(deskTabs).forEach(function (k) { deskTabs[k].visible = !holding && !other; });
     if (heldBtns) heldBtns.style.display = (holding && !modalOpen && !overlay) ? 'flex' : 'none';
     if (held) held.visible = !overlay;
+    if (holding && ROOMS.indexOf(cur.id) < 0) { putBack(true); toast('Планшет повернуто на місце.', 2600); }
   });
 
   /* ---------- планшет у руці ---------- */
@@ -4302,15 +4471,15 @@ if (window.__hall) { window.__hall.setEmo = setEmo; window.__hall.WSS = WSS; }
   }
   function take() {
     if (holding) return;
-    if (typeof isTeacher === 'function' && !isTeacher()) { toast('Планшет призначений для викладача.', 2800); return; }
+    if (cur.id !== 'meet' && typeof isTeacher === 'function' && !isTeacher()) { toast('Планшет призначений для викладача.', 2800); return; }
     holding = true; window.__tbH = 1; ensureModel();
     held = mkTablet(); held.scale.setScalar(0.78); held.position.set(0.22, -0.27, -0.62); held.rotation.set(-0.2, -0.12, 0); scene.add(camera); camera.add(held);
     if (!heldBtns) mkHeldBtns();
     toast('Торкніться планшета в руці або натисніть «Відкрити планшет».', 4200);
   }
-  function putBack() {
+  function putBack(force) {
     if (!holding) return;
-    if (ROOMS.indexOf(cur.id) < 0) { toast('Покласти можна на стіл викладача в навчальному кабінеті.', 3200); return; }
+    if (force !== true && ROOMS.indexOf(cur.id) < 0) { toast('Покласти можна на стіл викладача в навчальному кабінеті.', 3200); return; }
     closeUI(); holding = false; window.__tbH = 0; if (held) { camera.remove(held); var i = tabs.indexOf(held); if (i >= 0) tabs.splice(i, 1); held = null; } if (heldBtns) heldBtns.style.display = 'none';
   }
   var dn = null, rc = new THREE.Raycaster();
