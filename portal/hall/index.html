@@ -4099,7 +4099,7 @@ if (window.__hall) { window.__hall.setEmo = setEmo; window.__hall.WSS = WSS; }
   function fmt(s) { return Math.floor(s / 60) + ':' + ('0' + (s % 60)).slice(-2); }
   function pickMime() { var c = ['video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm', 'video/mp4'], i; if (!window.MediaRecorder) return ''; for (i = 0; i < c.length; i++) if (MediaRecorder.isTypeSupported(c[i])) return c[i]; return ''; }
   function hideHud(on) {
-    if (on) { hidden = []; Array.prototype.forEach.call(document.body.children, function (e) { if (e.tagName === 'CANVAS' || e.id === 'vtv' || e.classList.contains('crk') || e.tagName === 'SCRIPT' || e.tagName === 'STYLE') return; hidden.push([e, e.style.opacity]); e.style.opacity = '0'; }); }
+    if (on) { hidden = []; Array.prototype.forEach.call(document.body.children, function (e) { if (e.tagName === 'CANVAS' || e.id === 'vtv' || e.id === 'modal' || e.id === 'toast' || e.id === 'tbo' || e.classList.contains('cfb') || e.classList.contains('crk') || e.tagName === 'SCRIPT' || e.tagName === 'STYLE') return; hidden.push([e, e.style.opacity]); e.style.opacity = '0'; }); }
     else { hidden.forEach(function (h) { h[0].style.opacity = h[1]; }); hidden = []; }
   }
   function start() {
