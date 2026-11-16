@@ -458,6 +458,8 @@ stick.addEventListener('pointerup', function (e) { if (e.pointerId === sid) sEnd
 stick.addEventListener('pointercancel', sEnd);
 addEventListener('keydown', function (e) { if (e.target && /^(INPUT|TEXTAREA)$/.test(e.target.tagName)) return; if (modalOpen) { if (e.key === 'Escape') closeModal(); return; } keys[e.code] = true; if (e.code === 'Escape') leaveRoom && leaveRoom(); });
 addEventListener('keyup', function (e) { keys[e.code] = false; });
+function stopMove() { keys = {}; if (typeof sEnd === 'function') sEnd(); } window.__stopMove = stopMove;
+addEventListener('blur', stopMove); document.addEventListener('visibilitychange', function () { if (document.hidden) stopMove(); });
 function walk(dt) {
   if (!cur) return;
   var fx = -mv.y, sx = mv.x;
@@ -4109,9 +4111,9 @@ if (window.__hall) { window.__hall.setEmo = setEmo; window.__hall.WSS = WSS; }
       mode = 'canvas'; return Promise.resolve(renderer.domElement.captureStream(30));
     };
     getVid().then(function (d) {
-      disp = d; return getMic();
+      if (window.__stopMove) window.__stopMove(); disp = d; return getMic();
     }).then(function (m) {
-      mic = m; ctx = ctx || new (window.AudioContext || window.webkitAudioContext)(); var dest = ctx.createMediaStreamDestination(), n = 0, src;
+      if (window.__stopMove) window.__stopMove(); mic = m; ctx = ctx || new (window.AudioContext || window.webkitAudioContext)(); var dest = ctx.createMediaStreamDestination(), n = 0, src;
       if (disp.getAudioTracks().length) { src = ctx.createMediaStreamSource(new MediaStream(disp.getAudioTracks())); src.connect(dest); n++; ownCleanup.push(src); }
       if (mic && mic.getAudioTracks().length) { src = ctx.createMediaStreamSource(mic); src.connect(dest); n++; ownCleanup.push(src); }
       var tracks = disp.getVideoTracks().slice(); if (n) dest.stream.getAudioTracks().forEach(function (t) { tracks.push(t); });
@@ -4131,7 +4133,7 @@ if (window.__hall) { window.__hall.setEmo = setEmo; window.__hall.WSS = WSS; }
   }
   function stop() { if (!rec) return; try { rec.stop(); } catch (e) { finish('video/webm'); } }
   function finish(mt) {
-    clearInterval(tmr); hideHud(false); vf.style.display = 'none'; rb.textContent = '● Запис';
+    clearInterval(tmr); if (window.__stopMove) window.__stopMove(); hideHud(false); vf.style.display = 'none'; rb.textContent = '● Запис';
     if (cam3) cam3.userData.led.material.color.set(0x551111);
     if (recStream) recStream.getTracks().forEach(function (t) { t.stop(); }); recStream = null; rec = null;
     ownCleanup.forEach(function (s) { try { s.disconnect(); } catch (e) {} }); ownCleanup = [];
