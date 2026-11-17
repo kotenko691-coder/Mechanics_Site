@@ -3127,11 +3127,11 @@ var RB = (function () {
   function ref(key) { var f = window.__fb; return f && f.db ? f.db.ref('tv/' + key + '_rb') : null; }
   function render(r, rec) {
     ui(); var f = window.__fb, lead = f && rec.u === f.uid, arr; try { arr = JSON.parse(rec.s); } catch (e) { arr = []; }
-    r.arr = arr; r.rec = rec; r.lead = lead; var i = Math.min(rec.i | 0, arr.length - 1);
+    var ctl = lead || (typeof isTeacher === 'function' && isTeacher()); r.arr = arr; r.rec = rec; r.lead = lead; var i = Math.min(rec.i | 0, arr.length - 1);
     if (rec.st === 'stop' || !arr.length) { hideAll(); if (window.speechSynthesis) try { window.speechSynthesis.cancel(); stopAud(); } catch (e) { /* ігноруємо */ } r.speaking = false; return; }
     curKey = r.key; sub.style.display = 'block'; sub.textContent = arr[i] || '';
-    bar.style.display = 'flex'; bar.innerHTML = '<b style="flex:1">Викладач-робот · ' + String(rec.ti || '').replace(/</g, '') + ' · ' + (i + 1) + '/' + arr.length + (rec.st === 'pause' ? ' · пауза' : '') + '</b>';
-    if (lead) {
+    bar.style.display = 'flex'; bar.innerHTML = '<b style="flex:1">Викладач-робот · ' + String(rec.ti || '').replace(/</g, '') + ' · ' + (i + 1) + '/' + arr.length + (rec.st === 'pause' ? ' · пауза' : '') + (rec.by && !lead ? ' · запустив: ' + String(rec.by).replace(/</g, '') : '') + '</b>';
+    if (ctl) {
       bar.appendChild(btn(rec.st === 'pause' ? 'Далі' : 'Пауза', function () { var q = ref(r.key); if (q) q.set(Object.assign({}, rec, { st: rec.st === 'pause' ? 'play' : 'pause', t: Date.now() })); }));
       bar.appendChild(btn('◀', function () { var q = ref(r.key); if (q) q.set(Object.assign({}, rec, { i: Math.max(0, i - 1), st: 'play', t: Date.now() })); }));
       bar.appendChild(btn('▶', function () { var q = ref(r.key); if (q) q.set(Object.assign({}, rec, { i: Math.min(arr.length - 1, i + 1), st: 'play', t: Date.now() })); }));
@@ -3243,7 +3243,8 @@ var RB = (function () {
     var z = function (v) { return Math.abs(v) < 1e-9 ? 0 : v; };
     return { N1: z((bx * u2[1] - u2[0] * by) / det), N2: z((u1[0] * by - u1[1] * bx) / det), u1: u1, u2: u2, fx: fx, fy: fy };
   }
-  return { rods: rods, beam: beam, sections: sections, mapSlides: mapSlides, attach: attach, start: start, loadMan: loadMan, toSentences: toSentences, available: function () { return true; } };
+  function busy(key) { var r = rooms[key], f = window.__fb; return !!(r && r.rec && r.rec.st !== 'stop' && r.rec.s && !(f && r.rec.u === f.uid)); }
+  return { busy: busy, rods: rods, beam: beam, sections: sections, mapSlides: mapSlides, attach: attach, start: start, loadMan: loadMan, toSentences: toSentences, available: function () { return true; } };
 })();
 window.__RB = RB;
 
@@ -3677,6 +3678,7 @@ window.__RB = RB;
     }, function () { closeModal(); toast('Не вдалося отримати список тем.', 3500); });
   }
   function robotStart(lid, ttl) {
+    if (!isTeacher() && RB.busy && RB.busy(KEY)) { toast('Зараз у кабінеті йде заняття з роботом. Дочекайтесь кінця або попросіть того, хто його запустив, зупинити.', 5500); return; }
     modal('<h3>' + String(ttl).replace(/</g, '') + '</h3><p class="muted" id="rbw">Готуємо текст для озвучення…</p>');
     var w0 = Date.now(), wi = setInterval(function () { var e = document.getElementById('rbw'); if (!e) { clearInterval(wi); return; } var sec = Math.round((Date.now() - w0) / 1000); e.textContent = 'Завантажуємо тему з сервера… ' + sec + ' с' + (sec > 20 ? ' (повільний інтернет, зачекайте до 1,5 хв)' : ''); }, 1000);
     NET.lectureParts(lid).then(function (p) {
@@ -3787,7 +3789,7 @@ window.__RB = RB;
     } else h += SEP ? '<p class="muted">Телевізор вимкнено. Можна вивести на нього файл (зображення чи PDF).</p><button class="main" id="pf" type="button">Показати файл на телевізорі</button>' : '<p class="muted">Зараз на стіні дошка. Можна малювати або вивести файл (зображення чи PDF) на телевізор.</p><button class="main" id="pb" type="button">Малювати на дошці</button> <button id="pf" type="button">Показати файл на телевізорі</button>';
     if (tch) h += ' <button id="pv" type="button">Відео за посиланням</button>';
     h += ' <button id="pl" type="button">Тема з сайту</button>';
-    if (SEP && tch && RB.available()) h += ' <button id="prb" type="button">Лекція від викладача-робота</button> <button id="prx" type="button">Текст для озвучки (файл)</button>';
+    if (SEP && RB.available()) h += ' <button id="prb" type="button">' + (tch ? 'Лекція від викладача-робота' : 'Заняття з викладачем-роботом') + '</button>' + (tch ? ' <button id="prx" type="button">Текст для озвучки (файл)</button>' : '');
     h += '<input type="file" id="fi" accept="image/*,application/pdf" style="display:none">';
     var b = modal(h), im = b.querySelector('#tvimg'); if (im) im.src = tvState.d;
     function q(s) { return b.querySelector(s); }
