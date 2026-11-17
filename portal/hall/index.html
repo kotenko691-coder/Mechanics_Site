@@ -3168,7 +3168,7 @@ var RB = (function () {
       if (r.rec && r.rec.sx && r.rec.st !== 'stop' && cur === loc && curKey === key && typeof VP !== 'undefined' && s - (r.sxT || 0) > 0.5) {
         r.sxT = s; if (r.sxraw !== r.rec.sx) { r.sxraw = r.rec.sx; try { r.sxa = JSON.parse(r.rec.sx); r.sca = JSON.parse(r.rec.sc); } catch (e) { r.sxa = null; } }
         var q = r.sca && r.sca[Math.min(r.rec.i | 0, r.sca.length - 1)], sec = r.sxa && r.sxa[q];
-        if (sec) { var kk = q + ':' + r.rec.t0; if (r.bk2 !== kk && VP.lpHead(sec.h)) { r.bk2 = kk; r.tx = [3.2, 2.4, 1.8, 2.8][q % 4]; var scn = null; if (sec.sn) { try { scn = JSON.parse(sec.sn); } catch (e) { scn = null; } } if (scn && window.__rbScenes && window.__rbScenes[key]) { window.__rbScenes[key](scn); if (window.__prak && window.__prak.scene) window.__prak.scene(scn, r.loc); } else if (window.__rbBoards && window.__rbBoards[key]) { if (window.__rbScenes && window.__rbScenes[key]) window.__rbScenes[key](null); window.__rbBoards[key]([sec.t].concat(sec.p)); } } }
+        if (sec) { var kk = q + ':' + r.rec.t0; if (r.bk2 !== kk && (r.rec.ns || VP.lpHead(sec.h))) { r.bk2 = kk; r.tx = [3.2, 2.4, 1.8, 2.8][q % 4]; var scn = null; if (sec.sn) { try { scn = JSON.parse(sec.sn); } catch (e) { scn = null; } } if (scn && window.__rbScenes && window.__rbScenes[key]) { window.__rbScenes[key](scn); if (window.__prak && window.__prak.scene) window.__prak.scene(scn, r.loc); } else if (window.__rbBoards && window.__rbBoards[key]) { if (window.__rbScenes && window.__rbScenes[key]) window.__rbScenes[key](null); window.__rbBoards[key]([sec.t].concat(sec.p)); } } }
       }
       if (r.rec && r.rec.m && r.rec.st !== 'stop' && cur === loc && curKey === key && typeof VP !== 'undefined' && s - (r.slT || 0) > 0.4) {
         r.slT = s; if (r.mraw !== r.rec.m) { r.mraw = r.rec.m; try { r.mm = JSON.parse(r.rec.m); } catch (e) { r.mm = null; } }
@@ -3181,7 +3181,7 @@ var RB = (function () {
     var f = window.__fb, q = ref(key); if (!f || !q) { toast('Немає зв’язку з сервером (вхід у гру не завершено). Оновіть сторінку й спробуйте ще раз.', 5200); return false; }
     var s = JSON.stringify(sentences); if (s.length > 200000) { toast('Тема надто велика для озвучення.', 3600); return false; }
     q.onDisconnect().remove().catch(function () {});
-    q.set({ d: 'r', u: f.uid, by: NET && NET.who ? NET.who().name : 'Викладач', ti: String(title).slice(0, 120), s: s, i: 0, st: 'play', t: Date.now() + (window.__srvOff || 0), t0: Date.now(), lid: extra && extra.lid || '', m: extra && extra.m ? JSON.stringify(extra.m) : '', sx: extra && extra.sx ? JSON.stringify(extra.sx) : '', sc: extra && extra.sc ? JSON.stringify(extra.sc) : '' }).catch(function (e) { toast('Робот не запустився: ' + (e && e.code || 'помилка'), 6000); });
+    q.set({ d: 'r', u: f.uid, by: NET && NET.who ? NET.who().name : 'Викладач', ti: String(title).slice(0, 120), s: s, i: 0, st: 'play', t: Date.now() + (window.__srvOff || 0), t0: Date.now(), lid: extra && extra.lid || '', m: extra && extra.m ? JSON.stringify(extra.m) : '', sx: extra && extra.sx ? JSON.stringify(extra.sx) : '', sc: extra && extra.sc ? JSON.stringify(extra.sc) : '', ns: extra && extra.ns ? 1 : 0 }).catch(function (e) { toast('Робот не запустився: ' + (e && e.code || 'помилка'), 6000); });
     return true;
   }
   function toSentences(html) {
@@ -3732,7 +3732,16 @@ window.__RB = RB;
       });
     }, function () { closeModal(); toast('Не вдалося отримати список тем.', 3500); });
   }
-  function hcount(h) { try { return new DOMParser().parseFromString(h, 'text/html').querySelectorAll('h1,h2,h3,h4').length; } catch (e) { return 0; } }
+  /* телевізор показує готову практичну з розділу «Практичні роботи», а не текст для озвучення: назва береться з <meta name="tv-topic"> */
+  function tvTopicFor(src, cb) {
+    var m = /<meta[^>]+name=["']tv-topic["'][^>]+content=["']([^"']+)["']/i.exec(src); if (!m) { cb(null); return; }
+    var want = m[1].trim().toLowerCase();
+    NET.lectures().then(function (list) {
+      var it = null; list.forEach(function (x) { if (!it && x.section === 'prac' && String(x.title).replace(/^\d+\s*[.)-]?\s*/, '').trim().toLowerCase() === want) it = x; });
+      if (!it) { cb(null); return; }
+      NET.lectureParts(it.id).then(function (pp) { var pt = pp.deck ? 'deck' : pp.lec ? 'lec' : pp.notes ? 'notes' : ''; if (pt) cb(it.id, it.title, pt); else cb(null); }, function () { cb(null); });
+    }, function () { cb(null); });
+  }
   function robotStart(lid, ttl) {
     if (!isTeacher() && RB.busy && RB.busy(KEY)) { toast('Зараз у кабінеті йде заняття з роботом. Дочекайтесь кінця або попросіть того, хто його запустив, зупинити.', 5500); return; }
     modal('<h3>' + String(ttl).replace(/</g, '') + '</h3><p class="muted" id="rbw">Готуємо текст для озвучення…</p>');
@@ -3741,7 +3750,7 @@ window.__RB = RB;
       clearInterval(wi); closeModal(); var src = p.lec || p.notes, sn = RB.toSentences(src || p.deck || '');
       if (!sn.length) { toast('У цієї теми немає тексту для озвучення (лише PDF).', 4500); return; }
       var mp = p.deck ? RB.mapSlides(sn, p.deck) : null, sec = !mp && src ? RB.sections(src, sn) : null;
-      if (RB.start(KEY, ttl, sn, { lid: lid, m: mp, sx: sec && sec.sx, sc: sec && sec.sc }) !== false) { toast('Викладач-робот починає. Речень: ' + sn.length + (mp || sec ? ' · текст на телевізорі і дошці' : ''), 3800); if (mp) tvLecPart(lid, 'deck', ttl); else if (sec) tvLecPart(lid, p.lec && p.notes && hcount(p.notes) >= hcount(p.lec) ? 'notes' : p.lec ? 'lec' : 'notes', ttl); }
+      if (RB.start(KEY, ttl, sn, { lid: lid, m: mp, sx: sec && sec.sx, sc: sec && sec.sc, ns: /name=["']tv-topic["']/i.test(src || '') }) !== false) { toast('Викладач-робот починає. Речень: ' + sn.length + (mp || sec ? ' · текст на телевізорі і дошці' : ''), 3800); if (mp) tvLecPart(lid, 'deck', ttl); else if (sec) tvTopicFor(p.lec || '', function (id, t2, pt) { if (id) tvLecPart(id, pt, t2); else tvLecPart(lid, p.lec ? 'lec' : 'notes', ttl); }); }
     }, function () { clearInterval(wi); closeModal(); toast('Не вдалося завантажити тему (слабкий інтернет або сервер). Спробуйте ще раз.', 5500); });
   }
   function partPicker(lid, ttl) {
