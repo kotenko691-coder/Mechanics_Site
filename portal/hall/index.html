@@ -1786,6 +1786,138 @@ function console_(loc, wi, lx, w) {
     out.innerHTML = h;
   }
 
+  /* ---------- стенд «Центр ваги плоскої фігури» ---------- */
+  function newC() { return { parts: [], ans: { xc: '', yc: '' }, res: null }; }
+  var C = newC();
+  var CV = [
+    [{ t: 'R', x: '0', y: '0', b: '6', h: '2', neg: '0' }, { t: 'R', x: '0', y: '2', b: '2', h: '4', neg: '0' }],
+    [{ t: 'R', x: '0', y: '0', b: '10', h: '6', neg: '0' }, { t: 'C', x: '7', y: '3', r: '1.5', neg: '1' }],
+    [{ t: 'R', x: '0', y: '6', b: '6', h: '2', neg: '0' }, { t: 'R', x: '2', y: '0', b: '2', h: '6', neg: '0' }],
+    [{ t: 'R', x: '0', y: '0', b: '6', h: '3', neg: '0' }, { t: 'T', x: '0', y: '3', b: '6', h: '3', a: '3', neg: '0' }]
+  ];
+  var CNEW = { R: { t: 'R', x: '0', y: '0', b: '4', h: '2', neg: '0' }, T: { t: 'T', x: '0', y: '0', b: '4', h: '3', a: '2', neg: '0' }, C: { t: 'C', x: '2', y: '2', r: '1', neg: '0' }, S: { t: 'S', x: '2', y: '0', r: '2', d: '1', neg: '0' } };
+  var CNAME = { R: 'Прямокутник', T: 'Трикутник', C: 'Коло', S: 'Півколо' };
+  function setC(i) { C.parts = JSON.parse(JSON.stringify(CV[i])); C.res = null; C.ans = { xc: '', yc: '' }; }
+  function cgGeom(p) {
+    var x = num(p.x), y = num(p.y);
+    if (isNaN(x) || isNaN(y)) return null;
+    if (p.t === 'R') { var b = num(p.b), h = num(p.h); if (!(b > 0) || !(h > 0)) return null; return { type: 'poly', pts: [[x, y], [x + b, y], [x + b, y + h], [x, y + h]], A: b * h, cx: x + b / 2, cy: y + h / 2 }; }
+    if (p.t === 'T') { var b2 = num(p.b), h2 = num(p.h), a = num(p.a); if (!(b2 > 0) || !(h2 > 0) || isNaN(a)) return null; return { type: 'poly', pts: [[x, y], [x + b2, y], [x + a, y + h2]], A: b2 * h2 / 2, cx: x + (b2 + a) / 3, cy: y + h2 / 3 }; }
+    if (p.t === 'C') { var r = num(p.r); if (!(r > 0)) return null; return { type: 'circ', cx: x, cy: y, r: r, A: PI * r * r }; }
+    var r2 = num(p.r), d = p.d === '-1' ? -1 : 1; if (!(r2 > 0)) return null;
+    return { type: 'semi', x0: x, y0: y, r: r2, d: d, A: PI * r2 * r2 / 2, cx: x, cy: y + d * 4 * r2 / (3 * PI) };
+  }
+  function cgSolve(S) {
+    var rows = [], sA = 0, sAx = 0, sAy = 0;
+    if (!S.parts.length) return { err: 'Додайте хоча б одну частину фігури.' };
+    for (var i = 0; i < S.parts.length; i++) {
+      var p = S.parts[i], g = cgGeom(p); if (!g) return { err: 'Заповніть усі поля частини ' + (i + 1) + ' (розміри додатні).' };
+      var A = p.neg === '1' ? -g.A : g.A; rows.push({ A: A, x: g.cx, y: g.cy }); sA += A; sAx += A * g.cx; sAy += A * g.cy;
+    }
+    if (!(sA > 1e-9)) return { err: 'Сумарна площа має бути додатною: отвір не може бути більшим за фігуру.' };
+    return { rows: rows, sA: sA, sAx: sAx, sAy: sAy, xc: sAx / sA, yc: sAy / sA };
+  }
+  function cgPath(x, g, T) {
+    x.beginPath();
+    if (g.type === 'poly') g.pts.forEach(function (q, i) { var P = T(q[0], q[1]); if (i) x.lineTo(P[0], P[1]); else x.moveTo(P[0], P[1]); });
+    else if (g.type === 'circ') { var c0 = T(g.cx, g.cy); x.arc(c0[0], c0[1], g.r * T.s, 0, 6.3); }
+    else { var c1 = T(g.x0, g.y0); if (g.d > 0) x.arc(c1[0], c1[1], g.r * T.s, PI, 2 * PI, false); else x.arc(c1[0], c1[1], g.r * T.s, 0, PI, false); }
+    x.closePath();
+  }
+  function cgBox(S) {
+    var mn = [1e9, 1e9], mx = [-1e9, -1e9], any = false;
+    S.parts.forEach(function (p) {
+      var g = cgGeom(p); if (!g) return; any = true; var pts = [];
+      if (g.type === 'poly') pts = g.pts; else if (g.type === 'circ') pts = [[g.cx - g.r, g.cy - g.r], [g.cx + g.r, g.cy + g.r]]; else pts = [[g.x0 - g.r, g.y0], [g.x0 + g.r, g.y0 + g.d * g.r]];
+      pts.forEach(function (q) { mn[0] = Math.min(mn[0], q[0]); mn[1] = Math.min(mn[1], q[1]); mx[0] = Math.max(mx[0], q[0]); mx[1] = Math.max(mx[1], q[1]); });
+    });
+    return any ? { mn: mn, mx: mx } : null;
+  }
+  function drawCG(c, S) {
+    var x = c.getContext('2d'), W = c.width, H = c.height; x.fillStyle = '#fff'; x.fillRect(0, 0, W, H);
+    var bb = cgBox(S); if (!bb) { txt(x, 'Додайте частини фігури', W / 2, H / 2, '#777', 18); return; }
+    var mnx = Math.min(0, bb.mn[0]), mny = Math.min(0, bb.mn[1]), w = bb.mx[0] - mnx, h = bb.mx[1] - mny, M0 = 46;
+    var sc = Math.min((W - 2 * M0) / Math.max(w, 1e-6), (H - 2 * M0) / Math.max(h, 1e-6)); var T = function (u, v) { return [M0 + (u - mnx) * sc, H - M0 - (v - mny) * sc]; }; T.s = sc;
+    x.strokeStyle = '#999'; x.lineWidth = 1; x.setLineDash([5, 5]); var o = T(0, 0); x.beginPath(); x.moveTo(o[0] - 20, o[1]); x.lineTo(W - 10, o[1]); x.moveTo(o[0], o[1] + 20); x.lineTo(o[0], 10); x.stroke(); x.setLineDash([]); txt(x, 'x', W - 14, o[1] - 6, '#777', 14); txt(x, 'y', o[0] + 10, 16, '#777', 14);
+    S.parts.forEach(function (p, i) { var g = cgGeom(p); if (!g) return; cgPath(x, g, T); if (p.neg === '1') { x.fillStyle = '#fbe0e0'; x.fill(); x.strokeStyle = '#c62828'; x.lineWidth = 2.5; x.setLineDash([6, 4]); x.stroke(); x.setLineDash([]); } else { x.fillStyle = 'rgba(120,170,100,.45)'; x.fill(); x.strokeStyle = '#1b3a1b'; x.lineWidth = 2.5; x.stroke(); } });
+    S.parts.forEach(function (p, i) { var g = cgGeom(p); if (!g) return; var q = T(g.cx, g.cy); x.fillStyle = p.neg === '1' ? '#c62828' : '#12284a'; x.beginPath(); x.arc(q[0], q[1], 4, 0, 6.3); x.fill(); txt(x, String(i + 1), q[0] + 10, q[1] - 6, p.neg === '1' ? '#c62828' : '#12284a', 14); });
+    var cx = num(S.ans.xc), cy = num(S.ans.yc), r = S.res || {};
+    if (!isNaN(cx) && !isNaN(cy)) { var q2 = T(cx, cy), col = r.ok === undefined ? '#555' : r.ok ? '#1b8a3a' : '#c62828'; x.strokeStyle = col; x.lineWidth = 3.5; x.beginPath(); x.moveTo(q2[0] - 9, q2[1] - 9); x.lineTo(q2[0] + 9, q2[1] + 9); x.moveTo(q2[0] + 9, q2[1] - 9); x.lineTo(q2[0] - 9, q2[1] + 9); x.stroke(); txt(x, 'C', q2[0] + 20, q2[1] - 10, col, 18); }
+  }
+  function openCG(msg) {
+    var h = '<h3>Центр ваги плоскої фігури</h3><p class="muted">Складіть фігуру з простих частин: прямокутник, трикутник, коло, півколо. Отвір позначте «мінус». Початок координат (0; 0), розміри в см. Знайдіть центр ваги і введіть xc та yc.</p>' +
+      '<canvas id="pc" width="640" height="260" style="width:100%;height:auto;display:block;background:#fff;border:1px solid #6d5a3c"></canvas>' +
+      '<div style="margin:6px 0"><span class="muted">Готові варіанти:</span> <button type="button" data-v="0">Г-фігура</button><button type="button" data-v="1">Пластина з отвором</button><button type="button" data-v="2">Т-переріз</button><button type="button" data-v="3">Квадрат і трикутник</button> <button type="button" id="clr">Очистити</button></div><div id="ld">';
+    C.parts.forEach(function (p, i) {
+      var f = '';
+      if (p.t === 'R') f = 'x0 ' + inp('x', p.x, i, '58px') + ' y0 ' + inp('y', p.y, i, '58px') + ' b ' + inp('b', p.b, i, '58px') + ' h ' + inp('h', p.h, i, '58px');
+      else if (p.t === 'T') f = 'x0 ' + inp('x', p.x, i, '52px') + ' y0 ' + inp('y', p.y, i, '52px') + ' b ' + inp('b', p.b, i, '52px') + ' h ' + inp('h', p.h, i, '52px') + ' a ' + inp('a', p.a, i, '52px');
+      else if (p.t === 'C') f = 'центр x ' + inp('x', p.x, i, '58px') + ' y ' + inp('y', p.y, i, '58px') + ' R ' + inp('r', p.r, i, '58px');
+      else f = 'середина діаметра x ' + inp('x', p.x, i, '58px') + ' y ' + inp('y', p.y, i, '58px') + ' R ' + inp('r', p.r, i, '58px') + ' ' + sel('d', [['1', 'дуга вгору'], ['-1', 'дуга вниз']], p.d || '1', i);
+      h += '<div class="row" style="margin-top:6px;border-top:1px solid #3a2c1a;padding-top:6px"><b>' + (i + 1) + ' ' + CNAME[p.t] + '</b> ' + f + ' ' + sel('neg', [['0', 'матеріал (+)'], ['1', 'отвір (−)']], p.neg, i) + ' <button type="button" data-del="' + i + '">Видалити</button></div>';
+    });
+    h += '</div><div style="margin-top:6px"><button type="button" data-add="R">+ Прямокутник</button> <button type="button" data-add="T">+ Трикутник</button> <button type="button" data-add="C">+ Коло</button> <button type="button" data-add="S">+ Півколо</button></div>' +
+      '<p class="muted" style="margin:8px 0 2px">Трикутник: (x0; y0) лівий кут основи, b основа, h висота, a зсув вершини від лівого кута. Півколо: дуга вгору або вниз від діаметра.</p>' +
+      '<h3 style="margin:10px 0 4px">Ваш центр ваги</h3><div class="row">xc ' + inp('xc', C.ans.xc, 'a', '90px') + ' yc ' + inp('yc', C.ans.yc, 'a', '90px') + ' см</div>' +
+      '<button class="main" type="button" id="chk" style="margin-top:10px">Перевірити</button><div id="pres" style="margin-top:8px;line-height:1.5">' + (msg || '') + '</div>';
+    var b = modal(h), cv = b.querySelector('#pc'); drawCG(cv, C);
+    function readAll() {
+      b.querySelectorAll('input[data-k],select[data-k]').forEach(function (e) {
+        var k = e.dataset.k, i = e.dataset.i;
+        if (i === 'a') C.ans[k] = e.value; else if (i !== undefined) C.parts[+i][k] = e.value;
+      });
+    }
+    function live() { readAll(); C.res = null; drawCG(cv, C); refreshStand(); }
+    b.addEventListener('input', live); b.addEventListener('change', live);
+    b.addEventListener('click', function (e) {
+      var t = e.target.closest('button'); if (!t) return;
+      if (t.dataset.v !== undefined) { setC(+t.dataset.v); openCG(); return; }
+      if (t.dataset.del !== undefined) { readAll(); C.parts.splice(+t.dataset.del, 1); C.res = null; openCG(); return; }
+      if (t.dataset.add !== undefined) { readAll(); C.parts.push(JSON.parse(JSON.stringify(CNEW[t.dataset.add]))); C.res = null; openCG(); return; }
+      if (t.id === 'clr') { C.parts = []; C.res = null; C.ans = { xc: '', yc: '' }; openCG(); return; }
+      if (t.id === 'chk') checkCG();
+    });
+  }
+  function checkCG() {
+    var b = $('mbody'), out = b.querySelector('#pres'), cv = b.querySelector('#pc'), s = cgSolve(C);
+    if (s.err) { out.innerHTML = '<span style="color:#f2b0a0">' + esc(s.err) + '</span>'; return; }
+    var vx = num(C.ans.xc), vy = num(C.ans.yc);
+    if (isNaN(vx) || isNaN(vy)) { out.innerHTML = '<span style="color:#f2b0a0">Введіть обидві координати центра ваги.</span>'; return; }
+    var hint = 'Складіть таблицю: площа A кожної частини (отвір зі знаком «мінус») і координати її центра, тоді ΣA·x / ΣA та ΣA·y / ΣA.';
+    var jx = judge('xc', vx, s.xc, hint), jy = judge('yc', vy, s.yc, hint), all = jx.ok && jy.ok;
+    C.res = { ok: all }; drawCG(cv, C); curSt.sig = null; curSt.ok = all; curSt.checked = true; curSt.anim = null; build3D(curSt);
+    var h = '';
+    [jx, jy].forEach(function (r) { h += '<div style="color:' + (r.ok ? '#a5d6a7' : '#f2b0a0') + '">' + esc(r.msg) + '</div>'; });
+    h = all ? '<div style="font-weight:700;color:#a5d6a7;margin-bottom:4px">Усе правильно, ти молодець!</div>' + h : '<div style="font-weight:700;color:#f2b0a0;margin-bottom:4px">Тут є проблема.</div>' + h;
+    if (all) {
+      h += '<div class="muted" style="margin-top:8px">Звірте зі своєю таблицею:</div><table style="border-collapse:collapse;margin-top:4px;color:#f2e2c0"><tr>' + ['частина', 'A, см²', 'x', 'y', 'A·x', 'A·y'].map(function (t) { return '<th style="border:1px solid #8a7347;padding:3px 8px">' + t + '</th>'; }).join('') + '</tr>';
+      s.rows.forEach(function (r, i) { h += '<tr>' + [i + 1, fmt(r.A), fmt(r.x), fmt(r.y), fmt(r.A * r.x), fmt(r.A * r.y)].map(function (t) { return '<td style="border:1px solid #8a7347;padding:3px 8px;text-align:center">' + t + '</td>'; }).join('') + '</tr>'; });
+      h += '<tr>' + ['Σ', fmt(s.sA), '', '', fmt(s.sAx), fmt(s.sAy)].map(function (t) { return '<td style="border:1px solid #8a7347;padding:3px 8px;text-align:center;font-weight:700">' + t + '</td>'; }).join('') + '</tr></table>';
+    }
+    out.innerHTML = h;
+  }
+  function cg3D(st) {
+    var S = st.S, root = st.root, bb = cgBox(S); if (!bb) return;
+    var w = bb.mx[0] - bb.mn[0], hh = bb.mx[1] - bb.mn[1], sc = Math.min(1.2 / Math.max(w, 1e-6), 0.95 / Math.max(hh, 1e-6)), mx0 = (bb.mn[0] + bb.mx[0]) / 2, my0 = (bb.mn[1] + bb.mx[1]) / 2;
+    var P = function (u, v) { return [(u - mx0) * sc, 1.35 + (v - my0) * sc]; };
+    var plate = grp(0, 0, 0.03, root);
+    S.parts.forEach(function (p, i) {
+      var g = cgGeom(p); if (!g) return; var sh = new THREE.Shape();
+      if (g.type === 'poly') g.pts.forEach(function (q, k) { var a = P(q[0], q[1]); if (k) sh.lineTo(a[0], a[1]); else sh.moveTo(a[0], a[1]); });
+      else if (g.type === 'circ') { var c0 = P(g.cx, g.cy); sh.absarc(c0[0], c0[1], g.r * sc, 0, 2 * PI, false); }
+      else { var c1 = P(g.x0, g.y0); sh.absarc(c1[0], c1[1], g.r * sc, g.d > 0 ? 0 : PI, g.d > 0 ? PI : 2 * PI, false); }
+      var neg = p.neg === '1', m = new THREE.Mesh(new THREE.ShapeGeometry(sh, 24), new THREE.MeshStandardMaterial({ color: neg ? 0x3a2418 : 0xb58a52, roughness: .8, side: THREE.DoubleSide })); m.position.z = neg ? 0.012 : 0; plate.add(m);
+      var q0 = P(g.cx, g.cy), dm = new THREE.Mesh(new THREE.SphereGeometry(0.018, 10, 8), mat(neg ? 0xc62828 : 0x12284a)); dm.position.set(q0[0], q0[1], 0.03); plate.add(dm);
+      var lb = lab3(String(i + 1) + (neg ? ' (−)' : ''), neg ? '#c62828' : '#12284a', 0.2); lb.position.set(q0[0] + 0.07, q0[1] + 0.05, 0.05); plate.add(lb);
+    });
+    var cx = num(S.ans.xc), cy = num(S.ans.yc);
+    if (!isNaN(cx) && !isNaN(cy)) {
+      var col = !st.checked ? 0x808080 : st.ok ? 0x1b8a3a : 0xc62828, q3 = P(cx, cy), cm = mat(col);
+      [PI / 4, -PI / 4].forEach(function (rz) { var bar = box(0.13, 0.018, 0.018, cm, q3[0], q3[1], 0.05, plate); bar.rotation.z = rz; });
+      var cl = lab3('C(' + fmt(cx) + '; ' + fmt(cy) + ')', hexCss(col), 0.42); cl.position.set(q3[0] + 0.2, q3[1] + 0.12, 0.07); plate.add(cl);
+    }
+  }
+
   /* ---------- 3D-стенди: по три однакових кожного виду ---------- */
   var STS = [], SWS = [], ARM = new THREE.Vector3(0, 1, 0);
   function lab3(text, col, w) {
@@ -1829,6 +1961,7 @@ function console_(loc, wi, lx, w) {
       if (!isNaN(vA) && vA !== 0) { var uA = A.VA.d === '1'; if (uA) arr3(body, 0, -0.3, 0, -0.045, colSt(res.VA), 0.018); else arr3(body, 0, -0.045 + 0.3, 0, -0.045, colSt(res.VA), 0.018); var l1 = lab3('VA=' + fmt(vA), hexCss(colSt(res.VA))); l1.position.set(-0.05, -0.45, 0.05); body.add(l1); }
       if (!isNaN(hA) && hA !== 0) { var rA = A.HA.d === '1'; if (rA) arr3(body, -0.3, 0, -0.04, 0, colSt(res.HA), 0.018); else arr3(body, -0.04, 0, -0.3, 0, colSt(res.HA), 0.018); var l2 = lab3('HA=' + fmt(hA), hexCss(colSt(res.HA))); l2.position.set(-0.3, 0.1, 0.05); body.add(l2); }
       if (!isNaN(vB) && vB !== 0) { var uB = A.VB.d === '1', bb = (xB - xA) * sc; if (uB) arr3(body, bb, -0.3, bb, -0.045, colSt(res.VB), 0.018); else arr3(body, bb, 0.255, bb, -0.045, colSt(res.VB), 0.018); var l3 = lab3('VB=' + fmt(vB), hexCss(colSt(res.VB))); l3.position.set(bb + 0.05, -0.45, 0.05); body.add(l3); }
+    } else if (st.kind === 'cg') { cg3D(st);
     } else {
       var a1 = num(S.a1), a2 = num(S.a2); if (isNaN(a1) || isNaN(a2)) return; var n0 = { x: 0.1, y: 1.4 }, RL = 0.55, res2 = S.res || {};
       var node = st.node = grp(n0.x, n0.y, 0.03, root), pts = [], rods = st.rods = [];
@@ -1850,7 +1983,7 @@ function console_(loc, wi, lx, w) {
     });
   }
   function station(kind, i, wx, wz, ry, L2) {
-    var L = L2 || loc, GG = L.group, title = (kind === 'beam' ? 'Двоопорна балка' : 'Реакції в стержнях') + (i >= 0 ? ' ' + (i + 1) : '');
+    var L = L2 || loc, GG = L.group, title = (kind === 'beam' ? 'Двоопорна балка' : kind === 'cg' ? 'Центр ваги фігури' : 'Реакції в стержнях') + (i >= 0 ? ' ' + (i + 1) : '');
     var g = grp(wx, 0, wz, GG, ry), st = { loc: L, g: g, kind: kind, i: i, S: null, root: null, body: null, anim: null, ok: false, checked: false };
     box(1.7, 0.82, 0.6, mat(0x5a4630), 0, 0.41, 0.1, g); box(1.78, 0.04, 0.68, M.darkwood, 0, 0.84, 0.1, g);
     box(1.7, 1.2, 0.05, mat(0xe8e2d2), 0, 1.45, -0.05, g); box(1.78, 1.28, 0.03, M.brass, 0, 1.45, -0.08, g);
@@ -1859,26 +1992,26 @@ function console_(loc, wi, lx, w) {
     st.root = grp(0, 0, 0, g);
     var stp = signPlane(['ЗУПИНИТИ'], 0.9, 0.22, { bg: '#8a1c1c', fg: '#fff4d8', px: 90 }); stp.position.set(0, 0.55, 0.42); g.add(stp);
     act(stp, 'Зупинити макет', function () { stopSt(st); toast('Макет зупинено.'); }, { reach: 5 });
-    var save = (kind === 'beam') ? B : R; if (kind === 'beam') { B = newB(); setB(0); st.S = B; } else { R = newR(); setR(0); st.S = R; }
+    if (kind === 'beam') { B = newB(); setB(0); st.S = B; } else if (kind === 'cg') { C = newC(); setC(0); st.S = C; } else { R = newR(); setR(0); st.S = R; }
     curSt = st; build3D(st);
     var h = hit(g, 1.7, 1.5, 0.6, 0, 1.4, 0.2);
-    [h, g.children[0]].forEach(function (o) { act(o, title, function () { curSt = st; if (kind === 'beam') { B = st.S; openBeam(); } else { R = st.S; openRods(); } }, { reach: 4.6 }); });
+    [h, g.children[0]].forEach(function (o) { act(o, title, function () { curSt = st; if (kind === 'beam') { B = st.S; openBeam(); } else if (kind === 'cg') { C = st.S; openCG(); } else { R = st.S; openRods(); } }, { reach: 4.6 }); });
     if (!L2) obs(L, wx, wz, 0.5, 0.95); STS.push(st); return st;
   }
   [-1.6, 0.3, 2.2].forEach(function (z, i) { station('beam', i, -4.15, z, PI / 2); station('rods', i, 4.15, z, -PI / 2); });
   /* стенд, який можна перемикати: двоопорна балка або стержні */
   function standSwitch(L, wx, wz, ry) {
-    var a = station('beam', -1, wx, wz, ry, L), b = station('rods', -1, wx, wz, ry, L); b.g.visible = false;
+    var a = station('beam', -1, wx, wz, ry, L), b = station('rods', -1, wx, wz, ry, L), c3 = station('cg', -1, wx, wz, ry, L); b.g.visible = false; c3.g.visible = false;
     obs(L, wx, wz, 0.5, 0.95); L.zoomStand = a.root; var cur2 = a;
     var pg = grp(wx, 0, wz, L.group, ry), pl2 = box(0.7, 0.3, 0.05, M.brass, 0.0, 2.55, 0.02, pg);
     var sg = signPlane(['Перемкнути стенд'], 1.1, 0.26, { bg: '#6b4a1f', fg: '#fff4d8', px: 90 }); sg.position.set(0, 2.55, 0.06); pg.add(sg); pl2.visible = false;
-    function setKind(k) { var n = (k === 'rods') ? b : a; if (n === cur2) return; cur2.g.visible = false; cur2 = n; cur2.g.visible = true; L.zoomStand = cur2.root; }
+    function setKind(k) { var n = (k === 'rods') ? b : (k === 'cg') ? c3 : a; if (n === cur2) return; cur2.g.visible = false; cur2 = n; cur2.g.visible = true; L.zoomStand = cur2.root; }
     act(sg, 'Перемкнути стенд', function () {
-      setKind(cur2 === a ? 'rods' : 'beam');
-      toast(cur2.kind === 'beam' ? 'Стенд: двоопорна балка.' : 'Стенд: реакції в стержнях.', 2600);
+      setKind(cur2 === a ? 'rods' : cur2 === b ? 'cg' : 'beam');
+      toast(cur2.kind === 'beam' ? 'Стенд: двоопорна балка.' : cur2.kind === 'cg' ? 'Стенд: центр ваги плоскої фігури.' : 'Стенд: реакції в стержнях.', 2600);
     }, { reach: 6 });
     SWS.push({ key: 'ps_' + L.id + '_sw', get: function () { return cur2.kind; }, set: setKind, last: 'beam' });
-    return { a: a, b: b };
+    return { a: a, b: b, c: c3 };
   }
   ['arch', 'build', 'road'].forEach(function (id) { var L = LOC[id]; standSwitch(L, -L.W / 2 + 0.4, -1.2, PI / 2); });
   /* окремий постійний стенд зі стержнями поруч із перемикним (у кожному кабінеті) */
@@ -1906,7 +2039,7 @@ function console_(loc, wi, lx, w) {
     st.bot = !!o.b; Object.keys(st.S).forEach(function (k) { if (k !== 'ans') delete st.S[k]; });
     Object.keys(o.S).forEach(function (k) { st.S[k] = o.S[k]; });
     st.checked = !!o.c; st.ok = !!o.ok; st.anim = o.an || null; st.sig = st.anim ? sigOf(st.S) : null;
-    st.built = stPack(st); build3D(st); if (curSt === st) { var m = $('modal'); if (m && m.style.display !== 'none' && m.style.display !== '' && $('pc')) { try { if (st.kind === 'beam') { B = st.S; drawBeam($('pc'), B); } else { R = st.S; drawRods($('pc'), R); } } catch (e) {} } }
+    st.built = stPack(st); build3D(st); if (curSt === st) { var m = $('modal'); if (m && m.style.display !== 'none' && m.style.display !== '' && $('pc')) { try { if (st.kind === 'beam') { B = st.S; drawBeam($('pc'), B); } else if (st.kind === 'cg') { C = st.S; drawCG($('pc'), C); } else { R = st.S; drawRods($('pc'), R); } } catch (e) {} } }
   }
   function psStart() {
     var f = window.__fb; if (!f || !f.db || psInit) return; psInit = true;
@@ -1953,7 +2086,7 @@ function console_(loc, wi, lx, w) {
     else { S.ans = { VA: { v: String(Math.round(b.RA * 100) / 100), d: b.RA >= 0 ? '1' : '0' }, HA: { v: '0', d: '1' }, VB: { v: String(Math.round(b.RB * 100) / 100), d: b.RB >= 0 ? '1' : '0' } }; if (b.RA < 0) S.ans.VA.v = String(-Math.round(b.RA * 100) / 100); if (b.RB < 0) S.ans.VB.v = String(-Math.round(b.RB * 100) / 100); S.res = { VA: true, HA: true, VB: true }; st.checked = true; st.ok = true; }
     build3D(st); st.built = stPack(st);
   }
-  window.__prak = { scene: botScene,  openBeam: openBeam, openRods: openRods, STS: STS, beamSolve: beamSolve, rodSolve: rodSolve, check: function (st) { curSt = st; if (st.kind === 'beam') { B = st.S; openBeam(); checkBeam(); } else { R = st.S; openRods(); checkRods(); } } };
+  window.__prak = { cg: { solve: cgSolve, draw: drawCG, CV: CV, open: function (i) { var st = null; STS.forEach(function (q) { if (!st && q.kind === 'cg' && q.loc === cur) st = q; }); if (!st) return false; curSt = st; C = st.S; if (i !== undefined) setC(i); openCG(); return true; }, S: function () { return C; } }, scene: botScene,  openBeam: openBeam, openRods: openRods, STS: STS, beamSolve: beamSolve, rodSolve: rodSolve, check: function (st) { curSt = st; if (st.kind === 'beam') { B = st.S; openBeam(); checkBeam(); } else { R = st.S; openRods(); checkRods(); } } };
 })();
 
 var CODES={};
