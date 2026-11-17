@@ -2903,7 +2903,7 @@ var VP = (function () {
     return new Response(new Blob([u]).stream().pipeThrough(new DecompressionStream('gzip'))).text();
   }
   function lpHtml(st, lid, part) {
-    var wrap = function (h) { return part === 'notes' ? { notes: h } : { deck: h } };
+    var wrap = function (h) { return part === 'notes' ? { notes: h } : part === 'lec' ? { lec: h } : { deck: h } };
     var fallback = function () { return lpGet(lid); };
     if (st.h) return lpUnpack(st.h, st.z).then(wrap, fallback);
     if (st.hn) {
@@ -2917,7 +2917,7 @@ var VP = (function () {
     var msg = document.createElement('div'); msg.style.cssText = 'position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#f2e2c0;font:34px Georgia,serif;background:#0b0907'; msg.textContent = 'Завантажуємо тему…'; f.appendChild(msg);
     var parts = String(st.vid || '').split('|'), lid = parts[0], part = parts[1] || 'deck';
     lpHtml(st, lid, part).then(function (r) {
-      if (shown !== sig) return; var html = part === 'notes' ? r.notes : r.deck; if (!html) { msg.textContent = 'Цієї частини в темі немає.'; return; }
+      if (shown !== sig) return; var html = part === 'notes' ? r.notes : part === 'lec' ? r.lec : r.deck; if (!html) { msg.textContent = 'Цієї частини в темі немає.'; return; }
       var ifr = document.createElement('iframe'); ifr.style.cssText = 'width:100%;height:100%;border:0;background:#fff'; ifr.setAttribute('sandbox', 'allow-scripts allow-same-origin'); lpIfr = ifr;
       ifr.addEventListener('load', function () {
         if (!ctl) return; var d = lpDoc(), w = ifr.contentWindow; if (!d) return;
@@ -3396,7 +3396,7 @@ var RB = (function () {
       return Promise.resolve({ z: 0, s: btoa(unescape(encodeURIComponent(h))) });
     };
     if (NET && NET.lectureParts) NET.lectureParts(lid).then(function (p) {
-      var h = part === 'notes' ? p.notes : p.deck; if (!h) { go(); return; }
+      var h = part === 'notes' ? p.notes : part === 'lec' ? p.lec : p.deck; if (!h) { go(); return; }
       pack(h).then(function (o) {
         if (o.s.length > 9000000) { toast('Тема завелика для передачі: студенти інших груп її не побачать.', 5000); go(); return; }
         rec.z = o.z; if (o.s.length <= 900000) rec.h = o.s; else { var i; for (i = 0; i < o.s.length; i += 900000) chunks.push(o.s.slice(i, i + 900000)); rec.hn = chunks.length; }
@@ -3416,7 +3416,7 @@ var RB = (function () {
           a.href = URL.createObjectURL(blob); a.download = 'sentences.json'; document.body.appendChild(a); a.click(); a.remove(); closeModal(); toast('Готово: ' + arr.length + ' речень у файлі sentences.json', 5000); return;
         }
         var pp = document.getElementById('rxp'); if (pp) pp.textContent = 'Лекція ' + i + ' з ' + list.length + '…';
-        NET.lectureParts(it.id).then(function (p) { RB.toSentences(p.notes || p.deck || '').forEach(function (sn) { all[sn] = 1; n++; }); next(); }, function () { next(); });
+        NET.lectureParts(it.id).then(function (p) { RB.toSentences(p.lec || p.notes || p.deck || '').forEach(function (sn) { all[sn] = 1; n++; }); next(); }, function () { next(); });
       })();
     }, function () { closeModal(); toast('Не вдалося отримати список тем.', 3500); });
   }
@@ -3424,10 +3424,10 @@ var RB = (function () {
     modal('<h3>' + String(ttl).replace(/</g, '') + '</h3><p class="muted" id="rbw">Готуємо текст для озвучення…</p>');
     var w0 = Date.now(), wi = setInterval(function () { var e = document.getElementById('rbw'); if (!e) { clearInterval(wi); return; } var sec = Math.round((Date.now() - w0) / 1000); e.textContent = 'Завантажуємо тему з сервера… ' + sec + ' с' + (sec > 20 ? ' (повільний інтернет, зачекайте до 1,5 хв)' : ''); }, 1000);
     NET.lectureParts(lid).then(function (p) {
-      clearInterval(wi); closeModal(); var sn = RB.toSentences(p.notes || p.deck || '');
+      clearInterval(wi); closeModal(); var src = p.lec || p.notes, sn = RB.toSentences(src || p.deck || '');
       if (!sn.length) { toast('У цієї теми немає тексту для озвучення (лише PDF).', 4500); return; }
-      var mp = p.deck ? RB.mapSlides(sn, p.deck) : null, sec = !mp && p.notes ? RB.sections(p.notes, sn) : null;
-      if (RB.start(KEY, ttl, sn, { lid: lid, m: mp, sx: sec && sec.sx, sc: sec && sec.sc }) !== false) { toast('Викладач-робот починає. Речень: ' + sn.length + (mp || sec ? ' · текст на телевізорі і дошці' : ''), 3800); if (mp) tvLecPart(lid, 'deck', ttl); else if (sec) tvLecPart(lid, 'notes', ttl); }
+      var mp = p.deck ? RB.mapSlides(sn, p.deck) : null, sec = !mp && src ? RB.sections(src, sn) : null;
+      if (RB.start(KEY, ttl, sn, { lid: lid, m: mp, sx: sec && sec.sx, sc: sec && sec.sc }) !== false) { toast('Викладач-робот починає. Речень: ' + sn.length + (mp || sec ? ' · текст на телевізорі і дошці' : ''), 3800); if (mp) tvLecPart(lid, 'deck', ttl); else if (sec) tvLecPart(lid, p.lec ? 'lec' : 'notes', ttl); }
     }, function () { clearInterval(wi); closeModal(); toast('Не вдалося завантажити тему (слабкий інтернет або сервер). Спробуйте ще раз.', 5500); });
   }
   function partPicker(lid, ttl) {
@@ -3437,13 +3437,14 @@ var RB = (function () {
       if (!modalOpen) return;
       var h = '<h3>' + esc(ttl) + '</h3><p class="muted">Що вивести на телевізор:</p>';
       if (p.notes) h += '<button type="button" data-p="notes" style="display:block;width:100%;text-align:left;margin:4px 0">Конспект</button>';
+      if (p.lec) h += '<button type="button" data-p="lec" style="display:block;width:100%;text-align:left;margin:4px 0">Лекція</button>';
       if (p.deck) h += '<button type="button" data-p="deck" style="display:block;width:100%;text-align:left;margin:4px 0">Презентація</button>';
       if (p.pdf) h += '<button type="button" data-p="pdf" style="display:block;width:100%;text-align:left;margin:4px 0">PDF</button>';
       h += '<button type="button" data-p="all" style="display:block;width:100%;text-align:left;margin:10px 0 4px">Відкрити в усіх окремим вікном</button>';
       var b2 = modal(h);
       b2.addEventListener('click', function (e) {
         var t = e.target.closest('button[data-p]'); if (!t) return; var k = t.getAttribute('data-p'); closeModal();
-        if (k === 'notes' || k === 'deck') tvLecPart(lid, k, ttl);
+        if (k === 'notes' || k === 'deck' || k === 'lec') tvLecPart(lid, k, ttl);
         else if (k === 'pdf') {
           toast('Готуємо PDF…', 4000);
           try { var bin = atob(p.pdf), by = new Uint8Array(bin.length); for (var i = 0; i < bin.length; i++) by[i] = bin.charCodeAt(i); } catch (er) { toast('Не вдалося прочитати PDF.'); return; }
