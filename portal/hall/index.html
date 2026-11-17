@@ -1948,7 +1948,7 @@ function console_(loc, wi, lx, w) {
       return { t: 'M', x: String(l[1]), M: String(Math.abs(l[2])), ccw: l[2] > 0 ? '0' : '1' };
     });
     st.bot = true; st.anim = null; st.sig = null;
-    if (step === 'scheme') { S.ans = { VA: { v: '', d: '1' }, HA: { v: '', d: '1' }, VB: { v: '', d: '1' } }; S.res = null; st.checked = false; st.ok = false; }
+    if (step === 'scheme' || step === 'sup' || step === 'res' || step === 'arm' || step === 'signs') { S.ans = { VA: { v: '', d: '1' }, HA: { v: '', d: '1' }, VB: { v: '', d: '1' } }; S.res = null; st.checked = false; st.ok = false; }
     else { S.ans = { VA: { v: String(Math.round(b.RA * 100) / 100), d: b.RA >= 0 ? '1' : '0' }, HA: { v: '0', d: '1' }, VB: { v: String(Math.round(b.RB * 100) / 100), d: b.RB >= 0 ? '1' : '0' } }; if (b.RA < 0) S.ans.VA.v = String(-Math.round(b.RA * 100) / 100); if (b.RB < 0) S.ans.VB.v = String(-Math.round(b.RB * 100) / 100); S.res = { VA: true, HA: true, VB: true }; st.checked = true; st.ok = true; }
     build3D(st); st.built = stPack(st);
   }
@@ -3282,23 +3282,41 @@ window.__RB = RB;
   /* практика: схема, формули й епюри на дошці під розповідь робота (сцена приходить з розділу теми) */
   var scn = null;
   function fm(v) { var t = (Math.round(v * 100) / 100).toString().replace('.', ','); return t.replace('-', '−'); }
-  function sceneLines(b, st) {
+
+  function leftT(b, z) {
+    var q = [], qn = [], m = [], mn = [];
+    if (b.xA <= z + 1e-9) { q.push(fm(b.RA)); m.push(fm(b.RA) + '·' + fm(z - b.xA)); }
+    if (b.xB <= z + 1e-9) { q.push('+ ' + fm(b.RB)); m.push('+ ' + fm(b.RB) + '·' + fm(z - b.xB)); }
+    b.P.forEach(function (p) { if (p[0] <= z + 1e-9) { q.push('− ' + fm(p[1])); m.push('− ' + fm(p[1]) + '·' + fm(z - p[0])); } });
+    b.q.forEach(function (w) { if (w[0] < z - 1e-9) { var l = Math.min(z, w[1]) - w[0]; q.push('− ' + fm(w[2]) + '·' + fm(l)); m.push('− ' + fm(w[2]) + '·' + fm(l) + '·' + fm(z - w[0] - l / 2)); } });
+    b.m.forEach(function (w) { if (w[0] <= z + 1e-9) m.push(w[1] > 0 ? '+ ' + fm(w[1]) : '− ' + fm(-w[1])); });
+    var j = function (l) { var s = l.join(' '); return s.charAt(0) === '+' ? s.slice(2) : s; };
+    return { q: j(q), m: j(m) };
+  }
+  function armEq(b, of) {
+    var pv = of === 'B' ? b.xB : b.xA, d = b.xB - b.xA, t = [];
+    b.P.forEach(function (p) { var a = p[0] - pv; if (Math.abs(a) > 1e-9) t.push((of === 'B' ? (a < 0 ? '− ' : '+ ') : (a > 0 ? '− ' : '+ ')) + fm(p[1]) + '·' + fm(Math.abs(a))); });
+    b.q.forEach(function (w) { var f = w[2] * (w[1] - w[0]), a = (w[0] + w[1]) / 2 - pv; if (Math.abs(a) > 1e-9) t.push((of === 'B' ? (a < 0 ? '− ' : '+ ') : (a > 0 ? '− ' : '+ ')) + fm(f) + '·' + fm(Math.abs(a))); });
+    b.m.forEach(function (w) { t.push(w[1] > 0 ? '− ' + fm(w[1]) : '+ ' + fm(-w[1])); });
+    return (of === 'B' ? '−RA·' : 'RB·') + fm(d) + ' ' + t.join(' ') + ' = 0';
+  }
+  function sceneLines(b, st, sc) {
     var d = b.xB - b.xA, o = [];
     if (st === 'scheme') { o.push('Дано:'); b.P.forEach(function (p) { o.push('сила ' + fm(p[1]) + ' кН, на ' + fm(p[0]) + ' м'); }); b.q.forEach(function (q) { o.push('q = ' + fm(q[2]) + ' кН/м, від ' + fm(q[0]) + ' до ' + fm(q[1]) + ' м'); }); b.m.forEach(function (m) { o.push('момент ' + fm(Math.abs(m[1])) + ' кН·м, на ' + fm(m[0]) + ' м'); }); o.push('Знайти: RA, RB, епюри Q і M'); return o; }
-    if (st === 'react') {
-      var tA = [], tB = [];
-      b.P.forEach(function (p) { var a = p[0] - b.xA, c = b.xB - p[0]; if (Math.abs(a) > 1e-9) tA.push((a > 0 ? '− ' : '+ ') + fm(p[1]) + '·' + fm(Math.abs(a))); if (Math.abs(c) > 1e-9) tB.push((c > 0 ? '+ ' : '− ') + fm(p[1]) + '·' + fm(Math.abs(c))); });
-      b.q.forEach(function (q) { var f = q[2] * (q[1] - q[0]), xc = (q[0] + q[1]) / 2, a = xc - b.xA, c = b.xB - xc; o.push('Q = ' + fm(q[2]) + '·' + fm(q[1] - q[0]) + ' = ' + fm(f) + ' кН'); tA.push((a > 0 ? '− ' : '+ ') + fm(f) + '·' + fm(Math.abs(a))); tB.push((c > 0 ? '+ ' : '− ') + fm(f) + '·' + fm(Math.abs(c))); });
-      b.m.forEach(function (m) { tA.push(m[1] > 0 ? '− ' + fm(m[1]) : '+ ' + fm(-m[1])); tB.push(m[1] > 0 ? '− ' + fm(m[1]) : '+ ' + fm(-m[1])); });
-      o.push('ΣM(A)=0: RB·' + fm(d) + ' ' + tA.join(' ') + ' = 0'); o.push('RB = ' + fm(b.RB) + ' кН'); o.push('ΣM(B)=0: −RA·' + fm(d) + ' ' + tB.join(' ') + ' = 0'); o.push('RA = ' + fm(b.RA) + ' кН');
-      o.push('Перевірка: ' + fm(b.RA) + ' + ' + fm(b.RB) + ' = ' + fm(b.tot) + ' ✓'); return o;
-    }
+    if (st === 'sup') return ['Опори балки:', 'A — шарнірно-нерухома', 'дає реакцію RA вгору', 'B — шарнірно-рухома', 'дає реакцію RB вгору', 'Горизонтальної реакції немає', 'Реакції малюємо вгору'];
+    if (st === 'res') { if (!b.q.length) return ['Розподіленого навантаження немає']; b.q.forEach(function (q) { o.push('Q = q·l'); o.push('Q = ' + fm(q[2]) + '·' + fm(q[1] - q[0]) + ' = ' + fm(q[2] * (q[1] - q[0])) + ' кН'); o.push('стоїть посередині ділянки'); o.push('на ' + fm((q[0] + q[1]) / 2) + ' м від початку балки'); }); return o; }
+    if (st === 'arm') { var of = sc.of === 'B' ? 'B' : 'A'; o.push('Моменти відносно ' + of + ':'); o.push(armEq(b, of)); o.push(of === 'B' ? 'RA = ' + fm(b.RA) + ' кН' : 'RB = ' + fm(b.RB) + ' кН'); o.push('сила в точці ' + of + ' має плече 0'); return o; }
+    if (st === 'chk') { var tot = fm(b.tot); o.push('Перевірка:'); o.push('вгору: RA + RB'); o.push(fm(b.RA) + ' + ' + fm(b.RB) + ' = ' + fm(b.RA + b.RB)); o.push('вниз: навантаження = ' + tot); o.push(fm(b.RA + b.RB) + ' = ' + tot + ' ✓'); return o; }
+    if (st === 'cut') { var z = sc.z, lt = leftT(b, z); o.push('Переріз на z = ' + fm(z) + ' м'); o.push('Q = ' + lt.q + ' = ' + fm(b.Q(z, 0)) + ' кН'); o.push('M = ' + lt.m + ' = ' + fm(b.M(z, 0)) + ' кН·м'); o.push('беремо тільки ліву частину'); return o; }
+    if (st === 'plank') return ['Дошка на двох стільцях', 'людина тисне вниз — це сила', 'стільці тримають — це реакції', 'Скільки несе кожен стілець?', 'Де дошка найбільше гнеться?'];
+    if (st === 'plan') return ['Порядок розв’язання', 'завжди однаковий:', 'шість кроків'];
+    if (st === 'door') return ['Момент = сила · плече', 'плече — відстань від осі', 'до лінії дії сили', 'далеко від петель — легко', 'M = F · d', 'приклад: 10 кН · 3 м = 30 кН·м'];
+    if (st === 'ruler') return ['Згинальний момент —', 'те, що гне балку', 'довший виступ —', 'сильніший згин', 'M = F · l'];
+    if (st === 'signs') return ['Знаки:', 'Q: зліва вгору — плюс', 'M: прогин вниз — плюс', 'нижні волокна розтягнуті', 'епюру M малюємо вниз'];
     if (st === 'q') { o.push('Q = сума сил зліва'); for (var i = 0; i + 1 < b.pts.length; i++) { var l = b.pts[i], r = b.pts[i + 1]; o.push(fm(l) + '–' + fm(r) + ' м:  ' + fm(b.Q(l, 1)) + (Math.abs(b.Q(r, -1) - b.Q(l, 1)) > 1e-6 ? '  →  ' + fm(b.Q(r, -1)) : '') + ' кН'); } return o; }
     o.push('M = моменти сил зліва'); b.pts.forEach(function (p) { o.push('z = ' + fm(p) + ' м:  M = ' + fm(b.M(p, -1 + (p <= 0 ? 1 : 0))) + ' кН·м'); });
     b.ext.forEach(function (e) { o.push('Q=0 при z = ' + fm(e[0]) + ' м, M = ' + fm(e[1])); }); o.push('Mmax = ' + fm(Math.abs(b.mmax)) + ' кН·м'); return o.slice(0, 9);
   }
-
-  function cs(v) { v = Math.abs(v) < 1e-9 ? 0 : v; var t = fm(Math.round(v * 1000) / 1000); return v < 0 ? '(' + t + ')' : t; }
   function rodLines(t, r, st) {
     var D = Math.PI / 180, o = [];
     if (st === 'scheme') { o.push('Дано:'); o.push('стержень 1: кут ' + fm(t[0]) + '°'); o.push('стержень 2: кут ' + fm(t[1]) + '°'); t[2].forEach(function (f) { o.push('сила ' + fm(f[0]) + ' кН, кут ' + fm(f[1]) + '°'); }); o.push('Знайти: N1 і N2'); return o; }
@@ -3328,38 +3346,109 @@ window.__RB = RB;
     var ls = rodLines(t, r, st), fy = 70; x.textAlign = 'left'; ls.forEach(function (ln, i) { var big = i === 0 && st === 'scheme'; x.font = (big ? 'bold ' : '') + 'italic 27px "Segoe Script","Comic Sans MS",cursive'; x.fillStyle = /^N[12] =/.test(ln) ? (/стиск/.test(ln) ? red : grn) : ink; x.fillText(ln, 900, fy, BW - 920); fy += 52 - (ls.length > 8 ? 6 : 0); });
     x.restore();
   }
+
   function drawScene(x) {
-    if (!scn) return; if (scn.k === 'r') { drawRods(x); return; } var b = RB.beam(scn.t), st = scn.s || 'scheme', ac = st === 'react' || st === 'q' || st === 'm', X0 = 70, W = 780, k = W / b.L, BY = st === 'scheme' || st === 'react' ? 230 : st === 'q' ? 135 : 130, ink = '#0f2a6e', red = '#c0392b';
-    x.save(); x.textBaseline = 'alphabetic'; x.lineCap = 'round'; x.lineJoin = 'round'; x.font = 'italic 24px "Segoe Script","Comic Sans MS",cursive';
-    var xp = function (z) { return X0 + z * k; };
+    if (!scn) return; if (scn.k === 'r') { drawRods(x); return; }
+    var b = RB.beam(scn.t), st = scn.s || 'scheme', now = performance.now(), sweep = (st === 'q' || st === 'm');
+    var pr = sweep ? (scn.p != null ? scn.p : Math.min(1, (now - (scn.t0 || now)) / 4500)) : 1;
+    if (pr < 1) pr = pr * pr * (3 - 2 * pr);
+    var X0 = 70, W = 780, k = W / b.L, BY = st === 'q' ? 135 : st === 'm' ? 130 : 230, ink = '#0f2a6e', red = '#c0392b', grn = '#1b8a3a', xp = function (z) { return X0 + z * k; };
+    x.save(); x.textBaseline = 'alphabetic'; x.lineCap = 'round'; x.lineJoin = 'round';
+    var ls = sceneLines(b, st, scn), fy = 70;
+    var text = function () { x.textAlign = 'left'; ls.forEach(function (ln, i) { var big = i === 0 && /^(Дано|Опори|Q =|M =|Моменти|Перевірка|Переріз|Знаки)/.test(ln); x.font = (big ? 'bold ' : '') + 'italic 27px "Segoe Script","Comic Sans MS",cursive'; x.fillStyle = /^R[AB] =|^Mmax/.test(ln) ? red : ink; x.fillText(ln, 900, fy, BW - 920); fy += 52 - (ls.length > 7 ? 5 : 0); }); };
+    var arrow = function (px, y1, y2, col, w) { x.strokeStyle = col; x.fillStyle = col; x.lineWidth = w || 4; x.beginPath(); x.moveTo(px, y1); x.lineTo(px, y2); x.stroke(); var dn = y2 > y1 ? 1 : -1; x.beginPath(); x.moveTo(px, y2); x.lineTo(px - 7, y2 - 12 * dn); x.lineTo(px + 7, y2 - 12 * dn); x.closePath(); x.fill(); };
+    var harrow = function (x1, x2, y, col, lab) { x.strokeStyle = col; x.fillStyle = col; x.lineWidth = 2.5; x.beginPath(); x.moveTo(x1, y); x.lineTo(x2, y); x.stroke(); [[x1, x2], [x2, x1]].forEach(function (a) { var bs = a[0] + (a[0] < a[1] ? 12 : -12); x.beginPath(); x.moveTo(a[0], y); x.lineTo(bs, y - 6); x.lineTo(bs, y + 6); x.closePath(); x.fill(); }); if (lab) { x.font = 'italic 21px Georgia'; x.textAlign = 'center'; x.fillText(lab, (x1 + x2) / 2, y - 8); } };
+    var hdA = function (x1, y1, x2, y2, col, w) { x.strokeStyle = col; x.fillStyle = col; x.lineWidth = w || 5; x.beginPath(); x.moveTo(x1, y1); x.lineTo(x2, y2); x.stroke(); var an = Math.atan2(y2 - y1, x2 - x1); x.beginPath(); x.moveTo(x2, y2); x.lineTo(x2 - 16 * Math.cos(an - 0.4), y2 - 16 * Math.sin(an - 0.4)); x.lineTo(x2 - 16 * Math.cos(an + 0.4), y2 - 16 * Math.sin(an + 0.4)); x.closePath(); x.fill(); };
+    var lab = function (t, px, py, col, f, al) { x.fillStyle = col; x.font = f || 'italic 24px "Segoe Script","Comic Sans MS",cursive'; x.textAlign = al || 'center'; x.fillText(t, px, py); };
+    if (st === 'plank') {
+      x.fillStyle = '#8b6b43'; x.strokeStyle = '#222'; x.lineWidth = 3; [190, 710].forEach(function (sx) { x.fillRect(sx - 24, 410, 48, 18); x.strokeRect(sx - 24, 410, 48, 18); x.fillRect(sx - 20, 428, 8, 92); x.fillRect(sx + 12, 428, 8, 92); });
+      x.strokeStyle = '#7a5a38'; x.lineWidth = 22; x.beginPath(); x.moveTo(130, 400); x.quadraticCurveTo(450, 430, 770, 400); x.stroke(); x.strokeStyle = '#222'; x.lineWidth = 2; x.beginPath(); x.moveTo(130, 389); x.quadraticCurveTo(450, 419, 770, 389); x.stroke();
+      x.strokeStyle = '#222'; x.fillStyle = '#f2d2a9'; x.lineWidth = 4; x.beginPath(); x.arc(450, 262, 22, 0, 6.3); x.fill(); x.stroke(); x.beginPath(); x.moveTo(450, 284); x.lineTo(450, 350); x.moveTo(450, 300); x.lineTo(420, 336); x.moveTo(450, 300); x.lineTo(480, 336); x.moveTo(450, 350); x.lineTo(430, 396); x.moveTo(450, 350); x.lineTo(470, 396); x.stroke();
+      hdA(560, 220, 560, 396, ink, 6); lab('вага', 600, 300, ink); lab('сила вниз', 600, 332, ink, 'italic 20px Georgia');
+      [190, 710].forEach(function (sx, i) { hdA(sx, 580, sx, 436, grn, 6); lab(i ? 'RB' : 'RA', sx, 592, grn); }); lab('реакції опор вгору', 450, 568, grn, 'italic 22px Georgia');
+      text(); x.restore(); return;
+    }
+    if (st === 'plan') {
+      var bx = ['1  Реакції опор', '2  Ділянки', '3  Поперечна сила Q', '4  Згинальний момент M', '5  Найбільший момент', '6  Епюри і перевірка'];
+      bx.forEach(function (t, i) { var y = 30 + i * 92; x.fillStyle = i % 2 ? '#e8dcc0' : '#dfe8cf'; x.strokeStyle = '#444'; x.lineWidth = 3; x.fillRect(120, y, 620, 64); x.strokeRect(120, y, 620, 64); lab(t, 430, y + 43, ink, 'bold 30px Georgia'); if (i < 5) hdA(430, y + 66, 430, y + 90, '#444', 4); });
+      text(); x.restore(); return;
+    }
+    if (st === 'door') {
+      x.fillStyle = '#bbb'; x.fillRect(60, 170, 36, 260); x.strokeStyle = '#555'; x.lineWidth = 2; for (var h = 175; h < 430; h += 20) { x.beginPath(); x.moveTo(60, h + 14); x.lineTo(96, h); x.stroke(); }
+      x.strokeStyle = '#7a5a38'; x.lineWidth = 16; x.beginPath(); x.moveTo(110, 300); x.lineTo(700, 300); x.stroke(); x.fillStyle = '#222'; x.beginPath(); x.arc(110, 300, 10, 0, 6.3); x.fill();
+      hdA(640, 400, 640, 312, ink, 7); lab('F', 665, 390, ink); x.strokeStyle = '#999'; x.lineWidth = 1.5; x.setLineDash([5, 5]); x.beginPath(); x.moveTo(640, 300); x.lineTo(640, 215); x.stroke(); x.setLineDash([]);
+      x.fillStyle = red; harrow(110, 640, 210, red, 'плече d'); x.strokeStyle = red; x.lineWidth = 3; x.beginPath(); x.arc(110, 300, 36, 3.6, 5.6); x.stroke(); lab('M', 60, 270, red, 'bold 26px Georgia');
+      hdA(240, 400, 240, 312, '#8a8fa0', 5); lab('та сама F', 300, 395, '#8a8fa0', 'italic 20px Georgia', 'left'); x.strokeStyle = '#aaa'; x.beginPath(); x.moveTo(110, 440); x.lineTo(240, 440); x.stroke(); x.fillStyle = '#888'; harrow(110, 240, 440, '#888', 'мале плече'); 
+      text(); x.restore(); return;
+    }
+    if (st === 'ruler') {
+      x.fillStyle = '#f2d2a9'; x.strokeStyle = '#222'; x.lineWidth = 3; x.beginPath(); x.rect(40, 220, 110, 110); x.fill(); x.stroke(); lab('рука', 95, 285, '#555', 'italic 22px Georgia');
+      x.strokeStyle = '#c9a15b'; x.lineWidth = 16; x.beginPath(); x.moveTo(150, 275); x.quadraticCurveTo(450, 280, 700, 420); x.stroke(); x.strokeStyle = '#222'; x.lineWidth = 2; x.beginPath(); x.moveTo(150, 266); x.quadraticCurveTo(450, 271, 700, 411); x.stroke();
+      hdA(700, 300, 700, 405, ink, 6); lab('F', 735, 360, ink); x.fillStyle = red; harrow(150, 700, 480, red, 'виступ l'); lab('у защемленні гне найбільше', 330, 215, red, 'italic 22px Georgia');
+      text(); x.restore(); return;
+    }
+    if (st === 'signs') {
+      x.strokeStyle = '#222'; x.fillStyle = '#e8dcc0'; x.lineWidth = 4; x.fillRect(150, 150, 300, 60); x.strokeRect(150, 150, 300, 60);
+      arrow(150, 290, 214, grn, 6); arrow(450, 146, 222 + 60, red, 6); x.fillStyle = ink; x.font = 'bold 26px Georgia'; x.textAlign = 'center'; x.fillText('+Q', 300, 100); x.font = 'italic 22px Georgia'; x.fillText('зліва вгору, справа вниз', 300, 130);
+      x.strokeStyle = '#222'; x.lineWidth = 34; x.beginPath(); x.moveTo(110, 400); x.quadraticCurveTo(300, 470, 490, 400); x.stroke(); x.strokeStyle = '#e8dcc0'; x.lineWidth = 26; x.beginPath(); x.moveTo(110, 400); x.quadraticCurveTo(300, 470, 490, 400); x.stroke();
+      
+      var hd = function (x1, x2, y, col) { x.strokeStyle = col; x.fillStyle = col; x.lineWidth = 4; x.beginPath(); x.moveTo(x1, y); x.lineTo(x2, y); x.stroke(); var sg = x2 > x1 ? -1 : 1; x.beginPath(); x.moveTo(x2, y); x.lineTo(x2 + sg * 12, y - 7); x.lineTo(x2 + sg * 12, y + 7); x.closePath(); x.fill(); }; hd(165, 245, 372, red); hd(435, 355, 372, red); hd(245, 165, 452, grn); hd(355, 435, 452, grn);
+      x.fillStyle = ink; x.font = 'bold 26px Georgia'; x.textAlign = 'center'; x.fillText('+M', 300, 520); x.font = 'italic 22px Georgia'; x.fillText('балка прогнулась вниз', 300, 552); x.fillStyle = grn; x.fillText('низ розтягнутий', 300, 585);
+      text(); x.restore(); return;
+    }
     x.strokeStyle = '#222'; x.lineWidth = 9; x.beginPath(); x.moveTo(xp(0), BY); x.lineTo(xp(b.L), BY); x.stroke();
-    [[b.xA, 0], [b.xB, 1]].forEach(function (a) { var px = xp(a[0]); x.lineWidth = 3; x.beginPath(); x.moveTo(px, BY + 4); x.lineTo(px - 16, BY + 36); x.lineTo(px + 16, BY + 36); x.closePath(); x.stroke(); if (a[1]) { x.beginPath(); x.arc(px - 8, BY + 42, 5, 0, 6.3); x.arc(px + 8, BY + 42, 5, 0, 6.3); x.stroke(); } x.beginPath(); x.moveTo(px - 24, BY + 48); x.lineTo(px + 24, BY + 48); x.stroke(); });
-    x.fillStyle = ink; x.strokeStyle = ink; x.textAlign = 'center';
-    var arrow = function (px, y1, y2, col) { x.strokeStyle = col; x.fillStyle = col; x.lineWidth = 4; x.beginPath(); x.moveTo(px, y1); x.lineTo(px, y2); x.stroke(); var dn = y2 > y1 ? 1 : -1; x.beginPath(); x.moveTo(px, y2); x.lineTo(px - 7, y2 - 12 * dn); x.lineTo(px + 7, y2 - 12 * dn); x.closePath(); x.fill(); };
-    b.P.forEach(function (p) { arrow(xp(p[0]), BY - 80, BY - 6, ink); x.fillStyle = ink; x.fillText(fm(p[1]) + ' кН', xp(p[0]), BY - 90); });
-    b.q.forEach(function (q) { var x1 = xp(q[0]), x2 = xp(q[1]); x.strokeStyle = ink; x.lineWidth = 3; x.beginPath(); x.moveTo(x1, BY - 52); x.lineTo(x2, BY - 52); x.stroke(); for (var z = x1; z <= x2 + 1; z += Math.max(18, (x2 - x1) / 10)) arrow(z, BY - 52, BY - 6, ink); x.fillStyle = ink; x.fillText('q = ' + fm(q[2]) + ' кН/м', (x1 + x2) / 2, BY - 62); });
+    [[b.xA, 0], [b.xB, 1]].forEach(function (a) { var px = xp(a[0]); x.strokeStyle = '#222'; x.lineWidth = 3; x.beginPath(); x.moveTo(px, BY + 4); x.lineTo(px - 16, BY + 36); x.lineTo(px + 16, BY + 36); x.closePath(); x.stroke(); if (a[1]) { x.beginPath(); x.arc(px - 8, BY + 42, 5, 0, 6.3); x.arc(px + 8, BY + 42, 5, 0, 6.3); x.stroke(); } x.beginPath(); x.moveTo(px - 24, BY + 48); x.lineTo(px + 24, BY + 48); x.stroke(); });
+    x.fillStyle = ink; x.strokeStyle = ink; x.textAlign = 'center'; x.font = 'italic 24px "Segoe Script","Comic Sans MS",cursive';
+    var fade = (st === 'res' || st === 'arm') ? 0.38 : 1;
+    b.P.forEach(function (p) { x.globalAlpha = 1; arrow(xp(p[0]), BY - 80, BY - 6, ink); x.fillStyle = ink; x.fillText(fm(p[1]) + ' кН', xp(p[0]), BY - 90); });
+    b.q.forEach(function (q) { var x1 = xp(q[0]), x2 = xp(q[1]); x.globalAlpha = fade; x.strokeStyle = ink; x.lineWidth = 3; x.beginPath(); x.moveTo(x1, BY - 52); x.lineTo(x2, BY - 52); x.stroke(); for (var z = x1; z <= x2 + 1; z += Math.max(18, (x2 - x1) / 10)) arrow(z, BY - 52, BY - 6, ink); x.fillStyle = ink; x.fillText('q = ' + fm(q[2]) + ' кН/м', (x1 + x2) / 2, BY - 62); x.globalAlpha = 1; });
     b.m.forEach(function (m) { var px = xp(m[0]), cw = m[1] > 0; x.strokeStyle = '#7a3f98'; x.lineWidth = 4; x.beginPath(); x.arc(px, BY - 38, 22, cw ? 3.4 : 6.0, cw ? 8.2 : 1.0, !cw); x.stroke(); x.fillStyle = '#7a3f98'; x.fillText(fm(Math.abs(m[1])) + ' кН·м', px, BY - 72); });
-    x.font = 'bold 22px Georgia'; x.fillStyle = '#111'; var li = 0; b.pts.forEach(function (p) { var sA = Math.abs(p - b.xA) < 1e-9, sB = Math.abs(p - b.xB) < 1e-9, nm = sA ? 'A' : sB ? 'B' : String.fromCharCode(67 + li++); x.fillText(nm, xp(p) + (st === 'react' ? (sA ? -26 : sB ? 26 : 0) : 0), BY + 80); });
-    x.font = 'italic 20px Georgia'; x.strokeStyle = '#555'; x.lineWidth = 1.5; x.fillStyle = '#444'; for (var i = 0; i + 1 < b.pts.length; i++) { var a = xp(b.pts[i]), c = xp(b.pts[i + 1]); x.beginPath(); x.moveTo(a, BY + 92); x.lineTo(c, BY + 92); x.stroke(); x.fillText(fm(b.pts[i + 1] - b.pts[i]) + ' м', (a + c) / 2, BY + 114); }
-    x.font = 'italic 24px "Segoe Script","Comic Sans MS",cursive';
-    if (ac && st === 'react') { var ra = xp(b.xA), rb = xp(b.xB); arrow(ra, BY + 150, BY + 56, '#1b8a3a'); arrow(rb, BY + 150, BY + 56, '#1b8a3a'); x.fillStyle = '#1b8a3a'; x.textAlign = 'center'; x.fillText('RA = ' + fm(b.RA), ra, BY + 180); x.fillText('RB = ' + fm(b.RB), rb, BY + 180); }
-    var dgm = function (y0, hh, f, name, col, flip) { var mx_ = 1e-9, n = 160, zs = []; for (var u = 0; u <= n; u++) { var z = b.L * u / n; zs.push(z); } b.pts.forEach(function (p) { zs.push(p - 1e-7, p + 1e-7); }); zs = zs.filter(function (z) { return z >= 0 && z <= b.L; }).sort(function (a, c) { return a - c; }); var sg = zs.map(function (z) { return f(z); }); sg.forEach(function (v) { mx_ = Math.max(mx_, Math.abs(v)); }); var sc2 = hh / mx_ * (flip ? -1 : 1);
-      x.strokeStyle = '#333'; x.lineWidth = 2; x.beginPath(); x.moveTo(xp(0) - 10, y0); x.lineTo(xp(b.L) + 10, y0); x.stroke(); x.fillStyle = col + '33'; x.strokeStyle = col; x.lineWidth = 3.5; x.beginPath(); x.moveTo(xp(0), y0); zs.forEach(function (z, i) { x.lineTo(xp(z), y0 - sg[i] * sc2); }); x.lineTo(xp(b.L), y0); x.closePath(); x.fill(); x.beginPath(); zs.forEach(function (z, i) { if (i) x.lineTo(xp(z), y0 - sg[i] * sc2); else x.moveTo(xp(z), y0 - sg[i] * sc2); }); x.stroke();
-      x.font = 'bold 22px Georgia'; x.fillStyle = col; x.textAlign = 'left'; x.fillText(name, 8, y0 - hh - 4); x.font = '19px Georgia'; x.textAlign = 'center'; return { sc: sc2, y0: y0 }; };
-    if (st === 'q' || st === 'm') {
-      var gq = dgm(st === 'q' ? 390 : 310, st === 'q' ? 110 : 40, function (z) { return b.Q(z, 0); }, 'Q, кН', '#1f4fd8', false);
-      x.fillStyle = '#1f4fd8'; var done = {}; b.pts.forEach(function (p) { [-1, 1].forEach(function (sd) { if ((sd < 0 && p <= 0) || (sd > 0 && p >= b.L)) return; var v = b.Q(p, sd), key = Math.round(p * 100) + ':' + Math.round(v * 100); if (done[key]) return; done[key] = 1; if (Math.abs(v) < 1e-6) return; x.fillText(fm(v), xp(p) + (sd < 0 ? -22 : 22), gq.y0 - v * gq.sc - (v * gq.sc > 0 ? -16 : 6)); }); });
+    x.font = 'bold 22px Georgia'; x.fillStyle = '#111'; var li = 0, big = (st === 'scheme' || st === 'sup' || st === 'res' || st === 'arm' || st === 'chk' || st === 'cut' || st === 'react');
+    b.pts.forEach(function (p) { var sA = Math.abs(p - b.xA) < 1e-9, sB = Math.abs(p - b.xB) < 1e-9, nm = sA ? 'A' : sB ? 'B' : String.fromCharCode(67 + li++); x.fillStyle = '#111'; x.font = 'bold 22px Georgia'; x.textAlign = 'center'; x.fillText(nm, xp(p) + ((st === 'react' || st === 'sup' || st === 'chk' || st === 'cut') ? (sA ? -26 : sB ? 26 : 0) : 0), BY + 80); });
+    /* розміри: ланцюжок (для схеми, перевірки, перерізу) */
+    if (st === 'scheme' || st === 'chk' || st === 'cut' || st === 'react' || st === 'q' || st === 'm') { x.font = 'italic 20px Georgia'; x.strokeStyle = '#555'; x.lineWidth = 1.5; x.fillStyle = '#444'; for (var i = 0; i + 1 < b.pts.length; i++) { var a = xp(b.pts[i]), c = xp(b.pts[i + 1]); x.beginPath(); x.moveTo(a, BY + 92); x.lineTo(c, BY + 92); x.stroke(); x.fillText(fm(b.pts[i + 1] - b.pts[i]) + ' м', (a + c) / 2, BY + 114); } }
+    var rx = function (z, v, col, lab) { arrow(xp(z), BY + 150, BY + 56, col, 5); x.fillStyle = col; x.font = 'italic 24px "Segoe Script","Comic Sans MS",cursive'; x.textAlign = 'center'; x.fillText(lab + (v == null ? '' : ' = ' + fm(v)), xp(z), BY + 180); };
+    if (st === 'sup') { rx(b.xA, null, grn, 'RA'); rx(b.xB, null, grn, 'RB'); var hx = xp(b.xA); x.strokeStyle = '#999'; x.fillStyle = '#888'; x.lineWidth = 3; x.beginPath(); x.moveTo(hx + 28, BY + 20); x.lineTo(hx + 100, BY + 20); x.stroke(); x.font = 'italic 22px Georgia'; x.textAlign = 'left'; x.fillText('HA = 0', hx + 110, BY + 27); x.strokeStyle = red; x.lineWidth = 3; x.beginPath(); x.moveTo(hx + 52, BY + 8); x.lineTo(hx + 76, BY + 32); x.moveTo(hx + 76, BY + 8); x.lineTo(hx + 52, BY + 32); x.stroke(); }
+    if (st === 'chk' || st === 'cut' || st === 'q' && false) { if (st === 'cut' && b.xA > scn.z) {} else rx(b.xA, b.RA, grn, 'RA'); if (st === 'chk' || b.xB <= scn.z) rx(b.xB, b.RB, grn, 'RB'); }
+    if (st === 'react') { rx(b.xA, b.RA, grn, 'RA'); rx(b.xB, b.RB, grn, 'RB'); }
+    if (st === 'res' || st === 'arm') {
+      b.q.forEach(function (q) { var f = q[2] * (q[1] - q[0]), xc = xp((q[0] + q[1]) / 2); arrow(xc, BY - 118, BY - 6, red, 6); x.fillStyle = red; x.font = 'italic 24px "Segoe Script","Comic Sans MS",cursive'; x.textAlign = 'center'; x.fillText('Q = ' + fm(f) + ' кН', xc, BY - 126); if (st === 'res') { harrow(xp(q[0]), xc, BY - 150, red, fm((q[1] - q[0]) / 2) + ' м'); x.strokeStyle = red; x.lineWidth = 1.5; x.setLineDash([5, 5]); x.beginPath(); x.moveTo(xp(q[0]), BY - 156); x.lineTo(xp(q[0]), BY - 60); x.stroke(); x.setLineDash([]); } });
     }
+    if (st === 'arm') {
+      var of = scn.of === 'B' ? 'B' : 'A', pv = of === 'B' ? b.xB : b.xA, ot = of === 'B' ? b.xA : b.xB, items = [];
+      b.P.forEach(function (p) { items.push([p[0], 'F ' + fm(p[1])]); }); b.q.forEach(function (q) { items.push([(q[0] + q[1]) / 2, 'Q ' + fm(q[2] * (q[1] - q[0]))]); });
+      items = items.filter(function (it) { return Math.abs(it[0] - pv) > 1e-9; }); var row = BY + 100;
+      x.fillStyle = red; x.beginPath(); x.arc(xp(pv), BY, 11, 0, 6.3); x.fill(); x.strokeStyle = red; x.lineWidth = 3; x.beginPath(); x.arc(xp(pv), BY, 22, 0.5, 5.4); x.stroke();
+      items.forEach(function (it) { x.strokeStyle = '#999'; x.lineWidth = 1.5; x.setLineDash([5, 5]); x.beginPath(); x.moveTo(xp(it[0]), BY + 6); x.lineTo(xp(it[0]), row); x.stroke(); x.setLineDash([]); x.fillStyle = ink; harrow(xp(pv), xp(it[0]), row, ink, fm(Math.abs(it[0] - pv)) + ' м'); x.font = 'bold 20px Georgia'; x.textAlign = 'left'; x.fillText(it[1], xp(it[0]) + 10, row + 7); row += 42; });
+      x.strokeStyle = '#999'; x.lineWidth = 1.5; x.setLineDash([5, 5]); x.beginPath(); x.moveTo(xp(ot), BY + 52); x.lineTo(xp(ot), row); x.stroke(); x.setLineDash([]); x.fillStyle = grn; harrow(xp(pv), xp(ot), row, grn, fm(Math.abs(ot - pv)) + ' м'); arrow(xp(ot), BY + 140, BY + 56, grn, 5); x.font = 'italic 24px "Segoe Script","Comic Sans MS",cursive'; x.textAlign = 'center'; x.fillText(of === 'B' ? 'RA = ?' : 'RB = ?', xp(ot), BY + 170 > row - 10 ? row + 34 : BY + 172);
+    }
+    if (st === 'cut') {
+      var cz = xp(scn.z); x.fillStyle = 'rgba(244,241,232,.72)'; x.fillRect(cz, BY - 140, xp(b.L) - cz + 60, 240);
+      x.strokeStyle = red; x.lineWidth = 3; x.setLineDash([9, 7]); x.beginPath(); x.moveTo(cz, BY - 130); x.lineTo(cz, BY + 70); x.stroke(); x.setLineDash([]);
+      x.fillStyle = red; x.font = 'italic 22px Georgia'; x.textAlign = 'center'; x.fillText('переріз', cz, BY - 136);
+      arrow(cz - 2, BY + 8, BY + 78, red, 6); x.font = 'bold 24px Georgia'; x.textAlign = 'right'; x.fillText('Q', cz - 14, BY + 66); x.strokeStyle = '#a0522d'; x.lineWidth = 5; x.beginPath(); x.arc(cz - 36, BY - 36, 22, 1.2, 5.2, true); x.stroke(); x.fillStyle = '#a0522d'; x.textAlign = 'right'; x.fillText('M', cz - 66, BY - 42);
+    }
+    /* епюри з розгорткою зліва направо */
+    var Lp = b.L * pr;
+    var dgm = function (y0, hh, f, name, col, flip) {
+      var mx_ = 1e-9, n = 160, zs = []; for (var u = 0; u <= n; u++) zs.push(b.L * u / n); b.pts.forEach(function (p) { zs.push(p - 1e-7, p + 1e-7); }); zs = zs.filter(function (z) { return z >= 0 && z <= b.L; }).sort(function (a, c) { return a - c; });
+      zs.forEach(function (z) { mx_ = Math.max(mx_, Math.abs(f(z))); }); var sc2 = hh / mx_ * (flip ? -1 : 1); zs = zs.filter(function (z) { return z <= Lp; }); if (!zs.length || zs[zs.length - 1] < Lp - 1e-9) zs.push(Lp);
+      var sg = zs.map(function (z) { return f(z); });
+      x.strokeStyle = '#333'; x.lineWidth = 2; x.beginPath(); x.moveTo(xp(0) - 10, y0); x.lineTo(xp(b.L) + 10, y0); x.stroke(); x.fillStyle = col + '33'; x.strokeStyle = col; x.lineWidth = 3.5; x.beginPath(); x.moveTo(xp(0), y0); zs.forEach(function (z, i) { x.lineTo(xp(z), y0 - sg[i] * sc2); }); x.lineTo(xp(zs[zs.length - 1]), y0); x.closePath(); x.fill(); x.beginPath(); zs.forEach(function (z, i) { if (i) x.lineTo(xp(z), y0 - sg[i] * sc2); else x.moveTo(xp(z), y0 - sg[i] * sc2); }); x.stroke();
+      x.font = 'bold 22px Georgia'; x.fillStyle = col; x.textAlign = 'left'; x.fillText(name, 8, y0 - hh - 4); x.font = '19px Georgia'; x.textAlign = 'center'; return { sc: sc2, y0: y0, cur: sg[sg.length - 1] };
+    };
+    var cl = null;
+    if (st === 'q') { var gq = dgm(390, 110, function (z) { return b.Q(z, 0); }, 'Q, кН', '#1f4fd8', false); cl = [gq, 'Q']; x.fillStyle = '#1f4fd8'; var done = {}; b.pts.forEach(function (p) { [-1, 1].forEach(function (sd) { if (p > Lp + 1e-9 || (sd < 0 && p <= 0) || (sd > 0 && p >= b.L)) return; var v = b.Q(p, sd), key = Math.round(p * 100) + ':' + Math.round(v * 100); if (done[key] || Math.abs(v) < 1e-6) return; done[key] = 1; x.fillText(fm(v), xp(p) + (sd < 0 ? -22 : 22), gq.y0 - v * gq.sc - (v * gq.sc > 0 ? -16 : 6)); }); }); }
     if (st === 'm') {
-      var gm = dgm(425, 95, function (z) { return b.M(z, 0); }, 'M, кН·м', '#a0522d', true);
-      x.fillStyle = '#a0522d'; var d2 = {}; b.pts.concat(b.ext.map(function (e) { return e[0]; })).forEach(function (p) { var v = b.M(p, 0.0); [-1, 1].forEach(function (sd) { if ((sd < 0 && p <= 0) || (sd > 0 && p >= b.L)) return; var vv = b.M(p, sd), kk = Math.round(p * 100) + ':' + Math.round(vv * 100); if (d2[kk] || Math.abs(vv) < 1e-6) return; if (b.ext.some(function (e) { return Math.abs(e[0] - p) > 1e-6 && Math.abs(e[0] - p) < 0.9; })) return; d2[kk] = 1; x.fillText(fm(vv), xp(p) + (sd < 0 ? -18 : 18), gm.y0 - vv * gm.sc + (vv > 0 ? 22 : -10)); }); });
+      var gq2 = dgm(310, 40, function (z) { return b.Q(z, 0); }, 'Q, кН', '#1f4fd8', false); x.fillStyle = '#1f4fd8'; var dn2 = {}; b.pts.forEach(function (p) { [-1, 1].forEach(function (sd) { if (p > Lp + 1e-9 || (sd < 0 && p <= 0) || (sd > 0 && p >= b.L)) return; var v = b.Q(p, sd), key = Math.round(p * 100) + ':' + Math.round(v * 100); if (dn2[key] || Math.abs(v) < 1e-6) return; dn2[key] = 1; x.fillText(fm(v), xp(p) + (sd < 0 ? -22 : 22), gq2.y0 - v * gq2.sc - (v * gq2.sc > 0 ? -14 : 4)); }); });
+      var gm = dgm(425, 95, function (z) { return b.M(z, 0); }, 'M, кН·м', '#a0522d', true); cl = [gm, 'M'];
+      x.fillStyle = '#a0522d'; var d2 = {}; b.pts.concat(b.ext.map(function (e) { return e[0]; })).forEach(function (p) { if (p > Lp + 1e-9) return;[-1, 1].forEach(function (sd) { if ((sd < 0 && p <= 0) || (sd > 0 && p >= b.L)) return; var vv = b.M(p, sd), kk = Math.round(p * 100) + ':' + Math.round(vv * 100); if (d2[kk] || Math.abs(vv) < 1e-6) return; d2[kk] = 1; if (b.ext.some(function (e) { return Math.abs(e[0] - p) > 1e-6 && Math.abs(e[0] - p) < 0.9; })) return; x.fillText(fm(vv), xp(p) + (sd < 0 ? -18 : 18), gm.y0 - vv * gm.sc + (vv > 0 ? 22 : -10)); }); });
     }
-    /* праворуч: формули кроку */
-    var ls = sceneLines(b, st), fy = 70; x.textAlign = 'left'; ls.forEach(function (ln, i) { var big = i === 0 && (st === 'scheme' || st === 'q' || st === 'm'); x.font = (big ? 'bold ' : '') + 'italic 27px "Segoe Script","Comic Sans MS",cursive'; x.fillStyle = /^R[AB] =|^Mmax/.test(ln) ? red : ink; x.fillText(ln, 900, fy, BW - 920); fy += 52 - (ls.length > 7 ? 5 : 0); });
-    x.restore();
+    if (sweep && pr < 1) { var mxp = xp(Lp); x.strokeStyle = red; x.lineWidth = 2.5; x.setLineDash([8, 6]); x.beginPath(); x.moveTo(mxp, 34); x.lineTo(mxp, 590); x.stroke(); x.setLineDash([]); x.fillStyle = red; x.font = 'bold 22px Georgia'; x.textAlign = 'center'; x.fillText(cl && cl[1] === 'M' ? 'M = ' + fm(b.M(Lp, 0)) : 'Q = ' + fm(b.Q(Lp, 0)), mxp, 24); }
+    text(); x.restore();
   }
   window.__sceneDraw = function (cv, sc) { var sv = scn; scn = sc; var x = cv.getContext('2d'); x.fillStyle = BG; x.fillRect(0, 0, cv.width, cv.height); drawScene(x); scn = sv; };
-  (window.__rbScenes = window.__rbScenes || {})[KEY] = function (sc) { scn = sc && sc.t ? sc : null; if (scn) rbl = null; renderAll(); };
+  (window.__rbScenes = window.__rbScenes || {})[KEY] = function (sc) { scn = sc && sc.t ? sc : null; if (scn) scn.t0 = performance.now(); if (scn) rbl = null; renderAll(); };
   var rbl = null, rbDone = true;
   function drawRb(x) {
     if (!rbl) return; var now = performance.now(), all = true; x.save(); x.textAlign = 'left'; x.textBaseline = 'alphabetic'; x.lineCap = 'round';
@@ -3373,7 +3462,7 @@ window.__RB = RB;
     x.restore(); rbDone = all;
   }
   (window.__rbBoards = window.__rbBoards || {})[KEY] = function (lines) { rbl = { lines: (lines || []).filter(Boolean).slice(0, 5), t0: performance.now() }; rbDone = false; renderAll(); };
-  updaters.push(function () { if (rbl && !rbDone) renderAll(); });
+  updaters.push(function () { if (rbl && !rbDone) renderAll(); else if (scn && scn.p == null && (scn.s === 'q' || scn.s === 'm') && performance.now() - scn.t0 < 4700) renderAll(); });
   renderAll();
 
   /* дошка у 3D */
