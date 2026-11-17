@@ -1934,6 +1934,7 @@ function console_(loc, wi, lx, w) {
 
   /* робот-викладач виставляє на стенді задачу з практики: схема, потім реакції */
   function botScene(sc, lc) {
+    if (sc && sc.k === 'c') return;
     var st = null; STS.forEach(function (s) { if (!st && s.kind === 'beam' && s.i === -1 && s.loc === (lc || cur) && s.g.visible) st = s; });
     if (sc && sc.k === 'r') { var rs = null; STS.forEach(function (s2) { if (!rs && s2.kind === 'rods' && s2.i === -2 && s2.loc === (lc || cur)) rs = s2; }); if (!rs) return; var rt = sc.t, rr = RB.rods(rt), RS = rs.S, rstep = sc.s || 'scheme';
       RS.a1 = String(rt[0]); RS.a2 = String(rt[1]); RS.loads = rt[2].map(function (f) { return { F: String(f[0]), a: String(f[1]) }; });
@@ -3403,8 +3404,97 @@ window.__RB = RB;
     x.restore();
   }
 
+  function cgLines(st) {
+    var L = {
+      pencil: ['Центр ваги —', 'точка, де фігуру можна', 'підперти, і вона', 'не перекинеться', 'як на кінчику олівця'],
+      avg: ['Середнє з вагою:', 'велика частина важить більше', 'і тягне центр до себе', 'як оцінка за іспит', 'у середньому балі'],
+      form: ['Формули:', 'xc = Σ(A·x) / ΣA', 'yc = Σ(A·y) / ΣA', 'A — площа частини', 'x, y — її центр'],
+      simple: ['Прості фігури:', 'прямокутник — посередині', 'трикутник — на h/3 від основи', 'півколо — 0,424·R від діаметра', 'коло — в центрі'],
+      tricks: ['Три прийоми:', '1  симетрія', '2  розбиття на частини', '3  отвір — мінусова площа'],
+      plan: ['Порядок розв’язання', 'вісім кроків'],
+      g1split: ['Задача 1. Г-фігура', 'частина 1: 6×2 см', 'частина 2: 2×4 см', 'початок координат —', 'лівий нижній кут', 'позначаємо центри частин'],
+      g1tab: ['Таблиця:', 'A1 = 12, x1 = 3, y1 = 1', 'A2 = 8, x2 = 1, y2 = 4', 'ΣA = 20', 'ΣA·x = 44', 'ΣA·y = 44'],
+      g1ans: ['xc = 44 / 20 = 2,2 см', 'yc = 44 / 20 = 2,2 см', 'Відповідь:', 'C (2,2; 2,2) см', 'перевірка: фігура симетрична', 'відносно діагоналі, xc = yc'],
+      p2split: ['Задача 2. Пластина з отвором', 'прямокутник 10×6 см', 'отвір R = 1,5 см', 'центр отвору (7; 3)', 'площа отвору — мінус!'],
+      p2tab: ['Таблиця:', 'A1 = 60, x1 = 5, y1 = 3', 'A2 = −7,07, x2 = 7, y2 = 3', 'ΣA = 52,93', 'ΣA·x = 250,52', 'ΣA·y = 158,79'],
+      p2ans: ['xc = 250,52 / 52,93 = 4,73 см', 'yc = 158,79 / 52,93 = 3,00 см', 'Відповідь:', 'C (4,73; 3,00) см', 'отвір справа —', 'центр зсунувся вліво']
+    };
+    return L[st] || [];
+  }
+  function drawCG(x) {
+    var st = scn.s || 'pencil', ink = '#0f2a6e', red = '#c0392b', grn = '#1b8a3a', blu = '#2f6fb8';
+    x.save(); x.lineCap = 'round'; x.lineJoin = 'round'; x.textBaseline = 'alphabetic';
+    var tx = function (t, px, py, col, f, al) { x.fillStyle = col; x.font = f || 'bold 24px Georgia'; x.textAlign = al || 'center'; x.fillText(t, px, py); };
+    var dot = function (px, py, col, r) { x.fillStyle = col; x.beginPath(); x.arc(px, py, r || 8, 0, 6.3); x.fill(); };
+    var cross = function (px, py, col) { x.strokeStyle = col; x.lineWidth = 5; x.beginPath(); x.moveTo(px - 16, py - 16); x.lineTo(px + 16, py + 16); x.moveTo(px + 16, py - 16); x.lineTo(px - 16, py + 16); x.stroke(); };
+    var poly = function (pts, fill, stroke, w) { x.beginPath(); pts.forEach(function (p, i) { if (i) x.lineTo(p[0], p[1]); else x.moveTo(p[0], p[1]); }); x.closePath(); if (fill) { x.fillStyle = fill; x.fill(); } x.strokeStyle = stroke || '#333'; x.lineWidth = w || 4; x.stroke(); };
+    var dash = function (a, b2, c, d, col) { x.strokeStyle = col || '#888'; x.lineWidth = 2; x.setLineDash([7, 6]); x.beginPath(); x.moveTo(a, b2); x.lineTo(c, d); x.stroke(); x.setLineDash([]); };
+    var axes = function (ox, oy, w, h) { dash(ox - 30, oy, ox + w + 40, oy); dash(ox, oy + 30, ox, oy - h - 40); tx('x', ox + w + 52, oy + 8, '#777', 'italic 22px Georgia'); tx('y', ox + 12, oy - h - 46, '#777', 'italic 22px Georgia'); };
+    var text = function () { var ls = cgLines(st), fy = 70; x.textAlign = 'left'; ls.forEach(function (ln, i) { x.font = (i === 0 ? 'bold ' : '') + 'italic 27px "Segoe Script","Comic Sans MS",cursive'; x.fillStyle = /^Відповідь|^C \(/.test(ln) ? grn : ink; x.fillText(ln, 900, fy, BW - 920); fy += 52; }); x.restore(); };
+    var LP = function (ox, oy, s) { return [[ox, oy], [ox + 6 * s, oy], [ox + 6 * s, oy - 2 * s], [ox + 2 * s, oy - 2 * s], [ox + 2 * s, oy - 6 * s], [ox, oy - 6 * s]]; };
+    var table = function (rows, sums, ox, oy) {
+      var cw = [120, 110, 90, 90, 130, 130], hd = ['частина', 'A, см²', 'x', 'y', 'A·x', 'A·y'], yy = oy, cx0;
+      var line = function (cells, fill, col, bold) { x.fillStyle = fill; x.fillRect(ox, yy, 670, 70); x.strokeStyle = '#444'; x.lineWidth = 2; x.strokeRect(ox, yy, 670, 70); cx0 = ox; cells.forEach(function (c, i) { tx(c, cx0 + cw[i] / 2, yy + 46, col, (bold ? 'bold ' : '') + '26px Georgia'); cx0 += cw[i]; }); yy += 70; };
+      line(hd, '#e8dcc0', ink, true); rows.forEach(function (r, i) { line(r, i % 2 ? '#f5efe0' : '#eef3e4', ink, false); }); line(sums, '#dfe8cf', grn, true);
+    };
+    if (st === 'pencil') {
+      var s0 = 55, ox = 250, oy = 430, pp = LP(ox, oy, s0); poly(pp, '#e9d6a4', '#6b4a14', 5);
+      var cx2 = ox + 2.2 * s0, cy2 = oy - 2.2 * s0; x.fillStyle = '#e7b95c'; poly([[cx2 - 12, cy2 + 190], [cx2 + 12, cy2 + 190], [cx2 + 2, cy2 + 14], [cx2 - 2, cy2 + 14]], '#e7b95c', '#7a5518', 3); poly([[cx2 - 2, cy2 + 14], [cx2 + 2, cy2 + 14], [cx2, cy2]], '#333', '#333', 2);
+      dot(cx2, cy2, red, 10); tx('центр ваги', cx2 + 150, cy2 - 40, red, 'italic 30px Georgia'); x.strokeStyle = red; x.lineWidth = 3; x.beginPath(); x.moveTo(cx2 + 70, cy2 - 34); x.lineTo(cx2 + 14, cy2 - 6); x.stroke(); tx('картонна фігура не падає', 450, 560, ink, 'italic 26px Georgia'); text(); return;
+    }
+    if (st === 'avg') {
+      var X0 = 110, sc = 110, py = 380; x.strokeStyle = '#555'; x.lineWidth = 12; x.beginPath(); x.moveTo(X0, py); x.lineTo(X0 + 6 * sc, py); x.stroke();
+      var cC = 2.2; poly([[X0 + cC * sc - 40, py + 90], [X0 + cC * sc + 40, py + 90], [X0 + cC * sc, py + 10]], '#bbb', '#333', 4); tx('опора = центр', X0 + cC * sc, py + 130, red, 'italic 24px Georgia');
+      [[3, 12, 'A1 = 12', blu], [1, 8, 'A2 = 8', grn]].forEach(function (a) { var r = 14 + Math.sqrt(a[1]) * 10, cx3 = X0 + a[0] * sc, cy3 = py - 6 - r; x.fillStyle = a[3]; x.globalAlpha = 0.85; x.beginPath(); x.arc(cx3, cy3, r, 0, 6.3); x.fill(); x.globalAlpha = 1; x.strokeStyle = '#223'; x.lineWidth = 3; x.stroke(); tx(a[2], cx3, cy3 + 8, '#fff', 'bold 22px Georgia'); });
+      tx('більша частина — центр ближче до неї', 440, 540, ink, 'italic 26px Georgia'); text(); return;
+    }
+    if (st === 'form') {
+      x.fillStyle = '#f3ead6'; x.fillRect(80, 80, 740, 190); x.strokeStyle = '#7a4a10'; x.lineWidth = 4; x.strokeRect(80, 80, 740, 190);
+      tx('xc = Σ(Ai·xi) / ΣAi', 450, 160, ink, 'bold 44px Georgia'); tx('yc = Σ(Ai·yi) / ΣAi', 450, 235, ink, 'bold 44px Georgia');
+      tx('Ai — площа частини', 450, 340, blu, 'italic 30px Georgia'); tx('xi, yi — координати центра частини', 450, 395, grn, 'italic 30px Georgia'); tx('ΣAi — площа всієї фігури', 450, 450, red, 'italic 30px Georgia'); text(); return;
+    }
+    if (st === 'simple') {
+      var cells = [[60, 40], [480, 40], [60, 320], [480, 320]];
+      x.strokeStyle = '#999'; x.lineWidth = 1.5; cells.forEach(function (c) { x.strokeRect(c[0], c[1], 380, 250); });
+      var a0 = cells[0]; poly([[a0[0] + 80, a0[1] + 40], [a0[0] + 300, a0[1] + 40], [a0[0] + 300, a0[1] + 170], [a0[0] + 80, a0[1] + 170]], '#dfe8cf', '#333', 4); dash(a0[0] + 80, a0[1] + 40, a0[0] + 300, a0[1] + 170, red); dash(a0[0] + 300, a0[1] + 40, a0[0] + 80, a0[1] + 170, red); dot(a0[0] + 190, a0[1] + 105, red); tx('прямокутник: b/2, h/2', a0[0] + 190, a0[1] + 215, ink, 'italic 24px Georgia');
+      var a1 = cells[1], A = [a1[0] + 70, a1[1] + 170], B = [a1[0] + 310, a1[1] + 170], C = [a1[0] + 160, a1[1] + 35]; poly([A, B, C], '#e8dcc0', '#333', 4); dash(C[0], C[1], (A[0] + B[0]) / 2, A[1], red); dash(A[0], A[1], (B[0] + C[0]) / 2, (B[1] + C[1]) / 2, red); dash(B[0], B[1], (A[0] + C[0]) / 2, (A[1] + C[1]) / 2, red); var gcx = (A[0] + B[0] + C[0]) / 3, gcy = (A[1] + B[1] + C[1]) / 3; dot(gcx, gcy, red); dash(a1[0] + 330, A[1], a1[0] + 330, gcy, blu); tx('h/3', a1[0] + 355, (A[1] + gcy) / 2 + 8, blu, 'bold 22px Georgia'); tx('трикутник: h/3 від основи', a1[0] + 190, a1[1] + 215, ink, 'italic 24px Georgia');
+      var a2 = cells[2], mx = a2[0] + 190, my = a2[1] + 160, R = 110; x.beginPath(); x.arc(mx, my, R, Math.PI, 0); x.closePath(); x.fillStyle = '#dbe6f4'; x.fill(); x.strokeStyle = '#333'; x.lineWidth = 4; x.stroke(); dash(mx, my + 8, mx, my - R - 10); var yc2 = my - 0.424 * R; dot(mx, yc2, red); dash(mx + R + 14, my, mx + R + 14, yc2, blu); tx('0,424R', mx + R + 62, (my + yc2) / 2 + 8, blu, 'bold 22px Georgia'); tx('півколо: 0,424·R від діаметра', a2[0] + 190, a2[1] + 235, ink, 'italic 24px Georgia');
+      var a3 = cells[3]; x.beginPath(); x.arc(a3[0] + 190, a3[1] + 115, 85, 0, 6.3); x.fillStyle = '#f2e0e0'; x.fill(); x.strokeStyle = '#333'; x.lineWidth = 4; x.stroke(); dot(a3[0] + 190, a3[1] + 115, red); tx('коло: у центрі', a3[0] + 190, a3[1] + 235, ink, 'italic 24px Georgia'); text(); return;
+    }
+    if (st === 'tricks') {
+      [60, 340, 620].forEach(function (px, i) { x.strokeStyle = '#999'; x.lineWidth = 1.5; x.strokeRect(px - 20, 40, 270, 480); });
+      tx('симетрія', 175, 90, ink, 'bold 26px Georgia'); poly([[70, 400], [200, 400], [200, 360], [165, 360], [165, 170], [105, 170], [105, 360], [70, 360]], '#dfe8cf', '#333', 4); dash(135, 140, 135, 440, red); dot(135, 285, red); tx('ЦВ на осі', 175, 480, red, 'italic 22px Georgia');
+      tx('розбиття', 455, 90, ink, 'bold 26px Georgia'); var lp = LP(360, 400, 28); poly(lp, '#e8dcc0', '#333', 4); dash(360, 344, 528, 344, red); tx('1', 410, 372, red, 'bold 24px Georgia'); tx('2', 380, 300, red, 'bold 24px Georgia'); tx('Г = 2 прямокутники', 455, 480, ink, 'italic 22px Georgia');
+      tx('отвір = «мінус»', 735, 90, ink, 'bold 26px Georgia'); poly([[640, 380], [840, 380], [840, 190], [640, 190]], '#dfe8cf', '#333', 4); x.beginPath(); x.arc(780, 285, 44, 0, 6.3); x.fillStyle = '#f8d4d4'; x.fill(); x.strokeStyle = red; x.lineWidth = 4; x.stroke(); tx('−A', 780, 293, red, 'bold 28px Georgia'); tx('сир із дірками', 735, 480, ink, 'italic 22px Georgia'); text(); return;
+    }
+    if (st === 'plan') {
+      var bx = scn.l || ['1  Креслимо, розбиваємо на частини', '2  Осі: початок у лівому нижньому куті', '3  Площа кожної частини (отвір з мінусом)', '4  Координати центра кожної частини', '5  Таблиця: A·x і A·y', '6  Суми: ΣA, ΣA·x, ΣA·y', '7  xc = ΣA·x / ΣA,  yc = ΣA·y / ΣA', '8  Перевірка за рисунком і симетрією'];
+      bx.forEach(function (tt, i) { var yy = 18 + i * 72; x.fillStyle = i % 2 ? '#e8dcc0' : '#dfe8cf'; x.strokeStyle = '#444'; x.lineWidth = 3; x.fillRect(60, yy, 780, 54); x.strokeRect(60, yy, 780, 54); tx(tt, 450, yy + 37, ink, 'bold 26px Georgia'); });
+      x.fillStyle = ink; x.font = 'bold italic 27px "Segoe Script","Comic Sans MS",cursive'; x.textAlign = 'left'; x.fillText('Порядок розв’язання', 900, 70); x.restore(); return;
+    }
+    if (st === 'g1split' || st === 'g1ans') {
+      var s1 = 60, gx = 150, gy = 500; axes(gx, gy, 6 * s1, 6 * s1);
+      poly([[gx, gy], [gx + 6 * s1, gy], [gx + 6 * s1, gy - 2 * s1], [gx, gy - 2 * s1]], 'rgba(47,111,184,.35)', ink, 4); poly([[gx, gy - 2 * s1], [gx + 2 * s1, gy - 2 * s1], [gx + 2 * s1, gy - 6 * s1], [gx, gy - 6 * s1]], 'rgba(27,138,58,.35)', ink, 4);
+      tx('6', gx + 3 * s1, gy + 28, ink, 'bold 22px Georgia'); tx('2', gx - 24, gy - s1 + 8, ink, 'bold 22px Georgia'); tx('2', gx + s1, gy - 6 * s1 - 12, ink, 'bold 22px Georgia'); tx('4', gx - 24, gy - 4 * s1 + 8, ink, 'bold 22px Georgia');
+      if (st === 'g1split') { dot(gx + 3 * s1, gy - s1, blu); tx('1 (3; 1)', gx + 3 * s1 + 14, gy - s1 - 14, blu, 'bold 22px Georgia', 'left'); dot(gx + s1, gy - 4 * s1, grn); tx('2 (1; 4)', gx + s1 + 14, gy - 4 * s1 - 14, grn, 'bold 22px Georgia', 'left'); }
+      else { var qx = gx + 2.2 * s1, qy = gy - 2.2 * s1; dash(qx, qy, qx, gy, red); dash(qx, qy, gx, qy, red); cross(qx, qy, red); tx('C', qx + 30, qy - 16, red, 'bold 30px Georgia'); tx('2,2', qx, gy + 28, red, 'bold 22px Georgia'); tx('2,2', gx - 34, qy + 8, red, 'bold 22px Georgia'); }
+      text(); return;
+    }
+    if (st === 'g1tab') { table([['1', '12', '3', '1', '36', '12'], ['2', '8', '1', '4', '8', '32']], ['Σ', '20', '', '', '44', '44'], 100, 120); tx('A·x = A умножити на x, A·y — на y', 435, 450, ink, 'italic 24px Georgia'); text(); return; }
+    if (st === 'p2split' || st === 'p2ans') {
+      var s2 = 62, hx = 130, hy = 500; axes(hx, hy, 10 * s2, 6 * s2); poly([[hx, hy], [hx + 10 * s2, hy], [hx + 10 * s2, hy - 6 * s2], [hx, hy - 6 * s2]], 'rgba(27,138,58,.28)', ink, 4);
+      x.beginPath(); x.arc(hx + 7 * s2, hy - 3 * s2, 1.5 * s2, 0, 6.3); x.fillStyle = '#fff'; x.fill(); x.strokeStyle = red; x.lineWidth = 4; x.stroke();
+      tx('10', hx + 9 * s2, hy + 30, ink, 'bold 22px Georgia'); tx('6', hx - 24, hy - 3 * s2 + 8, ink, 'bold 22px Georgia');
+      if (st === 'p2split') { dot(hx + 5 * s2, hy - 3 * s2, grn); tx('1 (5; 3)', hx + 5 * s2 - 10, hy - 3 * s2 - 18, grn, 'bold 22px Georgia'); dot(hx + 7 * s2, hy - 3 * s2, red, 6); tx('2 (7; 3)  отвір', hx + 7 * s2, hy - 3 * s2 + 1.5 * s2 + 34, red, 'bold 22px Georgia'); }
+      else { var cx4 = hx + 4.73 * s2, cy4 = hy - 3 * s2; dot(hx + 5 * s2, cy4, '#888', 6); tx('сірий — центр прямокутника, C — зсунутий вліво', hx + 5 * s2, 108, red, 'italic 24px Georgia'); dash(cx4, cy4, cx4, hy, red); cross(cx4, cy4, red); tx('C', cx4 - 6, cy4 + 44, red, 'bold 30px Georgia'); tx('4,73', cx4, hy + 30, red, 'bold 22px Georgia'); }
+      text(); return;
+    }
+    if (st === 'p2tab') { table([['1', '60', '5', '3', '300,00', '180,00'], ['2 (отвір)', '−7,07', '7', '3', '−49,48', '−21,21']], ['Σ', '52,93', '', '', '250,52', '158,79'], 100, 120); tx('отвір дає мінус у стовпчиках A, A·x і A·y', 435, 450, red, 'italic 24px Georgia'); text(); return; }
+    text();
+  }
+
   function drawScene(x) {
-    if (!scn) return; if (scn.k === 'r') { drawRods(x); return; }
+    if (!scn) return; if (scn.k === 'r') { drawRods(x); return; } if (scn.k === 'c') { drawCG(x); return; }
     var b = RB.beam(scn.t), st = scn.s || 'scheme', now = performance.now(), sweep = (st === 'q' || st === 'm');
     var pr = sweep ? (scn.p != null ? scn.p : Math.min(1, (now - (scn.t0 || now)) / 4500)) : 1;
     if (pr < 1) pr = pr * pr * (3 - 2 * pr);
