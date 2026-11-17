@@ -2776,6 +2776,8 @@ function poseStatic(u, e, ts) {
         var esc = function (s) { return String(s).replace(/[&<>"]/g, function (ch) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]; }); };
         var tm = function (ms) { var d = new Date(ms); return pad(d.getHours()) + ':' + pad(d.getMinutes()); };
         var head = '<h3>Хто заходив</h3><p class="muted">Дата: <input type="date" id="jld" value="' + day + '" style="padding:6px;font-size:16px;background:#1a120a;color:#f2e2c0;border:1px solid #8a7347"></p>';
+        var nowH = (function () { var gh = window.__pres && window.__pres.ghosts || {}, ids = Object.keys(gh); if (!ids.length) return '<p class="muted">Зараз у грі, крім вас, нікого немає.</p>'; var LN = { hall: 'хол', prak: 'практика', arch: 'кабінет архітекторів', build: 'кабінет будівельників', road: 'кабінет дорожників' }; return '<p style="margin:6px 0 2px"><b>Зараз у грі (' + ids.length + '):</b></p><div style="max-height:18vh;overflow:auto;font-size:15px">' + ids.map(function (id) { var u = gh[id].userData; return '<div>' + esc(u.name || 'Гість') + (u.sub ? ' <span class="muted">' + esc(u.sub) + '</span>' : '') + ' <span class="muted">— ' + esc(LN[u.loc] || u.loc || 'хол') + '</span></div>'; }).join('') + '</div>'; })();
+        head += nowH;
         var b = modal(head + '<p class="muted">Завантажуємо…</p>');
         b.querySelector('#jld').addEventListener('change', function () { if (this.value) window.__joinlogShow(this.value); });
         db.ref('joinlog/' + day).once('value').then(function (sn) {
@@ -4155,6 +4157,9 @@ window.__RB = RB;
     var rec = { a: pa && pa.checked ? 1 : 0 }; if (Object.keys(l).length) rec.l = l;
     f.db.ref('board/mic').set(rec).catch(function (e) { toast('Не вдалося зберегти: ' + (e && e.code || 'помилка'), 4000); });
   }
+  var joinBtn = document.createElement('button'); joinBtn.type = 'button'; joinBtn.innerHTML = ico('log'); joinBtn.title = 'Хто заходив'; joinBtn.className = 'rb ib'; joinBtn.style.top = '272px';
+  document.body.appendChild(joinBtn);
+  joinBtn.addEventListener('click', function () { if (window.__joinlogShow) window.__joinlogShow(); else toast('Журнал ще завантажується, спробуйте за мить.'); });
   permBtn.addEventListener('click', function () {
     var esc = function (t) { return String(t).replace(/[&<>"]/g, function (ch) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]; }); };
     var gh = (window.__pres && window.__pres.ghosts) || {}, l0 = vloc(), ids = Object.keys(gh).filter(function (id) { return gh[id].userData.loc === l0 && !gh[id].userData.teach; });
@@ -4276,7 +4281,7 @@ window.__RB = RB;
 
   setInterval(function () {
     BOARDS.forEach(function (b) { b.wire(); });
-    var l = vloc(), f = fb(); micBtn.style.display = (l && !modalOpen) ? 'flex' : 'none'; permBtn.style.display = (l && !modalOpen && isTeacher()) ? 'flex' : 'none'; if (f) startPerm();
+    var l = vloc(), f = fb(); micBtn.style.display = (l && !modalOpen) ? 'flex' : 'none'; permBtn.style.display = (l && !modalOpen && isTeacher()) ? 'flex' : 'none'; joinBtn.style.display = (!modalOpen && isTeacher()) ? 'flex' : 'none'; if (f) startPerm();
     if (!f || !window.RTCPeerConnection) return; startSignals();
     if (!l) { Object.keys(peers).forEach(closePeer); relayTo = {}; if (micOn) setMic(false); return; }
     var gh = (window.__pres && window.__pres.ghosts) || {}, want = {};
