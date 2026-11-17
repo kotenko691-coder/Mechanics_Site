@@ -4157,9 +4157,6 @@ window.__RB = RB;
     var rec = { a: pa && pa.checked ? 1 : 0 }; if (Object.keys(l).length) rec.l = l;
     f.db.ref('board/mic').set(rec).catch(function (e) { toast('Не вдалося зберегти: ' + (e && e.code || 'помилка'), 4000); });
   }
-  var joinBtn = document.createElement('button'); joinBtn.type = 'button'; joinBtn.innerHTML = ico('log'); joinBtn.title = 'Хто заходив'; joinBtn.className = 'rb ib'; joinBtn.style.top = '272px';
-  document.body.appendChild(joinBtn);
-  joinBtn.addEventListener('click', function () { if (window.__joinlogShow) window.__joinlogShow(); else toast('Журнал ще завантажується, спробуйте за мить.'); });
   permBtn.addEventListener('click', function () {
     var esc = function (t) { return String(t).replace(/[&<>"]/g, function (ch) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]; }); };
     var gh = (window.__pres && window.__pres.ghosts) || {}, l0 = vloc(), ids = Object.keys(gh).filter(function (id) { return gh[id].userData.loc === l0 && !gh[id].userData.teach; });
@@ -4281,7 +4278,7 @@ window.__RB = RB;
 
   setInterval(function () {
     BOARDS.forEach(function (b) { b.wire(); });
-    var l = vloc(), f = fb(); micBtn.style.display = (l && !modalOpen) ? 'flex' : 'none'; permBtn.style.display = (l && !modalOpen && isTeacher()) ? 'flex' : 'none'; joinBtn.style.display = (!modalOpen && isTeacher()) ? 'flex' : 'none'; if (f) startPerm();
+    var l = vloc(), f = fb(); micBtn.style.display = (l && !modalOpen) ? 'flex' : 'none'; permBtn.style.display = (l && !modalOpen && isTeacher()) ? 'flex' : 'none'; if (f) startPerm();
     if (!f || !window.RTCPeerConnection) return; startSignals();
     if (!l) { Object.keys(peers).forEach(closePeer); relayTo = {}; if (micOn) setMic(false); return; }
     var gh = (window.__pres && window.__pres.ghosts) || {}, want = {};
