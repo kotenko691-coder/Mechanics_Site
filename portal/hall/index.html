@@ -1935,6 +1935,12 @@ function console_(loc, wi, lx, w) {
   /* робот-викладач виставляє на стенді задачу з практики: схема, потім реакції */
   function botScene(sc, lc) {
     var st = null; STS.forEach(function (s) { if (!st && s.kind === 'beam' && s.i === -1 && s.loc === (lc || cur) && s.g.visible) st = s; });
+    if (sc && sc.k === 'r') { var rs = null; STS.forEach(function (s2) { if (!rs && s2.kind === 'rods' && s2.i === -2 && s2.loc === (lc || cur)) rs = s2; }); if (!rs) return; var rt = sc.t, rr = RB.rods(rt), RS = rs.S, rstep = sc.s || 'scheme';
+      RS.a1 = String(rt[0]); RS.a2 = String(rt[1]); RS.loads = rt[2].map(function (f) { return { F: String(f[0]), a: String(f[1]) }; });
+      rs.bot = true; rs.anim = null; rs.sig = null;
+      if (rstep === 'ans') { RS.ans = { N1: { v: String(Math.round(Math.abs(rr.N1) * 100) / 100), s: rr.N1 >= 0 ? '1' : '0' }, N2: { v: String(Math.round(Math.abs(rr.N2) * 100) / 100), s: rr.N2 >= 0 ? '1' : '0' } }; RS.res = { N1: true, N2: true }; rs.checked = true; rs.ok = true; }
+      else { RS.ans = { N1: { v: '', s: '1' }, N2: { v: '', s: '1' } }; RS.res = null; rs.checked = false; rs.ok = false; }
+      build3D(rs); rs.built = stPack(rs); return; }
     if (!st || !sc || !sc.t) return; var t = sc.t, b = RB.beam(t), S = st.S, step = sc.s || 'scheme';
     S.L = String(t[0]); S.xA = String(t[1]); S.xB = String(t[2]); S.loads = t[3].map(function (l) {
       if (l[0] === 'P') return { t: 'F', x: String(l[1]), F: String(l[2]), a: '270' };
@@ -3229,7 +3235,15 @@ var RB = (function () {
     b.mmax = 0, b.mz = 0; b.pts.forEach(function (p) { [-1, 1].forEach(function (sd) { if ((sd < 0 && p <= 0) || (sd > 0 && p >= L)) return; var v = b.M(p, sd); if (Math.abs(v) > Math.abs(b.mmax) + 1e-9) { b.mmax = v; b.mz = p; } }); }); b.ext.forEach(function (e) { if (Math.abs(e[1]) > Math.abs(b.mmax) + 1e-9) { b.mmax = e[1]; b.mz = e[0]; } });
     return b;
   }
-  return { beam: beam, sections: sections, mapSlides: mapSlides, attach: attach, start: start, loadMan: loadMan, toSentences: toSentences, available: function () { return true; } };
+
+  /* два стержні: t = [кут1, кут2, [[F, кут], ...]]; N>0 розтяг */
+  function rods(t) {
+    var D = Math.PI / 180, a1 = t[0] * D, a2 = t[1] * D, fx = 0, fy = 0; t[2].forEach(function (f) { fx += f[0] * Math.cos(f[1] * D); fy += f[0] * Math.sin(f[1] * D); });
+    var u1 = [Math.cos(a1), Math.sin(a1)], u2 = [Math.cos(a2), Math.sin(a2)], det = u1[0] * u2[1] - u1[1] * u2[0], bx = -fx, by = -fy;
+    var z = function (v) { return Math.abs(v) < 1e-9 ? 0 : v; };
+    return { N1: z((bx * u2[1] - u2[0] * by) / det), N2: z((u1[0] * by - u1[1] * bx) / det), u1: u1, u2: u2, fx: fx, fy: fy };
+  }
+  return { rods: rods, beam: beam, sections: sections, mapSlides: mapSlides, attach: attach, start: start, loadMan: loadMan, toSentences: toSentences, available: function () { return true; } };
 })();
 window.__RB = RB;
 
@@ -3283,8 +3297,39 @@ window.__RB = RB;
     o.push('M = моменти сил зліва'); b.pts.forEach(function (p) { o.push('z = ' + fm(p) + ' м:  M = ' + fm(b.M(p, -1 + (p <= 0 ? 1 : 0))) + ' кН·м'); });
     b.ext.forEach(function (e) { o.push('Q=0 при z = ' + fm(e[0]) + ' м, M = ' + fm(e[1])); }); o.push('Mmax = ' + fm(Math.abs(b.mmax)) + ' кН·м'); return o.slice(0, 9);
   }
+
+  function cs(v) { v = Math.abs(v) < 1e-9 ? 0 : v; var t = fm(Math.round(v * 1000) / 1000); return v < 0 ? '(' + t + ')' : t; }
+  function rodLines(t, r, st) {
+    var D = Math.PI / 180, o = [];
+    if (st === 'scheme') { o.push('Дано:'); o.push('стержень 1: кут ' + fm(t[0]) + '°'); o.push('стержень 2: кут ' + fm(t[1]) + '°'); t[2].forEach(function (f) { o.push('сила ' + fm(f[0]) + ' кН, кут ' + fm(f[1]) + '°'); }); o.push('Знайти: N1 і N2'); return o; }
+    if (st === 'eq') {
+      var ex = ['N1·' + cs(r.u1[0]), 'N2·' + cs(r.u2[0])], ey = ['N1·' + cs(r.u1[1]), 'N2·' + cs(r.u2[1])]; t[2].forEach(function (f) { ex.push(fm(f[0]) + '·' + cs(Math.cos(f[1] * D))); ey.push(fm(f[0]) + '·' + cs(Math.sin(f[1] * D))); });
+      o.push('ΣX = 0:'); o.push(ex.join(' + ') + ' = 0'); o.push('ΣY = 0:'); o.push(ey.join(' + ') + ' = 0'); return o;
+    }
+    o.push('N1 = ' + fm(Math.round(r.N1 * 100) / 100) + ' кН  ' + (r.N1 >= 0 ? '(розтяг)' : '(стиск)')); o.push('N2 = ' + fm(Math.round(r.N2 * 100) / 100) + ' кН  ' + (r.N2 >= 0 ? '(розтяг)' : '(стиск)'));
+    o.push('«+» розтяг, «−» стиск'); return o;
+  }
+  function drawRods(x) {
+    var t = scn.t, r = RB.rods(t), st = scn.s || 'scheme', D = Math.PI / 180, nx = 430, ny = 330, RL = 220, ink = '#0f2a6e', red = '#c0392b', grn = '#1b8a3a';
+    x.save(); x.lineCap = 'round'; x.lineJoin = 'round'; x.textBaseline = 'alphabetic';
+    var arr = function (x1, y1, x2, y2, col, w) { x.strokeStyle = col; x.fillStyle = col; x.lineWidth = w || 5; x.beginPath(); x.moveTo(x1, y1); x.lineTo(x2, y2); x.stroke(); var an = Math.atan2(y2 - y1, x2 - x1); x.beginPath(); x.moveTo(x2, y2); x.lineTo(x2 - 16 * Math.cos(an - 0.4), y2 - 16 * Math.sin(an - 0.4)); x.lineTo(x2 - 16 * Math.cos(an + 0.4), y2 - 16 * Math.sin(an + 0.4)); x.closePath(); x.fill(); };
+    /* осі */
+    x.strokeStyle = '#999'; x.lineWidth = 1.5; x.setLineDash([6, 6]); x.beginPath(); x.moveTo(nx - 300, ny); x.lineTo(nx + 300, ny); x.moveTo(nx, ny + 220); x.lineTo(nx, ny - 290); x.stroke(); x.setLineDash([]); x.fillStyle = '#777'; x.font = 'italic 22px Georgia'; x.fillText('x', nx + 304, ny + 8); x.fillText('y', nx + 6, ny - 292);
+    [[t[0], r.N1, '1'], [t[1], r.N2, '2']].forEach(function (a, i) {
+      var ex = nx + Math.cos(a[0] * D) * RL, ey = ny - Math.sin(a[0] * D) * RL, col = st === 'ans' ? (a[1] >= 0 ? grn : red) : '#333';
+      x.strokeStyle = '#333'; x.lineWidth = 12; x.beginPath(); x.moveTo(nx, ny); x.lineTo(ex, ey); x.stroke(); x.strokeStyle = '#8a9099'; x.lineWidth = 6; x.beginPath(); x.moveTo(nx, ny); x.lineTo(ex, ey); x.stroke();
+      x.fillStyle = '#555'; x.beginPath(); x.arc(ex, ey, 9, 0, 6.3); x.fill();
+      x.fillStyle = ink; x.font = 'bold 26px Georgia'; x.textAlign = 'center'; x.fillText(a[2], nx + Math.cos(a[0] * D) * (RL + 34), ny - Math.sin(a[0] * D) * (RL + 34) + 8);
+      x.font = 'italic 22px Georgia'; x.fillStyle = '#444'; x.fillText(fm(a[0]) + '°', nx + Math.cos(a[0] * D) * 62 - Math.sin(a[0] * D) * 30, ny - Math.sin(a[0] * D) * 62 - Math.cos(a[0] * D) * 30 + 6);
+      if (st === 'ans') { var s = a[1] >= 0 ? 1 : -1, mx_ = nx + Math.cos(a[0] * D) * (RL * 0.72), my_ = ny - Math.sin(a[0] * D) * (RL * 0.72), dx = Math.cos(a[0] * D) * 70 * s, dy = -Math.sin(a[0] * D) * 70 * s; if (s > 0) arr(mx_ - dx / 2, my_ - dy / 2, mx_ + dx / 2, my_ + dy / 2, col, 6); else arr(mx_ + dx / 2, my_ + dy / 2, mx_ - dx / 2, my_ - dy / 2, col, 6); }
+    });
+    x.fillStyle = '#222'; x.beginPath(); x.arc(nx, ny, 12, 0, 6.3); x.fill();
+    t[2].forEach(function (f, i) { var L = Math.min(200, 60 + f[0] * 3.2), sn = Math.sin(f[1] * D), cn = Math.cos(f[1] * D), ox = sn * 20, oy = cn * 20, ex = nx + ox + cn * L, ey = ny + oy - sn * L; arr(nx + ox, ny + oy, ex, ey, ink, 6); x.fillStyle = ink; x.font = 'italic 24px "Segoe Script","Comic Sans MS",cursive'; x.textAlign = 'center'; x.fillText(fm(f[0]) + ' кН', ex + cn * 56 + sn * 26, ey - sn * 26 + cn * 26 + 6); });
+    var ls = rodLines(t, r, st), fy = 70; x.textAlign = 'left'; ls.forEach(function (ln, i) { var big = i === 0 && st === 'scheme'; x.font = (big ? 'bold ' : '') + 'italic 27px "Segoe Script","Comic Sans MS",cursive'; x.fillStyle = /^N[12] =/.test(ln) ? (/стиск/.test(ln) ? red : grn) : ink; x.fillText(ln, 900, fy, BW - 920); fy += 52 - (ls.length > 8 ? 6 : 0); });
+    x.restore();
+  }
   function drawScene(x) {
-    if (!scn) return; var b = RB.beam(scn.t), st = scn.s || 'scheme', ac = st === 'react' || st === 'q' || st === 'm', X0 = 70, W = 780, k = W / b.L, BY = st === 'scheme' || st === 'react' ? 230 : st === 'q' ? 135 : 130, ink = '#0f2a6e', red = '#c0392b';
+    if (!scn) return; if (scn.k === 'r') { drawRods(x); return; } var b = RB.beam(scn.t), st = scn.s || 'scheme', ac = st === 'react' || st === 'q' || st === 'm', X0 = 70, W = 780, k = W / b.L, BY = st === 'scheme' || st === 'react' ? 230 : st === 'q' ? 135 : 130, ink = '#0f2a6e', red = '#c0392b';
     x.save(); x.textBaseline = 'alphabetic'; x.lineCap = 'round'; x.lineJoin = 'round'; x.font = 'italic 24px "Segoe Script","Comic Sans MS",cursive';
     var xp = function (z) { return X0 + z * k; };
     x.strokeStyle = '#222'; x.lineWidth = 9; x.beginPath(); x.moveTo(xp(0), BY); x.lineTo(xp(b.L), BY); x.stroke();
