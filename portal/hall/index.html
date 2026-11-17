@@ -3406,18 +3406,58 @@ var RB = (function () {
   }
 
   function robotExport() {
-    modal('<h3>Текст для озвучки</h3><p class="muted" id="rxp">Збираємо тексти лекцій…</p>');
+    var esc = function (t) { return String(t).replace(/[&<>"]/g, function (ch) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]; }); };
+    var slug = function (t) { return String(t).toLowerCase().replace(/[^a-z0-9а-яіїєґ]+/gi, '_').replace(/^_+|_+$/g, '').slice(0, 40) || 'tema'; };
+    var save = function (arr, name) {
+      var blob = new Blob([JSON.stringify(arr)], { type: 'application/json' }), a = document.createElement('a');
+      a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click(); a.remove(); closeModal();
+      toast('Готово: ' + arr.length + ' речень у файлі ' + name, 5500);
+    };
+    modal('<h3>Текст для озвучки</h3><p class="muted">Завантажуємо список тем…</p>');
     NET.lectures().then(function (list) {
-      var all = {}, n = 0, i = 0;
-      (function next() {
-        var it = list[i++];
-        if (!it) {
-          var arr = Object.keys(all), blob = new Blob([JSON.stringify(arr)], { type: 'application/json' }), a = document.createElement('a');
-          a.href = URL.createObjectURL(blob); a.download = 'sentences.json'; document.body.appendChild(a); a.click(); a.remove(); closeModal(); toast('Готово: ' + arr.length + ' речень у файлі sentences.json', 5000); return;
-        }
-        var pp = document.getElementById('rxp'); if (pp) pp.textContent = 'Лекція ' + i + ' з ' + list.length + '…';
-        NET.lectureParts(it.id).then(function (p) { RB.toSentences(p.lec || p.notes || p.deck || '').forEach(function (sn) { all[sn] = 1; n++; }); next(); }, function () { next(); });
-      })();
+      if (!modalOpen) return;
+      var NM = { lec: 'Лекції', prac: 'Практичні роботи', extra: 'Додатково' };
+      var bd = modal('<h3>Текст для озвучки</h3><p class="muted">Оберіть тему, потім що саме вивантажити (лекція, конспект чи презентація). Кожна тема окремим файлом.</p><input id="rxq" placeholder="Пошук за назвою…" autocomplete="off" style="width:100%;box-sizing:border-box;padding:10px;font-size:16px;margin:6px 0"><div id="rxl" style="max-height:48vh;overflow:auto"></div><button type="button" id="rxall" style="display:block;width:100%;text-align:left;margin:10px 0 0">Усі теми одним файлом (дуже великий)</button>');
+      var box = bd.querySelector('#rxl'), q = bd.querySelector('#rxq');
+      function draw() {
+        var fl = q.value.trim().toLowerCase(), out = '', any = false;
+        ['lec', 'prac', 'extra'].forEach(function (sec) {
+          var ls = list.filter(function (it) { return it.section === sec && (!fl || it.title.toLowerCase().indexOf(fl) >= 0); }); if (!ls.length) return; any = true;
+          out += '<p class="muted" style="margin:10px 0 4px">' + NM[sec] + '</p>';
+          ls.forEach(function (it) { out += '<button type="button" data-id="' + esc(it.id) + '" data-t="' + esc(it.title) + '" style="display:block;width:100%;text-align:left;margin:3px 0">' + esc(it.title) + '</button>'; });
+        });
+        box.innerHTML = any ? out : '<p class="muted">Нічого не знайдено.</p>';
+      }
+      draw(); q.addEventListener('input', draw);
+      box.addEventListener('click', function (e) {
+        var t = e.target.closest('button[data-id]'); if (!t) return; var lid = t.getAttribute('data-id'), ttl = t.getAttribute('data-t');
+        modal('<h3>' + esc(ttl) + '</h3><p class="muted">Завантажуємо частини теми…</p>');
+        NET.lectureParts(lid).then(function (p) {
+          if (!modalOpen) return;
+          var h = '<h3>' + esc(ttl) + '</h3><p class="muted">Що вивантажити для озвучки:</p>', cnt = {};
+          [['lec', 'Лекція (повний текст)'], ['notes', 'Конспект (короткий)'], ['deck', 'Презентація']].forEach(function (k) {
+            if (!p[k[0]]) return; cnt[k[0]] = RB.toSentences(p[k[0]]).length;
+            h += '<button type="button" data-p="' + k[0] + '" style="display:block;width:100%;text-align:left;margin:4px 0">' + k[1] + ' · речень: ' + cnt[k[0]] + '</button>';
+          });
+          if (!Object.keys(cnt).length) h += '<p class="muted">У цієї теми немає тексту (лише PDF).</p>';
+          var b2 = modal(h);
+          b2.addEventListener('click', function (ev) {
+            var bt = ev.target.closest('button[data-p]'); if (!bt) return; var k = bt.getAttribute('data-p'), seen = {}, arr = [];
+            RB.toSentences(p[k]).forEach(function (sn) { if (!seen[sn]) { seen[sn] = 1; arr.push(sn); } });
+            save(arr, 'sentences_' + slug(ttl) + '_' + k + '.json');
+          });
+        }, function () { if (modalOpen) modal('<h3>' + esc(ttl) + '</h3><p class="muted">Тема недоступна.</p>'); });
+      });
+      bd.querySelector('#rxall').addEventListener('click', function () {
+        modal('<h3>Текст для озвучки</h3><p class="muted" id="rxp">Збираємо тексти всіх тем…</p>');
+        var all = {}, i2 = 0;
+        (function next() {
+          var it = list[i2++];
+          if (!it) { save(Object.keys(all), 'sentences.json'); return; }
+          var pp = document.getElementById('rxp'); if (pp) pp.textContent = 'Тема ' + i2 + ' з ' + list.length + '…';
+          NET.lectureParts(it.id).then(function (p) { RB.toSentences(p.lec || p.notes || p.deck || '').forEach(function (sn) { all[sn] = 1; }); next(); }, function () { next(); });
+        })();
+      });
     }, function () { closeModal(); toast('Не вдалося отримати список тем.', 3500); });
   }
   function robotStart(lid, ttl) {
