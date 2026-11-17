@@ -3058,7 +3058,7 @@ var RB = (function () {
     Promise.all([loadMan(), hash(text)]).then(function (a) {
       if (run !== audRun) return; var h = a[1];
       if (!a[0][h]) { miss(); return; }
-      var au = new Audio('voice/' + h + '.mp3'); aud = au; au.onended = function () { if (run === audRun) { aud = null; if (onend) onend(); } };
+      var au = new Audio('voice/' + h + '.mp3'); aud = au; au.onended = function () { if (run === audRun) { aud = null; setTimeout(function () { if (run === audRun && onend) onend(); }, 450); } };
       au.onerror = function () { if (run === audRun) { aud = null; miss(); } };
       var pr = au.play(); if (pr && pr.catch) pr.catch(function (e) { if (run !== audRun) return; if (e && e.name === 'NotAllowedError') { if (onerr) onerr('not-allowed'); } else miss(); });
     }, function () { if (run === audRun) miss(); });
