@@ -1898,12 +1898,12 @@ function console_(loc, wi, lx, w) {
   var psInit = false, psLast = 0;
   function stKey(st) { return 'ps_' + (st.loc.id || 'hall') + '_' + st.kind + '_' + st.i; }
   function stPack(st) {
-    var S = {}; Object.keys(st.S).forEach(function (k) { if (k !== 'ans') S[k] = st.S[k]; });
-    return JSON.stringify({ S: S, c: st.checked ? 1 : 0, ok: st.ok ? 1 : 0, an: st.anim || null });
+    var S = {}; Object.keys(st.S).forEach(function (k) { if (k !== 'ans') S[k] = st.S[k]; }); if (st.bot) S.ans = st.S.ans;
+    return JSON.stringify({ S: S, c: st.checked ? 1 : 0, ok: st.ok ? 1 : 0, an: st.anim || null, b: st.bot ? 1 : 0 });
   }
   function stApply(st, str) {
     var o; try { o = JSON.parse(str); } catch (e) { return; } if (!o || !o.S) return;
-    Object.keys(st.S).forEach(function (k) { if (k !== 'ans') delete st.S[k]; });
+    st.bot = !!o.b; Object.keys(st.S).forEach(function (k) { if (k !== 'ans') delete st.S[k]; });
     Object.keys(o.S).forEach(function (k) { st.S[k] = o.S[k]; });
     st.checked = !!o.c; st.ok = !!o.ok; st.anim = o.an || null; st.sig = st.anim ? sigOf(st.S) : null;
     st.built = stPack(st); build3D(st); if (curSt === st) { var m = $('modal'); if (m && m.style.display !== 'none' && m.style.display !== '' && $('pc')) { try { if (st.kind === 'beam') { B = st.S; drawBeam($('pc'), B); } else { R = st.S; drawRods($('pc'), R); } } catch (e) {} } }
@@ -1931,7 +1931,22 @@ function console_(loc, wi, lx, w) {
     });
     SWS.forEach(function (w) { if (w.get() === w.last) return; w.last = w.get(); f.db.ref('tv/' + w.key).set({ d: 's', p: w.last, t: Date.now() }).catch(function () {}); });
   });
-  window.__prak = { openBeam: openBeam, openRods: openRods, STS: STS, beamSolve: beamSolve, rodSolve: rodSolve, check: function (st) { curSt = st; if (st.kind === 'beam') { B = st.S; openBeam(); checkBeam(); } else { R = st.S; openRods(); checkRods(); } } };
+
+  /* робот-викладач виставляє на стенді задачу з практики: схема, потім реакції */
+  function botScene(sc, lc) {
+    var st = null; STS.forEach(function (s) { if (!st && s.kind === 'beam' && s.i === -1 && s.loc === (lc || cur) && s.g.visible) st = s; });
+    if (!st || !sc || !sc.t) return; var t = sc.t, b = RB.beam(t), S = st.S, step = sc.s || 'scheme';
+    S.L = String(t[0]); S.xA = String(t[1]); S.xB = String(t[2]); S.loads = t[3].map(function (l) {
+      if (l[0] === 'P') return { t: 'F', x: String(l[1]), F: String(l[2]), a: '270' };
+      if (l[0] === 'q') return { t: 'q', x1: String(l[1]), x2: String(l[2]), q: String(l[3]) };
+      return { t: 'M', x: String(l[1]), M: String(Math.abs(l[2])), ccw: l[2] > 0 ? '0' : '1' };
+    });
+    st.bot = true; st.anim = null; st.sig = null;
+    if (step === 'scheme') { S.ans = { VA: { v: '', d: '1' }, HA: { v: '', d: '1' }, VB: { v: '', d: '1' } }; S.res = null; st.checked = false; st.ok = false; }
+    else { S.ans = { VA: { v: String(Math.round(b.RA * 100) / 100), d: b.RA >= 0 ? '1' : '0' }, HA: { v: '0', d: '1' }, VB: { v: String(Math.round(b.RB * 100) / 100), d: b.RB >= 0 ? '1' : '0' } }; if (b.RA < 0) S.ans.VA.v = String(-Math.round(b.RA * 100) / 100); if (b.RB < 0) S.ans.VB.v = String(-Math.round(b.RB * 100) / 100); S.res = { VA: true, HA: true, VB: true }; st.checked = true; st.ok = true; }
+    build3D(st); st.built = stPack(st);
+  }
+  window.__prak = { scene: botScene,  openBeam: openBeam, openRods: openRods, STS: STS, beamSolve: beamSolve, rodSolve: rodSolve, check: function (st) { curSt = st; if (st.kind === 'beam') { B = st.S; openBeam(); checkBeam(); } else { R = st.S; openRods(); checkRods(); } } };
 })();
 
 var CODES={};
@@ -3147,7 +3162,7 @@ var RB = (function () {
       if (r.rec && r.rec.sx && r.rec.st !== 'stop' && cur === loc && curKey === key && typeof VP !== 'undefined' && s - (r.sxT || 0) > 0.5) {
         r.sxT = s; if (r.sxraw !== r.rec.sx) { r.sxraw = r.rec.sx; try { r.sxa = JSON.parse(r.rec.sx); r.sca = JSON.parse(r.rec.sc); } catch (e) { r.sxa = null; } }
         var q = r.sca && r.sca[Math.min(r.rec.i | 0, r.sca.length - 1)], sec = r.sxa && r.sxa[q];
-        if (sec) { var kk = q + ':' + r.rec.t0; if (r.bk2 !== kk && VP.lpHead(sec.h)) { r.bk2 = kk; r.tx = [3.2, 2.4, 1.8, 2.8][q % 4]; if (window.__rbBoards && window.__rbBoards[key]) window.__rbBoards[key]([sec.t].concat(sec.p)); } }
+        if (sec) { var kk = q + ':' + r.rec.t0; if (r.bk2 !== kk && VP.lpHead(sec.h)) { r.bk2 = kk; r.tx = [3.2, 2.4, 1.8, 2.8][q % 4]; var scn = null; if (sec.sn) { try { scn = JSON.parse(sec.sn); } catch (e) { scn = null; } } if (scn && window.__rbScenes && window.__rbScenes[key]) { window.__rbScenes[key](scn); if (window.__prak && window.__prak.scene) window.__prak.scene(scn, r.loc); } else if (window.__rbBoards && window.__rbBoards[key]) { if (window.__rbScenes && window.__rbScenes[key]) window.__rbScenes[key](null); window.__rbBoards[key]([sec.t].concat(sec.p)); } } }
       }
       if (r.rec && r.rec.m && r.rec.st !== 'stop' && cur === loc && curKey === key && typeof VP !== 'undefined' && s - (r.slT || 0) > 0.4) {
         r.slT = s; if (r.mraw !== r.rec.m) { r.mraw = r.rec.m; try { r.mm = JSON.parse(r.rec.m); } catch (e) { r.mm = null; } }
@@ -3177,14 +3192,15 @@ var RB = (function () {
       var hs = d.body.querySelectorAll('h1,h2,h3,h4'); if (hs.length < 2) return null;
       var nz = function (t) { return String(t || '').toLowerCase().replace(/[^a-zа-яіїєґ0-9]+/g, ''); }, cl = function (t) { t = String(t || '').replace(/\s+/g, ' ').trim(); var m = /^(.{12,90}?)([.:;]\s|$)/.exec(t); return (m ? m[1] : t).slice(0, 90); };
       var secs = [], cur = null, hi = -1;
-      Array.prototype.forEach.call(d.body.querySelectorAll('h1,h2,h3,h4,p,li'), function (e) {
-        if (/^H/.test(e.tagName)) { hi++; cur = { t: String(e.textContent).replace(/\s+/g, ' ').trim().slice(0, 70), h: hi, txt: '', li: [], p: '' }; secs.push(cur); return; }
+      Array.prototype.forEach.call(d.body.querySelectorAll('h1,h2,h3,h4,p,li,[data-scene]'), function (e) {
+        if (!/^(H\d|P|LI)$/.test(e.tagName)) { cur = { t: cur ? cur.t : '', h: hi < 0 ? 0 : hi, txt: '', li: [], p: '', sn: e.getAttribute('data-scene') }; secs.push(cur); return; }
+        if (/^H/.test(e.tagName)) { hi++; cur = { t: String(e.textContent).replace(/\s+/g, ' ').trim().slice(0, 70), h: hi, txt: '', li: [], p: '', sn: e.getAttribute('data-scene') || '' }; secs.push(cur); return; }
         if (!cur) return; var t = String(e.textContent).replace(/\s+/g, ' ').trim(); if (!t) return;
         cur.txt += nz(t); if (e.tagName === 'LI') { if (cur.li.length < 3 && t.length > 5) cur.li.push(cl(t)); } else if (!cur.p && t.length > 25) cur.p = cl(t);
       });
       var sc = [], j = 0;
       sentences.forEach(function (sn) { var key = nz(sn).slice(0, 24); for (var k = j; k < secs.length; k++) { if (secs[k].txt.indexOf(key) >= 0) { j = k; break; } } sc.push(j); });
-      return { sx: secs.map(function (x) { return { t: x.t, h: x.h, p: x.li.length ? x.li : (x.p ? [x.p] : []) }; }), sc: sc };
+      return { sx: secs.map(function (x) { var o = { t: x.t, h: x.h, p: x.li.length ? x.li : (x.p ? [x.p] : []) }; if (x.sn) o.sn = x.sn; return o; }), sc: sc };
     } catch (e) { return null; }
   }
   function mapSlides(sentences, deckHtml) {
@@ -3199,8 +3215,23 @@ var RB = (function () {
       var m = new Array(n); for (i = n - 1; i >= 0; i--) { m[i] = kk; kk = bp[i][kk]; } m[0] = 0; return m;
     } catch (e) { return null; }
   }
-  return { sections: sections, mapSlides: mapSlides, attach: attach, start: start, loadMan: loadMan, toSentences: toSentences, available: function () { return true; } };
+
+  /* двоопорна балка: t = [L, xA, xB, [["P",x,кН],["q",a,b,кН/м],["m",x,кН·м (плюс за годинниковою)]]] */
+  function beam(t) {
+    var L = t[0], xA = t[1], xB = t[2], ld = t[3], P = [], Q = [], M = [], tot = 0, mom = 0, EP = 1e-9;
+    ld.forEach(function (l) { if (l[0] === 'P') { P.push([l[1], l[2]]); tot += l[2]; mom += l[2] * (l[1] - xA); } else if (l[0] === 'q') { var f = l[3] * (l[2] - l[1]); Q.push([l[1], l[2], l[3]]); tot += f; mom += f * ((l[1] + l[2]) / 2 - xA); } else { M.push([l[1], l[2]]); mom += l[2]; } });
+    var RB = mom / (xB - xA), RA = tot - RB, b = { L: L, xA: xA, xB: xB, P: P, q: Q, m: M, RA: RA, RB: RB, tot: tot, mom: mom };
+    b.Q = function (z, sd) { z += (sd || 0) * EP; var v = 0; if (xA <= z) v += RA; if (xB <= z) v += RB; P.forEach(function (p) { if (p[0] <= z) v -= p[1]; }); Q.forEach(function (q) { v -= q[2] * Math.max(0, Math.min(z, q[1]) - q[0]); }); return v; };
+    b.M = function (z, sd) { z += (sd || 0) * EP; var v = 0; if (xA <= z) v += RA * (z - xA); if (xB <= z) v += RB * (z - xB); P.forEach(function (p) { if (p[0] <= z) v -= p[1] * (z - p[0]); }); Q.forEach(function (q) { var l = Math.max(0, Math.min(z, q[1]) - q[0]); v -= q[2] * l * (z - q[0] - l / 2); }); M.forEach(function (m) { if (m[0] <= z) v += m[1]; }); return v; };
+    var ps = [0, L, xA, xB]; P.forEach(function (p) { ps.push(p[0]); }); Q.forEach(function (q) { ps.push(q[0], q[1]); }); M.forEach(function (m) { ps.push(m[0]); });
+    ps.sort(function (a, c) { return a - c; }); b.pts = ps.filter(function (v, i) { return !i || Math.abs(v - ps[i - 1]) > 1e-9; });
+    b.ext = []; for (var i = 0; i + 1 < b.pts.length; i++) { var l = b.pts[i], r = b.pts[i + 1], ql = b.Q(l, 1), qr = b.Q(r, -1); if (ql > 1e-9 && qr < -1e-9) { var z0 = l + ql / (ql - qr) * (r - l); b.ext.push([z0, b.M(z0)]); } }
+    b.mmax = 0, b.mz = 0; b.pts.forEach(function (p) { [-1, 1].forEach(function (sd) { if ((sd < 0 && p <= 0) || (sd > 0 && p >= L)) return; var v = b.M(p, sd); if (Math.abs(v) > Math.abs(b.mmax) + 1e-9) { b.mmax = v; b.mz = p; } }); }); b.ext.forEach(function (e) { if (Math.abs(e[1]) > Math.abs(b.mmax) + 1e-9) { b.mmax = e[1]; b.mz = e[0]; } });
+    return b;
+  }
+  return { beam: beam, sections: sections, mapSlides: mapSlides, attach: attach, start: start, loadMan: loadMan, toSentences: toSentences, available: function () { return true; } };
 })();
+window.__RB = RB;
 
 
 /* ====== ДОШКА ПЕРЕГОВОРНОЇ І ГОЛОСОВИЙ ЧАТ ====== */
@@ -3229,10 +3260,61 @@ var RB = (function () {
     mx.fillStyle = BG; mx.fillRect(0, 0, BW, BH);
     mx.fillStyle = '#c8c3b4'; mx.font = '28px Georgia'; mx.textAlign = 'left'; if (!mine.length && !remote.length) mx.fillText('Дошка. Торкніться, щоб малювати.', 40, 60);
     remote.forEach(function (s) { drawStroke(mx, s); }); mine.forEach(function (s) { drawStroke(mx, s); });
-    drawRb(mx);
+    drawRb(mx); drawScene(mx);
     btex.needsUpdate = true; if (ovCtx) { ovCtx.drawImage(master, 0, 0); if (cur_) drawStroke(ovCtx, cur_); }
   }
   /* текст, який «пише» робот-викладач: заголовок слайда і головні думки */
+
+  /* практика: схема, формули й епюри на дошці під розповідь робота (сцена приходить з розділу теми) */
+  var scn = null;
+  function fm(v) { var t = (Math.round(v * 100) / 100).toString().replace('.', ','); return t.replace('-', '−'); }
+  function sceneLines(b, st) {
+    var d = b.xB - b.xA, o = [];
+    if (st === 'scheme') { o.push('Дано:'); b.P.forEach(function (p) { o.push('сила ' + fm(p[1]) + ' кН, на ' + fm(p[0]) + ' м'); }); b.q.forEach(function (q) { o.push('q = ' + fm(q[2]) + ' кН/м, від ' + fm(q[0]) + ' до ' + fm(q[1]) + ' м'); }); b.m.forEach(function (m) { o.push('момент ' + fm(Math.abs(m[1])) + ' кН·м, на ' + fm(m[0]) + ' м'); }); o.push('Знайти: RA, RB, епюри Q і M'); return o; }
+    if (st === 'react') {
+      var tA = [], tB = [];
+      b.P.forEach(function (p) { var a = p[0] - b.xA, c = b.xB - p[0]; if (Math.abs(a) > 1e-9) tA.push((a > 0 ? '− ' : '+ ') + fm(p[1]) + '·' + fm(Math.abs(a))); if (Math.abs(c) > 1e-9) tB.push((c > 0 ? '+ ' : '− ') + fm(p[1]) + '·' + fm(Math.abs(c))); });
+      b.q.forEach(function (q) { var f = q[2] * (q[1] - q[0]), xc = (q[0] + q[1]) / 2, a = xc - b.xA, c = b.xB - xc; o.push('Q = ' + fm(q[2]) + '·' + fm(q[1] - q[0]) + ' = ' + fm(f) + ' кН'); tA.push((a > 0 ? '− ' : '+ ') + fm(f) + '·' + fm(Math.abs(a))); tB.push((c > 0 ? '+ ' : '− ') + fm(f) + '·' + fm(Math.abs(c))); });
+      b.m.forEach(function (m) { tA.push(m[1] > 0 ? '− ' + fm(m[1]) : '+ ' + fm(-m[1])); tB.push(m[1] > 0 ? '− ' + fm(m[1]) : '+ ' + fm(-m[1])); });
+      o.push('ΣM(A)=0: RB·' + fm(d) + ' ' + tA.join(' ') + ' = 0'); o.push('RB = ' + fm(b.RB) + ' кН'); o.push('ΣM(B)=0: −RA·' + fm(d) + ' ' + tB.join(' ') + ' = 0'); o.push('RA = ' + fm(b.RA) + ' кН');
+      o.push('Перевірка: ' + fm(b.RA) + ' + ' + fm(b.RB) + ' = ' + fm(b.tot) + ' ✓'); return o;
+    }
+    if (st === 'q') { o.push('Q = сума сил зліва'); for (var i = 0; i + 1 < b.pts.length; i++) { var l = b.pts[i], r = b.pts[i + 1]; o.push(fm(l) + '–' + fm(r) + ' м:  ' + fm(b.Q(l, 1)) + (Math.abs(b.Q(r, -1) - b.Q(l, 1)) > 1e-6 ? '  →  ' + fm(b.Q(r, -1)) : '') + ' кН'); } return o; }
+    o.push('M = моменти сил зліва'); b.pts.forEach(function (p) { o.push('z = ' + fm(p) + ' м:  M = ' + fm(b.M(p, -1 + (p <= 0 ? 1 : 0))) + ' кН·м'); });
+    b.ext.forEach(function (e) { o.push('Q=0 при z = ' + fm(e[0]) + ' м, M = ' + fm(e[1])); }); o.push('Mmax = ' + fm(Math.abs(b.mmax)) + ' кН·м'); return o.slice(0, 9);
+  }
+  function drawScene(x) {
+    if (!scn) return; var b = RB.beam(scn.t), st = scn.s || 'scheme', ac = st === 'react' || st === 'q' || st === 'm', X0 = 70, W = 780, k = W / b.L, BY = st === 'scheme' || st === 'react' ? 230 : st === 'q' ? 135 : 130, ink = '#0f2a6e', red = '#c0392b';
+    x.save(); x.textBaseline = 'alphabetic'; x.lineCap = 'round'; x.lineJoin = 'round'; x.font = 'italic 24px "Segoe Script","Comic Sans MS",cursive';
+    var xp = function (z) { return X0 + z * k; };
+    x.strokeStyle = '#222'; x.lineWidth = 9; x.beginPath(); x.moveTo(xp(0), BY); x.lineTo(xp(b.L), BY); x.stroke();
+    [[b.xA, 0], [b.xB, 1]].forEach(function (a) { var px = xp(a[0]); x.lineWidth = 3; x.beginPath(); x.moveTo(px, BY + 4); x.lineTo(px - 16, BY + 36); x.lineTo(px + 16, BY + 36); x.closePath(); x.stroke(); if (a[1]) { x.beginPath(); x.arc(px - 8, BY + 42, 5, 0, 6.3); x.arc(px + 8, BY + 42, 5, 0, 6.3); x.stroke(); } x.beginPath(); x.moveTo(px - 24, BY + 48); x.lineTo(px + 24, BY + 48); x.stroke(); });
+    x.fillStyle = ink; x.strokeStyle = ink; x.textAlign = 'center';
+    var arrow = function (px, y1, y2, col) { x.strokeStyle = col; x.fillStyle = col; x.lineWidth = 4; x.beginPath(); x.moveTo(px, y1); x.lineTo(px, y2); x.stroke(); var dn = y2 > y1 ? 1 : -1; x.beginPath(); x.moveTo(px, y2); x.lineTo(px - 7, y2 - 12 * dn); x.lineTo(px + 7, y2 - 12 * dn); x.closePath(); x.fill(); };
+    b.P.forEach(function (p) { arrow(xp(p[0]), BY - 80, BY - 6, ink); x.fillStyle = ink; x.fillText(fm(p[1]) + ' кН', xp(p[0]), BY - 90); });
+    b.q.forEach(function (q) { var x1 = xp(q[0]), x2 = xp(q[1]); x.strokeStyle = ink; x.lineWidth = 3; x.beginPath(); x.moveTo(x1, BY - 52); x.lineTo(x2, BY - 52); x.stroke(); for (var z = x1; z <= x2 + 1; z += Math.max(18, (x2 - x1) / 10)) arrow(z, BY - 52, BY - 6, ink); x.fillStyle = ink; x.fillText('q = ' + fm(q[2]) + ' кН/м', (x1 + x2) / 2, BY - 62); });
+    b.m.forEach(function (m) { var px = xp(m[0]), cw = m[1] > 0; x.strokeStyle = '#7a3f98'; x.lineWidth = 4; x.beginPath(); x.arc(px, BY - 38, 22, cw ? 3.4 : 6.0, cw ? 8.2 : 1.0, !cw); x.stroke(); x.fillStyle = '#7a3f98'; x.fillText(fm(Math.abs(m[1])) + ' кН·м', px, BY - 72); });
+    x.font = 'bold 22px Georgia'; x.fillStyle = '#111'; var li = 0; b.pts.forEach(function (p) { var sA = Math.abs(p - b.xA) < 1e-9, sB = Math.abs(p - b.xB) < 1e-9, nm = sA ? 'A' : sB ? 'B' : String.fromCharCode(67 + li++); x.fillText(nm, xp(p) + (st === 'react' ? (sA ? -26 : sB ? 26 : 0) : 0), BY + 80); });
+    x.font = 'italic 20px Georgia'; x.strokeStyle = '#555'; x.lineWidth = 1.5; x.fillStyle = '#444'; for (var i = 0; i + 1 < b.pts.length; i++) { var a = xp(b.pts[i]), c = xp(b.pts[i + 1]); x.beginPath(); x.moveTo(a, BY + 92); x.lineTo(c, BY + 92); x.stroke(); x.fillText(fm(b.pts[i + 1] - b.pts[i]) + ' м', (a + c) / 2, BY + 114); }
+    x.font = 'italic 24px "Segoe Script","Comic Sans MS",cursive';
+    if (ac && st === 'react') { var ra = xp(b.xA), rb = xp(b.xB); arrow(ra, BY + 150, BY + 56, '#1b8a3a'); arrow(rb, BY + 150, BY + 56, '#1b8a3a'); x.fillStyle = '#1b8a3a'; x.textAlign = 'center'; x.fillText('RA = ' + fm(b.RA), ra, BY + 180); x.fillText('RB = ' + fm(b.RB), rb, BY + 180); }
+    var dgm = function (y0, hh, f, name, col, flip) { var mx_ = 1e-9, n = 160, zs = []; for (var u = 0; u <= n; u++) { var z = b.L * u / n; zs.push(z); } b.pts.forEach(function (p) { zs.push(p - 1e-7, p + 1e-7); }); zs = zs.filter(function (z) { return z >= 0 && z <= b.L; }).sort(function (a, c) { return a - c; }); var sg = zs.map(function (z) { return f(z); }); sg.forEach(function (v) { mx_ = Math.max(mx_, Math.abs(v)); }); var sc2 = hh / mx_ * (flip ? -1 : 1);
+      x.strokeStyle = '#333'; x.lineWidth = 2; x.beginPath(); x.moveTo(xp(0) - 10, y0); x.lineTo(xp(b.L) + 10, y0); x.stroke(); x.fillStyle = col + '33'; x.strokeStyle = col; x.lineWidth = 3.5; x.beginPath(); x.moveTo(xp(0), y0); zs.forEach(function (z, i) { x.lineTo(xp(z), y0 - sg[i] * sc2); }); x.lineTo(xp(b.L), y0); x.closePath(); x.fill(); x.beginPath(); zs.forEach(function (z, i) { if (i) x.lineTo(xp(z), y0 - sg[i] * sc2); else x.moveTo(xp(z), y0 - sg[i] * sc2); }); x.stroke();
+      x.font = 'bold 22px Georgia'; x.fillStyle = col; x.textAlign = 'left'; x.fillText(name, 8, y0 - hh - 4); x.font = '19px Georgia'; x.textAlign = 'center'; return { sc: sc2, y0: y0 }; };
+    if (st === 'q' || st === 'm') {
+      var gq = dgm(st === 'q' ? 390 : 310, st === 'q' ? 110 : 40, function (z) { return b.Q(z, 0); }, 'Q, кН', '#1f4fd8', false);
+      x.fillStyle = '#1f4fd8'; var done = {}; b.pts.forEach(function (p) { [-1, 1].forEach(function (sd) { if ((sd < 0 && p <= 0) || (sd > 0 && p >= b.L)) return; var v = b.Q(p, sd), key = Math.round(p * 100) + ':' + Math.round(v * 100); if (done[key]) return; done[key] = 1; if (Math.abs(v) < 1e-6) return; x.fillText(fm(v), xp(p) + (sd < 0 ? -22 : 22), gq.y0 - v * gq.sc - (v * gq.sc > 0 ? -16 : 6)); }); });
+    }
+    if (st === 'm') {
+      var gm = dgm(425, 95, function (z) { return b.M(z, 0); }, 'M, кН·м', '#a0522d', true);
+      x.fillStyle = '#a0522d'; var d2 = {}; b.pts.concat(b.ext.map(function (e) { return e[0]; })).forEach(function (p) { var v = b.M(p, 0.0); [-1, 1].forEach(function (sd) { if ((sd < 0 && p <= 0) || (sd > 0 && p >= b.L)) return; var vv = b.M(p, sd), kk = Math.round(p * 100) + ':' + Math.round(vv * 100); if (d2[kk] || Math.abs(vv) < 1e-6) return; if (b.ext.some(function (e) { return Math.abs(e[0] - p) > 1e-6 && Math.abs(e[0] - p) < 0.9; })) return; d2[kk] = 1; x.fillText(fm(vv), xp(p) + (sd < 0 ? -18 : 18), gm.y0 - vv * gm.sc + (vv > 0 ? 22 : -10)); }); });
+    }
+    /* праворуч: формули кроку */
+    var ls = sceneLines(b, st), fy = 70; x.textAlign = 'left'; ls.forEach(function (ln, i) { var big = i === 0 && (st === 'scheme' || st === 'q' || st === 'm'); x.font = (big ? 'bold ' : '') + 'italic 27px "Segoe Script","Comic Sans MS",cursive'; x.fillStyle = /^R[AB] =|^Mmax/.test(ln) ? red : ink; x.fillText(ln, 900, fy, BW - 920); fy += 52 - (ls.length > 7 ? 5 : 0); });
+    x.restore();
+  }
+  window.__sceneDraw = function (cv, sc) { var sv = scn; scn = sc; var x = cv.getContext('2d'); x.fillStyle = BG; x.fillRect(0, 0, cv.width, cv.height); drawScene(x); scn = sv; };
+  (window.__rbScenes = window.__rbScenes || {})[KEY] = function (sc) { scn = sc && sc.t ? sc : null; if (scn) rbl = null; renderAll(); };
   var rbl = null, rbDone = true;
   function drawRb(x) {
     if (!rbl) return; var now = performance.now(), all = true; x.save(); x.textAlign = 'left'; x.textBaseline = 'alphabetic'; x.lineCap = 'round';
