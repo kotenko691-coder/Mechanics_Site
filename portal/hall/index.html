@@ -3866,6 +3866,103 @@ window.__RB = RB;
     if (st === 'g3sum') {
       ttl('Шарнірна балка: головне'); [['Ш = Соп − 3', ink], ['в шарнірі M = 0', red], ['рахуємо згори вниз', grn], ['епюра M — з боку розтягнутих волокон', blu]].forEach(function (r, i) { pill(60, 110 + i * 110, 780, 80, r[0], r[1]); }); x.restore(); return;
     }
+    var f4 = function (a, yb, W, H, col, th, hinge) { th = th || 10; col = col || brn; ln(a, yb, a, yb - H, col, th); ln(a + W, yb, a + W, yb - H, col, th); ln(a - th / 2, yb - H, a + W + th / 2, yb - H, col, th); };
+    var jn = function (px, py) { rc(px - 8, py - 8, 16, 16, '#333', '#333', 2); };
+    var FA = 200, FW = 420, FT = 190, FB = 440;
+    var fx4 = function (col) { f4(FA, FB, FW, FB - FT, col || brn, 12); jn(FA, FT); jn(FA + FW, FT); pin(FA, FB); roller(FA + FW, FB); tx('А', FA - 40, FB + 30, ink, 'bold 28px Georgia'); tx('Б', FA + FW + 44, FB + 30, ink, 'bold 28px Georgia'); tx('Ц', FA - 28, FT - 16, ink, 'bold 28px Georgia'); tx('Д', FA + FW + 28, FT - 16, ink, 'bold 28px Georgia'); };
+    var q4 = function () { ln(FA, 128, FA + FW, 128, red, 3); for (var u = 0; u <= 6; u += 0.75) ar(FA + u * 70, 128, FA + u * 70, 178, red, 3); tx('q = 10 кН/м', FA + FW / 2, 108, red, 'bold 24px Georgia'); ar(FA - 90, FT, FA - 14, FT, red, 7); tx('6 кН', FA - 90, FT - 14, red, 'bold 24px Georgia', 'center'); };
+    if (st === 'g4use') {
+      ttl('Де працюють рами');
+      var y = 470; ground(40, 330, y); [60, 195, 330].forEach(function (c) { ln(c, y, c, 250, brn, 9); }); [250, 330, 410].forEach(function (fy) { ln(54, fy, 336, fy, brn, 9); });
+      tx('каркас будинку', 195, 520, ink, 'bold 24px Georgia');
+      ground(400, 620, y); ln(420, y, 420, 320, brn, 9); ln(600, y, 600, 320, brn, 9); ln(420, 320, 510, 270, brn, 9); ln(510, 270, 600, 320, brn, 9); tx('цех, склад', 510, 520, ink, 'bold 24px Georgia');
+      ground(680, 880, y); ln(700, y, 700, 300, brn, 9); ln(860, y, 860, 300, brn, 9); ln(690, 300, 870, 300, brn, 9); ln(780, y, 780, 300, brn, 5); rc(690, 270, 180, 28, '#d9c9a0', brn, 3); tx('естакада', 780, 520, ink, 'bold 24px Georgia');
+      tx('усе це рами', 450, 572, red, 'italic bold 28px Georgia'); x.restore(); return;
+    }
+    if (st === 'g4def') {
+      ttl('Рама'); var a = 260, W = 380, H = 240, yb = 470; f4(a, yb, W, H, brn, 12); jn(a, yb - H); jn(a + W, yb - H); pin(a, yb); roller(a + W, yb);
+      tx('ригель', a + W / 2, yb - H - 26, red, 'bold 30px Georgia'); tx('стійка', a - 40, yb - 100, grn, 'bold 28px Georgia', 'right'); tx('стійка', a + W + 40, yb - 100, grn, 'bold 28px Georgia', 'left');
+      harrow(a, a + W, 570, ink, 'проліт'); tx('■ жорсткий вузол', 640, 120, '#333', 'bold 24px Georgia', 'left'); ar(700, 132, a + W + 10, yb - H - 12, '#333', 3); x.restore(); return;
+    }
+    if (st === 'g4types') {
+      ttl('Види рам');
+      f4(60, 250, 200, 110, brn, 8); tx('однопрольотна', 160, 290, ink, 'bold 22px Georgia');
+      f4(500, 250, 120, 110, brn, 8); ln(620, 250, 620, 140, brn, 8); ln(620, 140, 740, 140, brn, 8); ln(740, 140, 740, 250, brn, 8); ln(494, 140, 626, 140, brn, 8); tx('багатопрольотна', 560, 290, ink, 'bold 22px Georgia');
+      f4(60, 560, 200, 90, brn, 8); ln(54, 470, 266, 470, brn, 8); ln(54, 380, 266, 380, brn, 8); ln(60, 470, 60, 380, brn, 8); ln(260, 470, 260, 380, brn, 8); tx('багатоповерхова', 160, 590, ink, 'bold 22px Georgia');
+      ln(500, 560, 500, 470, brn, 8); ln(740, 560, 740, 470, brn, 8); ln(500, 470, 620, 420, brn, 8); ln(620, 420, 740, 470, brn, 8); tx('ламаний ригель', 620, 590, ink, 'bold 22px Georgia'); x.restore(); return;
+    }
+    if (st === 'g4node') {
+      ttl('Жорсткий вузол'); var t = 0.25;
+      ln(110, 220, 380, 220, '#999', 3, true); ln(110, 220, 110, 480, '#999', 3, true); x.strokeStyle = brn; x.lineWidth = 10; x.beginPath(); x.moveTo(110, 220); x.quadraticCurveTo(110 + 130 * Math.cos(t), 220 + 130 * Math.sin(t), 380, 290); x.stroke(); x.beginPath(); x.moveTo(110, 220); x.quadraticCurveTo(110 - 130 * Math.sin(t), 220 + 130 * Math.cos(t), 80, 480); x.stroke(); jn(110, 220);
+      tx('кут між осями лишається прямим', 240, 540, grn, 'bold 24px Georgia'); tx('жорсткий вузол', 240, 150, ink, 'bold 28px Georgia');
+      ln(560, 220, 830, 220, '#999', 3, true); ln(560, 220, 560, 480, '#999', 3, true); x.strokeStyle = brn; x.lineWidth = 10; x.beginPath(); x.moveTo(560, 220); x.quadraticCurveTo(560 + 130 * Math.cos(t), 220 + 130 * Math.sin(t), 830, 290); x.stroke(); ln(560, 220, 560, 480, brn, 10); hn(560, 220, '#333');
+      tx('шарнір', 690, 150, ink, 'bold 28px Georgia'); tx('кут змінюється', 690, 540, red, 'bold 24px Georgia'); x.restore(); return;
+    }
+    if (st === 'g4rigid') {
+      ttl('Шарнірний і жорсткий ригель'); var yt = 230, yb2 = 420;
+      [[70, false], [510, true]].forEach(function (c) {
+        var a = c[0], W = 320; ln(a, yt - 70, a + W, yt - 70, red, 3); for (var u = 0; u <= 8; u++) ar(a + u * W / 8, yt - 70, a + u * W / 8, yt - 12, red, 3);
+        f4(a, yb2, W, yb2 - yt, brn, 10); if (c[1]) { jn(a, yt); jn(a + W, yt); } else { hn(a, yt, '#333'); hn(a + W, yt, '#333'); }
+        x.strokeStyle = blu; x.lineWidth = 4; x.fillStyle = blu + '33'; x.beginPath();
+        if (!c[1]) { x.moveTo(a, yt); x.quadraticCurveTo(a + W / 2, yt + 2 * 120, a + W, yt); x.closePath(); x.fill(); x.stroke(); tx('ql²/8', a + W / 2, yt + 150, blu, 'bold 28px Georgia'); tx('стійки тільки стиснуті', a + W / 2, 500, gry, 'italic 22px Georgia'); }
+        else { x.moveTo(a, yt - 36); x.quadraticCurveTo(a + W / 2, yt + 2 * 54 + 18, a + W, yt - 36); x.lineTo(a + W, yt); x.lineTo(a, yt); x.closePath(); x.fill(); x.stroke(); poly([[a, yt], [a, yb2], [a - 36, yt]], blu + '33', blu, 4); poly([[a + W, yt], [a + W, yb2], [a + W + 36, yt]], blu + '33', blu, 4); tx('ql²/15', a + W / 2, yt + 110, blu, 'bold 28px Georgia'); tx('ql²/17', a - 46, yt + 70, blu, 'bold 22px Georgia', 'right'); tx('момент у ригелі майже вдвічі менший', a + W / 2, 500, grn, 'bold 22px Georgia'); }
+      }); x.restore(); return;
+    }
+    if (st === 'g4count') {
+      ttl('Ступінь невизначеності'); tx('Л = 3К − Ш', 450, 135, red, 'bold 52px Georgia'); var yb3 = 400;
+      f4(40, yb3, 220, 150, brn, 9); wall(40, yb3 - 20, 0); ground(10, 70, yb3); ground(230, 290, yb3); tx('К = 1, Ш = 0', 150, 470, ink, 'bold 24px Georgia'); tx('Л = 3', 150, 515, red, 'bold 36px Georgia');
+      f4(340, yb3, 220, 150, brn, 9); pin(340, yb3 - 6); pin(560, yb3 - 6); tx('К = 1, Ш = 2', 450, 540, ink, 'bold 24px Georgia'); tx('Л = 1', 450, 580, red, 'bold 36px Georgia');
+      f4(640, yb3, 220, 150, brn, 9); pin(640, yb3 - 6); roller(860, yb3 - 6); tx('Соп = 3', 750, 540, ink, 'bold 24px Georgia'); tx('Л = 0', 750, 580, grn, 'bold 36px Georgia'); x.restore(); return;
+    }
+    if (st === 'g4signs') {
+      ttl('Зусилля в рамі'); rc(80, 190, 320, 26, '#e8dcc0', brn, 4); ar(400, 203, 470, 203, red, 6); ar(80, 203, 10, 203, red, 6); tx('розтяг: N плюс', 240, 262, grn, 'bold 28px Georgia');
+      rc(80, 350, 320, 26, '#e8dcc0', brn, 4); ar(10, 363, 78, 363, red, 6); ar(470, 363, 402, 363, red, 6); tx('стиск: N мінус', 240, 422, red, 'bold 28px Georgia');
+      pill(520, 130, 340, 70, 'M: з боку розтягу', blu); pill(520, 230, 340, 70, 'N: розтяг +, стиск −', grn); pill(520, 330, 340, 70, 'Q: зі знаком, як у балці', brn); pill(520, 430, 340, 70, 'епюри будуємо по ділянках', ink); x.restore(); return;
+    }
+    if (st === 'g4cut') {
+      ttl('Метод перерізів'); var a = 120, W = 420, yb = 470, H = 230, yt = yb - H; f4(a, yb, W, H, brn, 12); jn(a, yt); jn(a + W, yt); pin(a, yb); roller(a + W, yb);
+      ln(330, yt - 50, 330, yt + 50, red, 3, true); ar(330, yt, 410, yt, red, 5); tx('N', 425, yt - 6, red, 'bold 26px Georgia', 'left'); ar(330, yt + 4, 330, yt + 90, red, 5); tx('Q', 346, yt + 86, red, 'bold 26px Georgia', 'left'); arc(330, yt - 70, 34, 0.6, 5.2, red);
+      tx('M', 372, yt - 90, red, 'bold 26px Georgia', 'left'); ln(330 + 10, yt - 20, 330 + 120, yt - 20, 'transparent', 1);
+      x.fillStyle = '#c0392b22'; x.fillRect(335, yt - 50, W - 215 + 90, 120); tx('цю частину відкидаємо', 600, yt - 70, gry, 'italic 22px Georgia');
+      tx('три рівняння: сума проекцій на вісь стержня, на перпендикуляр і сума моментів', 450, 570, ink, 'bold 22px Georgia'); x.restore(); return;
+    }
+    if (st === 'g4order') {
+      ttl('Порядок розрахунку рами'); ['перевірити статичну визначеність', 'знайти опорні реакції', 'перевірити реакції', 'розбити раму на ділянки', 'записати зусилля на ділянках', 'побудувати епюри', 'перевірити рівновагу вузлів'].forEach(function (t, i) { pill(60, 100 + i * 70, 780, 56, (i + 1) + '. ' + t, i === 6 ? grn : ink); }); x.restore(); return;
+    }
+    if (st === 'g4ex') {
+      ttl('Задача'); fx4(); q4(); harrow(FA, FA + FW, 570, ink, '6 м'); ln(740, FT, 740, FB, ink, 2.5); ar(740, FT + 14, 740, FT, ink, 2.5); ar(740, FB - 14, 740, FB, ink, 2.5); tx('4 м', 770, (FT + FB) / 2, ink, 'italic 22px Georgia', 'left'); x.restore(); return;
+    }
+    if (st === 'g4react') {
+      ttl('Реакції опор'); fx4(); q4(); ar(FA, 565, FA, 495, grn, 7); tx('VА = 26', FA + 14, 548, grn, 'bold 24px Georgia', 'left'); ar(FA - 14, FB + 8, FA - 100, FB + 8, grn, 7); tx('HА = 6', FA - 100, FB - 6, grn, 'bold 24px Georgia', 'center'); ar(FA + FW, 565, FA + FW, 495, grn, 7); tx('VБ = 34', FA + FW + 14, 548, grn, 'bold 24px Georgia', 'left');
+      tx('рівнодійна 60 кН посередині', 410, 292, red, 'italic 22px Georgia'); x.restore(); return;
+    }
+    if (st === 'g4parts') {
+      ttl('Три ділянки'); f4(FA, FB, FW, FB - FT, '#bbb', 12); ln(FA, FB, FA, FT, grn, 12); ln(FA, FT, FA + FW, FT, red, 12); ln(FA + FW, FT, FA + FW, FB, blu, 12); jn(FA, FT); jn(FA + FW, FT); pin(FA, FB); roller(FA + FW, FB);
+      tx('1: А–Ц', FA - 24, 320, grn, 'bold 26px Georgia', 'right'); tx('2: Ц–Д', FA + FW / 2, FT - 18, red, 'bold 26px Georgia'); tx('3: Д–Б', FA + FW + 24, 320, blu, 'bold 26px Georgia', 'left');
+      tx('ригель: Q = 26 − 10x,  M = 24 + 26x − 5x²', 450, 570, ink, 'bold 24px Georgia'); x.restore(); return;
+    }
+    if (st === 'g4n') {
+      ttl('Епюра N, кН'); f4(FA, FB, FW, FB - FT, '#aaa', 5); x.fillStyle = blu + '44'; x.strokeStyle = blu; x.lineWidth = 3; rc(FA - 62, FT, 62, FB - FT, blu + '44', blu, 3); rc(FA + FW, FT, 82, FB - FT, blu + '44', blu, 3);
+      tx('−26', FA - 90, 320, blu, 'bold 28px Georgia', 'right'); tx('−34', FA + FW + 104, 320, blu, 'bold 28px Georgia', 'left'); tx('0', FA + FW / 2, FT - 20, blu, 'bold 28px Georgia'); tx('рама стиснута, розтягу немає', 450, 550, gry, 'italic 24px Georgia'); x.restore(); return;
+    }
+    if (st === 'g4q') {
+      ttl('Епюра Q, кН'); f4(FA, FB, FW, FB - FT, '#aaa', 5); rc(FA - 30, FT, 30, FB - FT, blu + '44', blu, 3); tx('6', FA - 50, 320, blu, 'bold 28px Georgia', 'right');
+      x.fillStyle = blu + '44'; x.strokeStyle = blu; x.lineWidth = 3; var x0 = FA + 2.6 * 70; x.beginPath(); x.moveTo(FA, FT); x.lineTo(FA, FT - 78); x.lineTo(FA + FW, FT + 102); x.lineTo(FA + FW, FT); x.closePath(); x.fill(); x.stroke();
+      tx('26', FA + 24, FT - 86, blu, 'bold 26px Georgia'); tx('−34', FA + FW - 40, FT + 130, blu, 'bold 26px Georgia'); dot2(x0, FT); tx('Q = 0 при 2,6 м', x0 + 40, FT - 30, red, 'bold 22px Georgia', 'left'); tx('0', FA + FW + 30, 320, blu, 'bold 28px Georgia', 'left'); x.restore(); return;
+    }
+    if (st === 'g4m') {
+      ttl('Епюра M, кН·м'); f4(FA, FB, FW, FB - FT, '#aaa', 5); x.fillStyle = brn + '44'; x.strokeStyle = brn; x.lineWidth = 3; poly([[FA, FB], [FA, FT], [FA + 53, FT]], brn + '44', brn, 3);
+      x.beginPath(); x.moveTo(FA, FT); for (var s = 0; s <= 6.001; s += 0.1) x.lineTo(FA + s * 70, FT + (24 + 26 * s - 5 * s * s) * 2.2); x.lineTo(FA + FW, FT); x.closePath(); x.fill(); x.stroke();
+      tx('24', FA + 70, FT + 40, brn, 'bold 26px Georgia'); tx('57,8', FA + 2.6 * 70, FT + 57.8 * 2.2 + 34, brn, 'bold 26px Georgia'); tx('0', FA + FW + 28, FT + 8, red, 'bold 26px Georgia', 'left'); tx('0', FA - 12, FB - 12, red, 'bold 24px Georgia', 'right'); tx('з боку розтягнутих волокон', 600, 560, gry, 'italic 22px Georgia'); x.restore(); return;
+    }
+    if (st === 'g4chk') {
+      ttl('Рівновага вузла Ц'); rc(380, 250, 140, 140, '#e8dcc0', brn, 6); ar(450, 540, 450, 396, red, 6); tx('26', 466, 500, red, 'bold 26px Georgia', 'left'); ar(374, 340, 290, 340, red, 6); tx('6', 330, 326, red, 'bold 26px Georgia'); ar(526, 320, 526, 410, red, 6); tx('26', 540, 400, red, 'bold 26px Georgia', 'left'); ar(380, 200, 454, 200, red, 6); tx('6 (зовнішня)', 340, 190, red, 'bold 22px Georgia');
+      arc(450, 320, 40, 0.5, 2.6, blu); tx('24', 450, 322, blu, 'bold 22px Georgia'); arc(450, 320, 70, 3.6, 5.8, blu, true); tx('24', 450, 262, blu, 'bold 22px Georgia');
+      tx('ΣX = 6 − 6 = 0', 700, 200, grn, 'bold 26px Georgia'); tx('ΣY = 26 − 26 = 0', 700, 260, grn, 'bold 26px Georgia'); tx('ΣM = 24 − 24 = 0', 700, 320, grn, 'bold 26px Georgia'); tx('вузол у рівновазі', 700, 400, grn, 'italic bold 26px Georgia'); x.restore(); return;
+    }
+    if (st === 'g4sum') {
+      ttl('Рами: головне'); [['Л = 3К − Ш', ink], ['N: розтяг +, стиск −', grn], ['M — з боку розтягнутих волокон', blu], ['реакції → ділянки → епюри → вузол', red]].forEach(function (r, i) { pill(60, 110 + i * 110, 780, 80, r[0], r[1]); }); x.restore(); return;
+    }
     if (st === 'sum') {
       ttl('Як класифікують споруди'); var rows = [['Розташування', 'плоскі  |  просторові'], ['Елементи', 'стержневі  |  тонкостінні  |  масивні'], ['Реакції', 'безрозпірні  |  розпірні'], ['Розрахунок', 'статично визначені  |  невизначені']];
       rows.forEach(function (r, i) { var y0 = 110 + i * 110; pill(40, y0, 220, 80, r[0], ink); x.fillStyle = '#ffffff'; x.strokeStyle = grn; x.lineWidth = 3; x.beginPath(); x.rect(280, y0, 580, 80); x.fill(); x.stroke(); tx(r[1], 570, y0 + 50, grn, 'bold 27px Georgia'); }); x.restore(); return;
