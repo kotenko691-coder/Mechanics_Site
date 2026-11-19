@@ -2751,7 +2751,7 @@ function poseStatic(u, e, ts) {
       g.userData.tx = d.x; g.userData.tz = d.z; g.userData.ty = d.y; g.userData.e = d.e | 0; g.userData.mic = d.v | 0; g.userData.hd = d.hd | 0; g.userData.cp = d.cp | 0; g.userData.dk = d.dk | 0; g.userData.tb = d.tb | 0; g.userData.mj = d.mj || 0; g.userData.mp = d.mp | 0; g.userData.mpt = d.mpt || 0; g.userData.pt = typeof d.pt === 'string' ? d.pt.slice(0, 40) : '';
       if (d.m && d.mt && d.mt > (seenMt[id] || 0)) { if ((seenMt[id] !== undefined || now - d.mt < 20000) && (d.l || 'hall') === (cur && cur.id)) { say(g, String(d.m)); logMsg(d.n, String(d.m)); } seenMt[id] = d.mt; } else if (seenMt[id] === undefined) seenMt[id] = d.mt || 0;
     });
-    Object.keys(ghosts).forEach(function (id) { if (!seen[id]) { if (ghosts[id].parent) ghosts[id].parent.remove(ghosts[id]); delete ghosts[id]; } });
+    Object.keys(ghosts).forEach(function (id) { if (id.indexOf('npc_') === 0) return; if (!seen[id]) { if (ghosts[id].parent) ghosts[id].parent.remove(ghosts[id]); delete ghosts[id]; } });
   }
   function angDiff(a, b) { var d = (b - a) % (2 * Math.PI); if (d > Math.PI) d -= 2 * Math.PI; if (d < -Math.PI) d += 2 * Math.PI; return d; }
 
@@ -2852,6 +2852,28 @@ function poseStatic(u, e, ts) {
         if (u.bub && nowMs > u.bubUntil) { g.remove(u.bub); u.bub = null; }
       });
     });
+    /* боти Б-31: сидять за партами в кабінеті будівельників (однакові в усіх; ховаються, коли справжній студент у кабінеті) */
+    (function () {
+      var NAMES = ['Лобода Андрій', 'Валюх Богдан', 'Марюхна Олексій', 'Міхеєнко Арсеній', 'Отрощенко Богдан', 'Карпишин Андрій', 'Шаповал Дмитро', 'Мірошниченко Мирослав', 'Токар Станіслав', 'Юхно Станіслав', 'Коротун Ілля', 'Крячок Євген', 'Волін Вадим'];
+      var SEATS = [0, 3, 4, 7, 8, 11, 12, 15, 16, 18, 19, 20, 21], made = false;
+      function hsh(t) { var h = 7; for (var i = 0; i < t.length; i++) h = (h * 31 + t.charCodeAt(i)) >>> 0; return h; }
+      updaters.push(function () {
+        var L = LOC.build; if (!L || !L.seats || !L.seats.length) return;
+        if (!made) {
+          made = true;
+          NAMES.forEach(function (nm, i) {
+            var st = L.seats[SEATS[i]]; if (!st) return; var h = hsh(nm), id = 'npc_' + i;
+            var g = makeGhost(id, { n: nm, g: 'Б-31', s: 'm', c: h % SHIRTS.length, h: (h >> 3) % HAIRS.length, k: (h >> 6) % CH_N.m, l: 'build', r: 0, x: st.x - L.X, z: st.z, y: 0, e: 4 });
+            g.userData.npc = nm.split(' ')[0].toLowerCase(); ghosts[id] = g;
+          });
+        }
+        var real = Object.keys(ghosts).filter(function (k) { return k.indexOf('npc_') !== 0 && ghosts[k].userData.loc === 'build'; }).map(function (k) { return String(ghosts[k].userData.name || '').toLowerCase(); });
+        Object.keys(ghosts).forEach(function (k) {
+          if (k.indexOf('npc_') !== 0) return; var g = ghosts[k], u = g.userData, here = real.some(function (n) { return n.indexOf(u.npc) >= 0; });
+          g.visible = !here; u.e = here ? 0 : 4;
+        });
+      });
+    })();
   }).catch(function (e) { toast('Присутність недоступна: ' + (e && (e.code || e.message) || e), 7000); });
 })();
 
@@ -3779,6 +3801,70 @@ window.__RB = RB;
     }
     if (st === 'sum2') {
       ttl('Підсумок: змінна чи ні'); [['W > 0', 'змінна, не годиться', red], ['W = 0', 'незмінна, статично визначена', grn], ['W < 0', 'є зайві зв’язки: статично невизначена', blu], ['', 'перевір розташування зв’язків', ink]].forEach(function (r, i) { var y0 = 110 + i * 110; pill(40, y0, 200, 80, r[0] || '!', r[2]); x.fillStyle = '#fff'; x.strokeStyle = r[2]; x.lineWidth = 3; x.beginPath(); x.rect(260, y0, 600, 80); x.fill(); x.stroke(); tx(r[1], 560, y0 + 50, r[2], 'bold 27px Georgia'); }); x.restore(); return;
+    }
+    var dot2 = function (px, py) { x.fillStyle = red; x.beginPath(); x.arc(px, py, 8, 0, 6.3); x.fill(); };
+    var harrow = function (x1, x2, y, col, lab) { ln(x1, y, x2, y, col, 2.5); ar(x1 + 14, y, x1, y, col, 2.5); ar(x2 - 14, y, x2, y, col, 2.5); if (lab) tx(lab, (x1 + x2) / 2, y - 10, col, 'italic 22px Georgia'); };
+    var gx = function (v) { return 80 + 90 * v; };
+    var gb = function (y, xs, xe, col) { ln(xs, y, xe, y, col || brn, 10); };
+    var gerb = function (y, lab) {
+      gb(y, 60, 380, grn); gb(y, 380, 460, red); gb(y, 460, 780, grn); pin(60, y + 5); roller(300, y + 5); roller(540, y + 5); roller(780, y + 5); hn(380, y, '#333'); hn(460, y, '#333');
+      if (lab) { tx('основна', 220, y - 24, grn, 'bold 22px Georgia'); tx('другорядна', 420, y - 24, red, 'bold 22px Georgia'); tx('основна', 620, y - 24, grn, 'bold 22px Georgia'); }
+    };
+    if (st === 'g3ways') {
+      ttl('Три способи перекрити проліти'); [60, 310, 560].forEach(function (a) { gb(150, a, a + 220); pin(a + 10, 155); roller(a + 210, 155); }); tx('окремі прості балки', 450, 250, ink, 'bold 24px Georgia');
+      gb(330, 60, 780); pin(60, 335); roller(300, 335); roller(540, 335); roller(780, 335); tx('нерозрізна: статично невизначена', 450, 430, ink, 'bold 24px Georgia');
+      gerb(500, false); tx('шарнірна: статично визначена', 450, 600 - 8, grn, 'bold 24px Georgia'); x.restore(); return;
+    }
+    if (st === 'g3simple') {
+      ttl('Прості балки'); gb(150, 100, 520); pin(100, 155); roller(520, 155); tx('на двох опорах', 700, 160, ink, 'bold 24px Georgia');
+      gb(300, 40, 600); pin(150, 305); roller(480, 305); tx('з консолями', 700, 310, ink, 'bold 24px Georgia'); tx('консоль', 90, 280, red, 'italic 22px Georgia'); tx('консоль', 540, 280, red, 'italic 22px Georgia');
+      wall(120, 450, 120); gb(450, 120, 560); tx('консольна, затиснута', 700, 460, ink, 'bold 24px Georgia'); x.restore(); return;
+    }
+    if (st === 'g3gerber') {
+      ttl('Шарнірна балка'); gerb(300, true); tx('○ проміжні шарніри', 420, 420, ink, 'bold 26px Georgia'); tx('в шарнірі момент M = 0', 420, 480, red, 'bold 28px Georgia'); x.restore(); return;
+    }
+    if (st === 'g3pros') {
+      ttl('Плюси і мінуси'); pill(40, 110, 400, 70, 'економія матеріалу', grn); pill(40, 200, 400, 70, 'температура не страшна', grn); pill(40, 290, 400, 70, 'консоль розвантажує проліт', grn); pill(470, 110, 400, 70, 'складніший монтаж', red); pill(470, 200, 400, 70, 'шарніри зменшують жорсткість', red); pill(470, 290, 400, 70, 'надійність менша', red); tx('переваги', 240, 400, grn, 'bold 30px Georgia'); tx('недоліки', 670, 400, red, 'bold 30px Georgia'); x.restore(); return;
+    }
+    if (st === 'g3count') {
+      ttl('Скільки шарнірів'); tx('Ш = Соп − 3', 450, 150, red, 'bold 56px Georgia'); tx('кожен шарнір дає ще одне рівняння: їх 3 + Ш', 450, 215, ink, 'bold 26px Georgia'); gerb(360, false); tx('Соп = 5', 450, 470, ink, 'bold 28px Georgia'); tx('Ш = 5 − 3 = 2', 450, 520, grn, 'bold 32px Georgia'); x.restore(); return;
+    }
+    if (st === 'g3rules') {
+      ttl('Де ставити шарніри'); gb(140, 60, 400); hn(160, 140); hn(300, 140); tx('2 в прольоті: можна', 230, 200, grn, 'bold 22px Georgia'); gb(140, 480, 840); hn(560, 140, red); hn(660, 140, red); hn(760, 140, red); tx('3 в прольоті: не можна', 660, 200, red, 'bold 22px Georgia');
+      gb(310, 60, 840); [200, 330, 460, 590, 720].forEach(function (u) { ln(u, 316, u, 330, '#333', 3); }); hn(130, 310); hn(190, 310); hn(530, 310); hn(590, 310); tx('прольоти з двома шарнірами чергуються з прольотами без шарнірів', 450, 380, ink, 'bold 22px Georgia');
+      wall(70, 470, 70); gb(470, 70, 400); hn(230, 470); tx('защемлення: шарнір є', 240, 540, grn, 'bold 22px Georgia'); gb(470, 480, 840); pin(480, 475); tx('шарнірна опора: шарніра нема', 660, 540, grn, 'bold 22px Georgia'); x.restore(); return;
+    }
+    if (st === 'g3floor') {
+      ttl('Основні і другорядні балки'); gb(200, 330, 560, red); hn(330, 200, '#333'); hn(560, 200, '#333'); tx('другорядна', 445, 160, red, 'bold 26px Georgia'); ar(330, 215, 330, 300, red, 5); ar(560, 215, 560, 300, red, 5); tx('вантаж передається вниз', 445, 255, red, 'italic bold 22px Georgia');
+      gb(330, 60, 330, grn); gb(330, 560, 840, grn); pin(100, 335); roller(300, 335); roller(600, 335); roller(800, 335); tx('основна', 200, 440, grn, 'bold 26px Georgia'); tx('основна', 700, 440, grn, 'bold 26px Georgia'); tx('рахуємо згори вниз', 450, 530, ink, 'italic bold 28px Georgia'); x.restore(); return;
+    }
+    if (st === 'g3order') {
+      ttl('Порядок розрахунку'); ['поверхова схема', 'друга: другорядна балка', 'її реакції — навантаження на основну', 'основна балка', 'епюри Q і M; у шарнірах M = 0'].forEach(function (t, i) { pill(120, 100 + i * 88, 660, 66, (i + 1) + '. ' + t, i === 4 ? red : ink); if (i < 4) ar(450, 168 + i * 88, 450, 188 + i * 88, gry, 3); }); x.restore(); return;
+    }
+    if (st === 'g3signs') {
+      ttl('Знаки Q і M'); rc(60, 170, 280, 24, '#e8dcc0', brn, 4); ln(340, 150, 340, 215, red, 3, true); ar(60, 330, 60, 202, grn, 6); tx('сила зліва вгору', 180, 360, grn, 'bold 22px Georgia'); arc(200, 182, 60, 3.4, 6.0, grn); tx('Q: плюс', 180, 410, grn, 'bold 32px Georgia'); tx('(повертає за годинниковою)', 180, 450, gry, 'italic 22px Georgia');
+      x.strokeStyle = brn; x.lineWidth = 18; x.beginPath(); x.moveTo(470, 190); x.quadraticCurveTo(660, 290, 850, 190); x.stroke(); [0.25, 0.5, 0.75].forEach(function (u) { var px = 470 + 380 * u, py = 190 + 100 * 2 * u * (1 - u) + 14; ar(px - 24, py, px + 24, py, red, 4); }); tx('M: плюс, розтягнутий низ', 660, 360, red, 'bold 26px Georgia'); tx('епюру Q малюємо: плюс зверху', 450, 500, ink, 'bold 24px Georgia'); tx('епюру M: з боку розтягнутих волокон', 450, 545, ink, 'bold 24px Georgia'); x.restore(); return;
+    }
+    var ex = function (y) { gb(y, gx(0), gx(6), grn); gb(y, gx(6), gx(8), red); pin(gx(0), y + 5); roller(gx(4), y + 5); roller(gx(8), y + 5); hn(gx(6), y, '#333'); };
+    if (st === 'g3ex') {
+      ttl('Задача'); ex(300); for (var u = 0; u <= 4; u += 0.5) ar(gx(u), 210, gx(u), 290, red, 3); ln(gx(0), 205, gx(4), 205, red, 3); tx('q = 10 кН/м', gx(2), 190, red, 'bold 24px Georgia'); ar(gx(7), 200, gx(7), 290, red, 7); tx('12 кН', gx(7) + 10, 190, red, 'bold 24px Georgia', 'left');
+      tx('A', gx(0), 420, ink, 'bold 28px Georgia'); tx('B', gx(4), 420, ink, 'bold 28px Georgia'); tx('Г', gx(6), 340, ink, 'bold 28px Georgia'); tx('C', gx(8), 420, ink, 'bold 28px Georgia'); harrow(gx(0), gx(4), 490, ink, '4 м'); harrow(gx(4), gx(6), 490, ink, '2 м'); harrow(gx(6), gx(8), 490, ink, '2 м'); tx('Г: проміжний шарнір', 450, 560, gry, 'italic 24px Georgia'); x.restore(); return;
+    }
+    if (st === 'g3floor2') {
+      ttl('Поверхова схема'); gb(200, gx(6), gx(8), red); hn(gx(6), 200, '#333'); roller(gx(8), 205); ar(gx(7), 130, gx(7), 192, red, 6); tx('12', gx(7) + 12, 150, red, 'bold 24px Georgia', 'left'); tx('другорядна Г–С', gx(7) - 110, 160, red, 'bold 22px Georgia'); ar(gx(6), 215, gx(6), 340, red, 6); tx('6 кН', gx(6) + 14, 290, red, 'bold 22px Georgia', 'left');
+      gb(360, gx(0), gx(6), grn); pin(gx(0), 365); roller(gx(4), 365); hn(gx(6), 360, '#333'); tx('основна A–Г', gx(2), 330, grn, 'bold 24px Georgia'); tx('RC = 6', gx(8), 270, grn, 'bold 24px Georgia'); x.restore(); return;
+    }
+    if (st === 'g3exq') {
+      ttl('Епюра Q, кН'); var y0 = 330, k = 4.4, X = function (a) { return gx(a); }, Y = function (v) { return y0 - v * k; };
+      ln(gx(0) - 20, y0, gx(8) + 20, y0, '#333', 2); x.fillStyle = blu + '33'; x.strokeStyle = blu; x.lineWidth = 4; var pts = [[0, 0], [0, 17], [4, -23], [4, 6], [7, 6], [7, -6], [8, -6], [8, 0]]; x.beginPath(); pts.forEach(function (q, i) { if (i) x.lineTo(X(q[0]), Y(q[1])); else x.moveTo(X(q[0]), Y(q[1])); }); x.closePath(); x.fill(); x.stroke();
+      tx('17', X(0) + 22, Y(17) - 8, blu, 'bold 24px Georgia'); tx('−23', X(4) - 30, Y(-23) + 28, blu, 'bold 24px Georgia'); tx('6', X(5.5), Y(6) - 10, blu, 'bold 24px Georgia'); tx('−6', X(7.6), Y(-6) + 28, blu, 'bold 24px Georgia'); dot2(X(1.7), y0); tx('Q = 0 при 1,7 м', X(1.7) + 90, y0 - 50, red, 'bold 22px Georgia'); [0, 4, 6, 8].forEach(function (a) { ln(X(a), y0 - 6, X(a), y0 + 6, '#333', 3); }); x.restore(); return;
+    }
+    if (st === 'g3exm') {
+      ttl('Епюра M, кН·м'); var y1 = 270, k2 = 9, X2 = function (a) { return gx(a); }; ln(gx(0) - 20, y1, gx(8) + 20, y1, '#333', 2); x.fillStyle = brn + '33'; x.strokeStyle = brn; x.lineWidth = 4; x.beginPath(); x.moveTo(X2(0), y1); for (var t2 = 0; t2 <= 4.001; t2 += 0.1) x.lineTo(X2(t2), y1 + (17 * t2 - 5 * t2 * t2) * k2); x.lineTo(X2(6), y1); x.lineTo(X2(7), y1 + 6 * k2); x.lineTo(X2(8), y1); x.closePath(); x.fill(); x.stroke();
+      tx('14,45', X2(1.7), y1 + 14.45 * k2 + 32, brn, 'bold 24px Georgia'); tx('−12', X2(4) + 4, y1 - 12 * k2 - 12, brn, 'bold 24px Georgia'); tx('6', X2(7), y1 + 6 * k2 + 30, brn, 'bold 24px Georgia'); tx('0', X2(6), y1 - 16, red, 'bold 24px Georgia'); tx('в шарнірі M = 0', X2(7) + 20, y1 - 60, red, 'bold 22px Georgia'); [0, 4, 6, 8].forEach(function (a) { ln(X2(a), y1 - 6, X2(a), y1 + 6, '#333', 3); }); x.restore(); return;
+    }
+    if (st === 'g3sum') {
+      ttl('Шарнірна балка: головне'); [['Ш = Соп − 3', ink], ['в шарнірі M = 0', red], ['рахуємо згори вниз', grn], ['епюра M — з боку розтягнутих волокон', blu]].forEach(function (r, i) { pill(60, 110 + i * 110, 780, 80, r[0], r[1]); }); x.restore(); return;
     }
     if (st === 'sum') {
       ttl('Як класифікують споруди'); var rows = [['Розташування', 'плоскі  |  просторові'], ['Елементи', 'стержневі  |  тонкостінні  |  масивні'], ['Реакції', 'безрозпірні  |  розпірні'], ['Розрахунок', 'статично визначені  |  невизначені']];
