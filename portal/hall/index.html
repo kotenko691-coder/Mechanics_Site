@@ -4082,7 +4082,7 @@ window.__RB = RB;
       clearInterval(wi); closeModal(); var src = p.lec || p.notes, sn = RB.toSentences(src || p.deck || '');
       if (!sn.length) { toast('У цієї теми немає тексту для озвучення (лише PDF).', 4500); return; }
       var mp = p.deck ? RB.mapSlides(sn, p.deck) : null, sec = !mp && src ? RB.sections(src, sn) : null;
-      if (RB.start(KEY, ttl, sn, { lid: lid, m: mp, sx: sec && sec.sx, sc: sec && sec.sc, ns: /name=["']tv-topic["']/i.test(src || '') }) !== false) { toast('Викладач-робот починає. Речень: ' + sn.length + (mp || sec ? ' · текст на телевізорі і дошці' : ''), 3800); if (mp) tvLecPart(lid, 'deck', ttl); else if (sec) tvTopicFor(p.lec || '', function (id, t2, pt) { if (id) tvLecPart(id, pt, t2); else tvLecPart(lid, p.lec ? 'lec' : 'notes', ttl); }); }
+      if (RB.start(KEY, ttl, sn, { lid: lid, m: mp, sx: sec && sec.sx, sc: sec && sec.sc, ns: /name=["']tv-topic["']/i.test(src || '') }) !== false) { toast('Викладач-робот починає. Речень: ' + sn.length + (mp || sec ? ' · текст на телевізорі і дошці' : ''), 3800); if (mp) tvLecPart(lid, 'deck', ttl); else if (sec) tvTopicFor(p.lec || '', function (id, t2, pt) { if (id) tvLecPart(id, pt, t2); else tvLecPart(lid, (p.notes && /name=["']tv-topic["']/i.test(p.lec || '')) ? 'notes' : p.lec ? 'lec' : 'notes', ttl); }); }
     }, function () { clearInterval(wi); closeModal(); toast('Не вдалося завантажити тему (слабкий інтернет або сервер). Спробуйте ще раз.', 5500); });
   }
   function partPicker(lid, ttl) {
