@@ -3729,6 +3729,57 @@ window.__RB = RB;
       ttl('Хто створював будівельну механіку'); ln(50, 310, 850, 310, '#333', 5); var ev = [['1845', 'Журавський', 'ферми'], ['1857', 'Клапейрон', 'нерозрізна балка'], ['1864', 'Максвелл', 'метод сил'], ['1872', 'Семиколєнов', 'шарнірні балки'], ['1883', 'Мор', 'рами'], ['1893', 'Ясинський', 'стійкість'], ['1953', 'Патон', 'міст у Києві']];
       ev.forEach(function (e, i) { var px = 90 + i * 120, up = i % 2 === 0; ln(px, 310, px, up ? 260 : 360, red, 3); x.fillStyle = red; x.beginPath(); x.arc(px, 310, 9, 0, 6.3); x.fill(); tx(e[0], px, up ? 232 : 395, red, 'bold 28px Georgia'); tx(e[1], px, up ? 192 : 432, ink, 'bold 22px Georgia'); tx(e[2], px, up ? 164 : 462, gry, 'italic 20px Georgia'); }); tx('наука виросла з практики', 450, 540, grn, 'italic bold 28px Georgia'); x.restore(); return;
     }
+    var hn = function (px, py, col) { x.fillStyle = '#fff'; x.strokeStyle = col || '#333'; x.lineWidth = 3.5; x.beginPath(); x.arc(px, py, 8, 0, 6.3); x.fill(); x.stroke(); };
+    var rect4 = function (ox, oy, w, h, sk, col) { var p4 = [[ox, oy + h], [ox + w, oy + h], [ox + w + sk, oy], [ox + sk, oy]]; poly(p4, null, col || ink, 6); p4.forEach(function (q) { hn(q[0], q[1], col); }); return p4; };
+    var tri3 = function (ox, oy, w, h, col) { poly([[ox, oy], [ox + w, oy], [ox + w / 2, oy - h]], null, col || ink, 6); [[ox, oy], [ox + w, oy], [ox + w / 2, oy - h]].forEach(function (q) { hn(q[0], q[1], col); }); };
+    var beamSup = function (ox, oy, w, n, hinge) { ln(ox, oy, ox + w, oy, brn, 10); pin(ox, oy + 5); for (var i = 1; i < n; i++) roller(ox + w * i / (n - 1), oy + 5); };
+    if (st === 'tri') {
+      ttl('Каркас з чотирьох планок'); rect4(90, 250, 220, 160, 0, ink); ar(90, 232, 190, 232, red, 7); poly([[90, 410], [310, 410], [390, 250], [170, 250]], null, '#999', 3); tx('перекосився', 240, 470, red, 'bold 28px Georgia'); tx('змінна система', 240, 510, red, 'italic 24px Georgia');
+      rect4(520, 250, 220, 160, 0, ink); ln(520, 410, 740, 250, grn, 6); ar(520, 232, 620, 232, red, 7); tx('з діагоналлю', 630, 470, grn, 'bold 28px Georgia'); tx('незмінна система', 630, 510, grn, 'italic 24px Georgia'); x.restore(); return;
+    }
+    if (st === 'trirect') {
+      ttl('Трикутник і чотирикутник'); tri3(100, 400, 240, 190, ink); poly([[100, 400], [340, 400], [350, 230]], null, '#bbb', 2); tx('шарнірний трикутник', 220, 460, ink, 'bold 24px Georgia'); tx('незмінна', 220, 500, grn, 'bold 28px Georgia');
+      rect4(470, 330, 150, 110, 0, ink); poly([[470, 440], [620, 440], [680, 330], [530, 330]], null, '#bbb', 3); poly([[470, 440], [620, 440], [770, 440 - 8], [620 + 10, 440 - 10]], null, '#ddd', 2); ln(470, 440, 770, 432, '#bbb', 4); tx('шарнірний прямокутник', 620, 500, ink, 'bold 24px Georgia'); tx('змінна: складається', 620, 540, red, 'bold 28px Georgia'); x.restore(); return;
+    }
+    if (st === 'dof') {
+      ttl('Ступінь вільності'); var pan = function (cx) { ln(cx - 110, 400, cx + 110, 400, '#999', 2, true); ln(cx - 100, 410, cx - 100, 170, '#999', 2, true); };
+      pan(150); x.fillStyle = ink; x.beginPath(); x.arc(190, 300, 12, 0, 6.3); x.fill(); ar(60, 300, 160, 300, grn, 4); ar(190, 400, 190, 330, grn, 4); tx('точка: 2', 150, 460, ink, 'bold 28px Georgia'); tx('дві координати', 150, 500, gry, 'italic 22px Georgia');
+      pan(450); ln(400, 320, 520, 250, brn, 14); hn(400, 320, ink); ar(330, 320, 390, 320, grn, 4); ar(400, 400, 400, 340, grn, 4); arc(400, 320, 60, -0.1, -0.55, grn, true); tx('стержень: 3', 450, 460, ink, 'bold 28px Georgia'); tx('2 координати + кут', 450, 500, gry, 'italic 22px Georgia');
+      pan(750); poly([[700, 330], [800, 340], [830, 260], [730, 240]], '#e8dcc0', brn, 5); hn(700, 330, ink); ar(640, 330, 690, 330, grn, 4); ar(700, 400, 700, 340, grn, 4); arc(700, 330, 50, -0.1, -0.6, grn, true); tx('диск: 3', 750, 460, ink, 'bold 28px Georgia'); tx('два зсуви і поворот', 750, 500, gry, 'italic 22px Georgia'); x.restore(); return;
+    }
+    if (st === 'links') {
+      ttl('Зв’язки забирають вільність'); rc(70, 140, 160, 60, '#e8dcc0', brn, 4); ln(150, 200, 150, 290, ink, 6); hn(150, 200); hn(150, 290); ground(90, 210, 300); tx('стержень: −1', 150, 350, red, 'bold 26px Georgia');
+      rc(330, 140, 120, 60, '#e8dcc0', brn, 4); rc(450, 140, 120, 60, '#e8dcc0', brn, 4); hn(450, 170); tx('простий шарнір: −2', 450, 350, red, 'bold 26px Georgia');
+      rc(630, 140, 110, 60, '#e8dcc0', brn, 4); rc(740, 140, 110, 60, '#e8dcc0', brn, 4); ln(740, 134, 740, 206, '#333', 8); tx('жорсткий: −3', 745, 350, red, 'bold 26px Georgia');
+      ln(130, 480, 230, 440, brn, 7); ln(130, 480, 230, 520, brn, 7); ln(130, 480, 50, 480, brn, 7); hn(130, 480, red); tx('3 стержні в вузлі', 150, 575, ink, 'bold 24px Georgia'); tx('= 2 прості шарніри (ен − 1)', 560, 500, red, 'bold 28px Georgia'); x.restore(); return;
+    }
+    if (st === 'wform') {
+      ttl('Формула ступеня вільності'); tx('W = 3D − (2Ш + 3Ж + Соп)', 450, 170, red, 'bold 54px Georgia');
+      [['W', 'ступінь вільності'], ['D', 'число дисків'], ['Ш', 'прості шарніри (кратні рахуємо як n − 1)'], ['Ж', 'жорсткі зв’язки'], ['Соп', 'опорні стержні']].forEach(function (r, i) { tx(r[0], 90, 260 + i * 62, ink, 'bold 36px Georgia', 'left'); tx('—  ' + r[1], 190, 260 + i * 62, gry, '28px Georgia', 'left'); }); x.restore(); return;
+    }
+    if (st === 'wex') {
+      ttl('Рахуємо ступінь вільності'); beamSup(60, 190, 220, 2); tx('D = 1, Соп = 3', 170, 330, ink, 'bold 26px Georgia'); tx('W = 3 − 3 = 0', 170, 375, grn, 'bold 30px Georgia'); wall(380, 190, 90); ln(380, 190, 590, 190, brn, 10); tx('D = 1, защемлення = 3', 490, 330, ink, 'bold 24px Georgia'); tx('W = 3 − 3 = 0', 490, 375, grn, 'bold 30px Georgia'); beamSup(60, 470, 300, 3); tx('D = 1, Соп = 4', 640, 470, ink, 'bold 26px Georgia'); tx('W = 3 − 4 = −1: одна зайва', 640, 515, red, 'bold 26px Georgia'); x.restore(); return;
+    }
+    if (st === 'wcond') {
+      ttl('Що каже число W'); var rw = [['W > 0', 'зв’язків не вистачає: змінна', red], ['W = 0', 'рівно стільки: незмінна, визначена', grn], ['W < 0', 'є зайві: незмінна, невизначена', blu]];
+      rw.forEach(function (r, i) { var y0 = 110 + i * 145; x.fillStyle = r[2] + '22'; x.fillRect(40, y0, 820, 120); x.strokeStyle = r[2]; x.lineWidth = 3; x.strokeRect(40, y0, 820, 120); tx(r[0], 140, y0 + 74, r[2], 'bold 44px Georgia'); tx(r[1], 520, y0 + 72, r[2], 'bold 28px Georgia'); }); tx('умова W ≤ 0 необхідна, але недостатня', 450, 570, ink, 'italic bold 26px Georgia'); x.restore(); return;
+    }
+    if (st === 'inst') {
+      ttl('Миттєво змінна система'); ln(100, 330, 450, 330, brn, 10); ln(450, 330, 800, 330, brn, 10); pin(100, 335); pin(800, 335); hn(450, 330, red); x.strokeStyle = '#999'; x.lineWidth = 3; x.setLineDash([8, 7]); x.beginPath(); x.moveTo(100, 330); x.lineTo(450, 366); x.lineTo(800, 330); x.stroke(); x.setLineDash([]); ar(450, 200, 450, 318, red, 7); tx('F', 482, 240, red, 'italic bold 28px Georgia', 'left'); tx('три шарніри на одній прямій', 450, 500, red, 'bold 30px Georgia'); tx('у перший момент система рухається', 450, 550, gry, 'italic 26px Georgia'); x.restore(); return;
+    }
+    if (st === 'conn') {
+      ttl('Як з’єднувати диски'); var blk = function (ox, oy) { rc(ox, oy, 50, 110, '#e8dcc0', brn, 4); rc(ox + 190, oy, 50, 110, '#e8dcc0', brn, 4); };
+      var oxs = [40, 330, 620]; oxs.forEach(function (ox, i) { blk(ox, 100); blk(ox, 340); });
+      ln(90, 120, 230, 110, grn, 5); ln(90, 155, 230, 185, grn, 5); ln(90, 190, 230, 205, grn, 5); tx('стержні не в одній точці', 160, 250, grn, 'bold 20px Georgia');
+      ln(380, 130, 520, 130, grn, 5); hn(380, 180, grn); hn(520, 180, grn); ln(380, 180, 520, 180, grn, 5); ln(380, 180, 520, 160, grn, 1); tx('стержень повз шарнір', 450, 250, grn, 'bold 20px Georgia'); tri3(680, 200, 130, 100, grn); tx('шарніри не на прямій', 740, 250, grn, 'bold 20px Georgia');
+      ln(90, 360, 230, 360, red, 5); ln(90, 400, 230, 400, red, 5); ln(90, 440, 230, 440, red, 5); tx('3 паралельні стержні', 160, 490, red, 'bold 20px Georgia'); ln(380, 380, 520, 380, red, 5); hn(380, 380, red); hn(520, 380, red); tx('стержень через шарнір', 450, 490, red, 'bold 20px Georgia'); ln(630, 400, 850, 400, red, 5); hn(640, 400, red); hn(740, 400, red); hn(840, 400, red); tx('3 шарніри на одній прямій', 740, 490, red, 'bold 20px Georgia'); tx('ТАК', 450, 90, grn, 'bold 24px Georgia'); tx('НІ', 450, 330, red, 'bold 24px Georgia'); x.restore(); return;
+    }
+    if (st === 'deg') {
+      ttl('Ступінь статичної невизначеності'); [[2, 0, 'невідомих 3, рівнянь 3: 0'], [3, 1, 'невідомих 4, рівнянь 3: 1 раз'], [4, 2, 'невідомих 5, рівнянь 3: 2 рази']].forEach(function (r, i) { var y0 = 150 + i * 150; beamSup(120, y0, 360, r[0]); tx(r[2], 680, y0 + 20, r[1] ? red : grn, 'bold 24px Georgia'); }); x.restore(); return;
+    }
+    if (st === 'sum2') {
+      ttl('Підсумок: змінна чи ні'); [['W > 0', 'змінна, не годиться', red], ['W = 0', 'незмінна, статично визначена', grn], ['W < 0', 'є зайві зв’язки: статично невизначена', blu], ['', 'перевір розташування зв’язків', ink]].forEach(function (r, i) { var y0 = 110 + i * 110; pill(40, y0, 200, 80, r[0] || '!', r[2]); x.fillStyle = '#fff'; x.strokeStyle = r[2]; x.lineWidth = 3; x.beginPath(); x.rect(260, y0, 600, 80); x.fill(); x.stroke(); tx(r[1], 560, y0 + 50, r[2], 'bold 27px Georgia'); }); x.restore(); return;
+    }
     if (st === 'sum') {
       ttl('Як класифікують споруди'); var rows = [['Розташування', 'плоскі  |  просторові'], ['Елементи', 'стержневі  |  тонкостінні  |  масивні'], ['Реакції', 'безрозпірні  |  розпірні'], ['Розрахунок', 'статично визначені  |  невизначені']];
       rows.forEach(function (r, i) { var y0 = 110 + i * 110; pill(40, y0, 220, 80, r[0], ink); x.fillStyle = '#ffffff'; x.strokeStyle = grn; x.lineWidth = 3; x.beginPath(); x.rect(280, y0, 580, 80); x.fill(); x.stroke(); tx(r[1], 570, y0 + 50, grn, 'bold 27px Georgia'); }); x.restore(); return;
