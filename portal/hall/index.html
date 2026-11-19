@@ -2067,7 +2067,7 @@ function console_(loc, wi, lx, w) {
 
   /* робот-викладач виставляє на стенді задачу з практики: схема, потім реакції */
   function botScene(sc, lc) {
-    if (sc && sc.k === 'c') return;
+    if (sc && (sc.k === 'c' || sc.k === 'l')) return;
     var st = null; STS.forEach(function (s) { if (!st && s.kind === 'beam' && s.i === -1 && s.loc === (lc || cur) && s.g.visible) st = s; });
     if (sc && sc.k === 'r') { var rs = null; STS.forEach(function (s2) { if (!rs && s2.kind === 'rods' && s2.i === -2 && s2.loc === (lc || cur)) rs = s2; }); if (!rs) return; var rt = sc.t, rr = RB.rods(rt), RS = rs.S, rstep = sc.s || 'scheme';
       RS.a1 = String(rt[0]); RS.a2 = String(rt[1]); RS.loads = rt[2].map(function (f) { return { F: String(f[0]), a: String(f[1]) }; });
@@ -3326,7 +3326,7 @@ var RB = (function () {
     var raw = txt.split(/(?<=[.!?…])\s+/), out = [], buf = '';
     raw.forEach(function (p) { p = p.trim(); if (!p) return; buf = buf ? buf + ' ' + p : p; if (buf.length >= 45) { out.push(buf); buf = ''; } }); if (buf) out.push(buf);
     var res = []; out.forEach(function (sn) { while (sn.length > 260) { var k = sn.lastIndexOf(',', 240); if (k < 80) k = sn.lastIndexOf(' ', 240); if (k < 80) k = 240; res.push(sn.slice(0, k + 1).trim()); sn = sn.slice(k + 1).trim(); } if (sn) res.push(sn); });
-    return res.slice(0, 260);
+    return res.slice(0, 700);
   }
   function sections(html, sentences) {
     try {
@@ -3628,8 +3628,115 @@ window.__RB = RB;
     text();
   }
 
+  /* лекційні схеми на дошці: {k:'l', t:1, s:'назва'} */
+  function drawLec(x) {
+    var st = scn.s || 'bridge', ink = '#0f2a6e', red = '#c0392b', grn = '#1b8a3a', blu = '#2f6fb8', gry = '#555', brn = '#a0522d';
+    x.save(); x.lineCap = 'round'; x.lineJoin = 'round'; x.textBaseline = 'alphabetic';
+    var tx = function (t, px, py, col, f, al) { x.fillStyle = col || ink; x.font = f || 'bold 26px Georgia'; x.textAlign = al || 'center'; x.fillText(t, px, py); };
+    var ttl = function (t) { tx(t, 40, 54, ink, 'bold 34px Georgia', 'left'); x.strokeStyle = red; x.lineWidth = 4; x.beginPath(); x.moveTo(40, 66); x.lineTo(40 + Math.min(820, x.measureText(t).width), 64); x.stroke(); };
+    var ln = function (a, b, c, d, col, w, ds) { x.strokeStyle = col || ink; x.lineWidth = w || 4; if (ds) x.setLineDash([8, 7]); x.beginPath(); x.moveTo(a, b); x.lineTo(c, d); x.stroke(); x.setLineDash([]); };
+    var ar = function (a, b, c, d, col, w) { col = col || red; w = w || 6; var an = Math.atan2(d - b, c - a); ln(a, b, c, d, col, w); x.fillStyle = col; x.beginPath(); x.moveTo(c, d); x.lineTo(c - 18 * Math.cos(an - .4), d - 18 * Math.sin(an - .4)); x.lineTo(c - 18 * Math.cos(an + .4), d - 18 * Math.sin(an + .4)); x.closePath(); x.fill(); };
+    var rc = function (px, py, w, h, fill, stroke, lw) { if (fill) { x.fillStyle = fill; x.fillRect(px, py, w, h); } x.strokeStyle = stroke || ink; x.lineWidth = lw || 4; x.strokeRect(px, py, w, h); };
+    var poly = function (p, fill, stroke, w) { x.beginPath(); p.forEach(function (q, i) { if (i) x.lineTo(q[0], q[1]); else x.moveTo(q[0], q[1]); }); x.closePath(); if (fill) { x.fillStyle = fill; x.fill(); } x.strokeStyle = stroke || ink; x.lineWidth = w || 4; x.stroke(); };
+    var ground = function (a, c, y) { ln(a, y, c, y, '#444', 4); for (var u = a; u < c; u += 16) ln(u, y, u - 12, y + 14, '#444', 2); };
+    var bar = function (a, c, y, th, col) { rc(a, y - th / 2, c - a, th, col || '#d9c9a0', brn, 3); };
+    var pin = function (px, py) { poly([[px, py], [px - 28, py + 44], [px + 28, py + 44]], '#e8e2d0', '#333', 4); ground(px - 50, px + 50, py + 44); };
+    var roller = function (px, py) { poly([[px, py], [px - 24, py + 34], [px + 24, py + 34]], '#e8e2d0', '#333', 4); x.fillStyle = '#e8e2d0'; x.strokeStyle = '#333'; x.lineWidth = 3; [-14, 14].forEach(function (d) { x.beginPath(); x.arc(px + d, py + 44, 9, 0, 6.3); x.fill(); x.stroke(); }); ground(px - 50, px + 50, py + 54); };
+    var wall = function (px, py, h) { ln(px, py - h / 2, px, py + h / 2, '#333', 6); for (var u = py - h / 2; u < py + h / 2; u += 18) ln(px, u + 14, px - 16, u, '#444', 2); };
+    var arc = function (cx, cy, r, a0, a1, col, ccw) { x.strokeStyle = col; x.lineWidth = 5; x.beginPath(); x.arc(cx, cy, r, a0, a1, !!ccw); x.stroke(); var an = a1 + (ccw ? -1.57 : 1.57), ex = cx + r * Math.cos(a1), ey = cy + r * Math.sin(a1); x.fillStyle = col; x.beginPath(); x.moveTo(ex, ey); x.lineTo(ex - 16 * Math.cos(an - .45), ey - 16 * Math.sin(an - .45)); x.lineTo(ex - 16 * Math.cos(an + .45), ey - 16 * Math.sin(an + .45)); x.closePath(); x.fill(); };
+    var load = function (px, y) { ar(px, y - 90, px, y - 4, red, 7); tx('F', px + 22, y - 70, red, 'italic bold 26px Georgia', 'left'); };
+    var pill = function (px, py, w, h, t, col) { x.fillStyle = col + '22'; x.strokeStyle = col; x.lineWidth = 3; x.beginPath(); x.rect(px, py, w, h); x.fill(); x.stroke(); tx(t, px + w / 2, py + h / 2 + 9, col, 'bold 24px Georgia'); };
+    if (st === 'bridge') {
+      ttl('Споруди навколо нас');
+      poly([[70, 300], [70, 440], [250, 440], [250, 300]], '#efe6cf', '#333', 4); poly([[50, 300], [160, 220], [270, 300]], '#d9a98a', '#333', 4); rc(140, 360, 40, 80, '#b8d4e8', '#333', 3); tx('будинок', 160, 490, gry, 'italic 24px Georgia');
+      ground(300, 640, 440); ln(300, 440, 300, 440, ink, 1); x.strokeStyle = ink; x.lineWidth = 6; x.beginPath(); x.moveTo(300, 400); x.lineTo(640, 400); x.stroke(); x.beginPath(); x.moveTo(320, 400); x.quadraticCurveTo(470, 260, 620, 400); x.stroke(); [380, 430, 470, 510, 560].forEach(function (u) { var yy = 400 - (1 - Math.pow((u - 470) / 150, 2)) * 70; ln(u, yy + 12, u, 400, blu, 3); }); tx('міст', 470, 490, gry, 'italic 24px Georgia');
+      poly([[740, 440], [770, 200], [800, 440]], null, '#333', 4); ln(752, 340, 788, 340, '#333', 3); ln(748, 370, 792, 370, '#333', 3); ln(757, 300, 783, 300, '#333', 3); ln(752, 340, 783, 300, '#333', 2); ln(788, 340, 757, 300, '#333', 2); ln(740, 440, 800, 440, '#333', 5); tx('опора ЛЕП', 770, 490, gry, 'italic 24px Georgia');
+      tx('Хтось порахував, щоб воно не впало', 450, 560, red, 'italic bold 30px Georgia'); x.restore(); return;
+    }
+    if (st === 'stool') {
+      ttl('Що таке споруда'); rc(200, 220, 380, 36, '#d9c9a0', brn, 4); [[230, 256, 220, 430], [550, 256, 560, 430], [290, 256, 296, 400], [490, 256, 484, 400]].forEach(function (l, i) { ln(l[0], l[1], l[2], l[3], i < 2 ? brn : '#b9a37d', i < 2 ? 14 : 9); }); ground(120, 680, 436);
+      tx('сидіння', 390, 200, ink, 'bold 26px Georgia'); tx('ніжки', 90, 340, ink, 'bold 26px Georgia', 'left'); ar(170, 335, 208, 335, gry, 3);
+      tx('Кілька твердих тіл, з’єднаних нерухомо', 440, 500, red, 'italic bold 28px Georgia'); tx('= споруда', 440, 548, red, 'italic bold 28px Georgia'); x.restore(); return;
+    }
+    if (st === 'req') {
+      ttl('Три вимоги до споруди'); pill(40, 110, 260, 380, '', ink); pill(320, 110, 260, 380, '', grn); pill(600, 110, 260, 380, '', red);
+      tx('1', 170, 170, ink, 'bold 48px Georgia'); tx('Стоїть на місці', 170, 230, ink, 'bold 26px Georgia'); tx('і не змінює', 170, 266, ink, 'bold 26px Georgia'); tx('форму', 170, 302, ink, 'bold 26px Georgia'); rc(100, 360, 140, 40, '#d9c9a0', brn, 3); ground(80, 260, 400);
+      tx('2', 450, 170, grn, 'bold 48px Georgia'); tx('Міцність', 450, 240, grn, 'bold 30px Georgia'); tx('Жорсткість', 450, 296, grn, 'bold 30px Georgia'); tx('Стійкість', 450, 352, grn, 'bold 30px Georgia'); tx('безпека і зручність', 450, 430, gry, 'italic 24px Georgia');
+      tx('3', 730, 170, red, 'bold 48px Georgia'); tx('Економічність', 730, 240, red, 'bold 28px Georgia'); tx('найменше коштів', 730, 300, red, 'bold 24px Georgia'); tx('на матеріал', 730, 336, red, 'bold 24px Georgia'); tx('і будівництво', 730, 372, red, 'bold 24px Georgia'); x.restore(); return;
+    }
+    if (st === 'strong') {
+      ttl('Міцність: не ламається'); pin(150, 330); roller(730, 330);
+      poly([[150, 316], [150, 346], [415, 372], [415, 342]], '#d9c9a0', brn, 3); poly([[730, 316], [730, 346], [465, 372], [465, 342]], '#d9c9a0', brn, 3);
+      ln(440, 335, 440, 395, red, 3); ln(430, 360, 452, 350, red, 3); ar(440, 200, 440, 320, red, 8); tx('зламалась', 440, 450, red, 'bold 34px Georgia'); tx('Матеріал не витримав сили', 440, 520, gry, 'italic 26px Georgia'); x.restore(); return;
+    }
+    if (st === 'stiff') {
+      ttl('Жорсткість: мало прогинається'); pin(130, 206); roller(770, 206); pin(130, 446); roller(770, 446);
+      ln(130, 200, 770, 200, '#999', 2, true); x.strokeStyle = brn; x.lineWidth = 8; x.beginPath(); x.moveTo(130, 200); x.quadraticCurveTo(450, 330, 770, 200); x.stroke(); tx('тонка: сильно прогнулась', 450, 150, red, 'bold 26px Georgia'); ar(450, 210, 450, 262, red, 4);
+      ln(130, 440, 770, 440, '#999', 2, true); x.strokeStyle = brn; x.lineWidth = 30; x.beginPath(); x.moveTo(130, 440); x.quadraticCurveTo(450, 458, 770, 440); x.stroke(); tx('товста: майже не прогнулась', 450, 520, grn, 'bold 26px Georgia'); x.restore(); return;
+    }
+    if (st === 'stab') {
+      ttl('Стійкість: не втрачає форму'); [220, 640].forEach(function (u) { ln(u, 150, u, 460, '#bbb', 2, true); });
+      ln(220, 150, 220, 460, brn, 12); ar(220, 100, 220, 148, red, 6); ar(220, 510, 220, 462, red, 6); tx('лінійка стоїть рівно', 220, 560, grn, 'bold 24px Georgia');
+      x.strokeStyle = brn; x.lineWidth = 12; x.beginPath(); x.moveTo(640, 150); x.bezierCurveTo(740, 250, 740, 360, 640, 460); x.stroke(); ar(640, 100, 640, 148, red, 6); ar(640, 510, 640, 462, red, 6); tx('з певної сили вигнулась вбік', 640, 560, red, 'bold 24px Georgia'); tx('F', 250, 120, red, 'italic bold 26px Georgia'); x.restore(); return;
+    }
+    if (st === 'static') {
+      ttl('Навантаження: статичне чи ні'); pin(120, 380); roller(420, 380); bar(110, 430, 366, 24);
+      [160, 215, 270, 325].forEach(function (u, i) { rc(u, 366 - 24 - 28 * (i % 2 ? 1 : 1), 46, 28, '#d98a6a', '#8a3b25', 3); });
+      tx('цегла за цеглою, плавно', 270, 290, grn, 'bold 24px Georgia'); tx('статичне', 270, 120, grn, 'bold 32px Georgia'); ln(500, 440, 860, 440, '#333', 3); ln(500, 440, 500, 150, '#333', 3); x.strokeStyle = grn; x.lineWidth = 5; x.beginPath(); x.moveTo(500, 440); x.lineTo(660, 240); x.lineTo(850, 240); x.stroke(); tx('F', 480, 170, ink, 'italic bold 24px Georgia', 'right'); tx('час', 830, 475, ink, 'italic bold 24px Georgia'); tx('росте від нуля і далі стоїть', 680, 520, grn, 'italic 22px Georgia');
+      x.restore(); return;
+    }
+    if (st === 'scheme') {
+      ttl('Розрахункова схема'); ground(60, 180, 440); rc(80, 330, 80, 110, '#d98a6a', '#8a3b25', 3); ground(300, 400, 440); rc(310, 330, 80, 110, '#d98a6a', '#8a3b25', 3); rc(60, 306, 360, 24, '#d9c9a0', brn, 3); rc(215, 250, 50, 56, '#b8d4e8', '#333', 3); tx('справжня споруда', 240, 500, gry, 'italic 24px Georgia');
+      ar(450, 330, 520, 330, red, 6); tx('спрощуємо', 485, 300, red, 'italic 24px Georgia'); ln(560, 340, 860, 340, ink, 7); pin(580, 342); roller(840, 342); ar(710, 240, 710, 330, red, 7); tx('F', 735, 270, red, 'italic bold 26px Georgia', 'left'); tx('розрахункова схема', 710, 500, ink, 'bold 24px Georgia'); x.restore(); return;
+    }
+    if (st === 'plane') {
+      ttl('Плоскі і просторові споруди'); var N = { A: [60, 380], B: [180, 380], C: [300, 380], D: [120, 300], E: [240, 300], F: [180, 230] };
+      [['A', 'B'], ['B', 'C'], ['A', 'D'], ['D', 'F'], ['F', 'E'], ['E', 'C'], ['D', 'B'], ['B', 'E'], ['D', 'E']].forEach(function (e) { ln(N[e[0]][0], N[e[0]][1], N[e[1]][0], N[e[1]][1], ink, 6); }); ar(180, 130, 180, 222, red, 6); tx('плоска: усе в одній площині', 180, 470, grn, 'bold 24px Georgia');
+      rc(520, 290, 150, 120, null, ink, 5); rc(580, 230, 150, 120, null, ink, 5); [[520, 290, 580, 230], [670, 290, 730, 230], [520, 410, 580, 350], [670, 410, 730, 350]].forEach(function (l) { ln(l[0], l[1], l[2], l[3], ink, 5); }); ar(650, 140, 650, 224, red, 6); tx('просторова: у різних площинах', 620, 470, red, 'bold 24px Georgia'); x.restore(); return;
+    }
+    if (st === 'elem') {
+      ttl('З яких елементів складається'); rc(40, 230, 230, 22, '#d9c9a0', brn, 3); tx('стержень', 155, 190, ink, 'bold 28px Georgia'); tx('довгий і тонкий', 155, 300, gry, 'italic 22px Georgia'); tx('балки, ферми,', 155, 380, ink, 'bold 22px Georgia'); tx('рами, арки', 155, 410, ink, 'bold 22px Georgia');
+      x.strokeStyle = brn; x.lineWidth = 6; x.fillStyle = '#e8dcc0'; x.beginPath(); x.arc(450, 340, 110, Math.PI, 0); x.closePath(); x.fill(); x.stroke(); x.beginPath(); x.arc(450, 340, 94, Math.PI, 0); x.stroke(); tx('оболонка, пластина', 450, 190, ink, 'bold 28px Georgia'); tx('тонка стінка', 450, 400, gry, 'italic 22px Georgia'); tx('плити, куполи, баки', 450, 450, ink, 'bold 22px Georgia');
+      poly([[650, 330], [700, 290], [840, 290], [840, 390], [790, 430], [650, 430]], '#ddd6c4', '#444', 5); ln(650, 330, 790, 330, '#444', 4); ln(790, 330, 840, 290, '#444', 4); ln(790, 330, 790, 430, '#444', 4); tx('масивне', 745, 250, ink, 'bold 28px Georgia'); tx('усі виміри схожі', 745, 480, gry, 'italic 22px Georgia'); tx('греблі, стіни, фундаменти', 745, 520, ink, 'bold 22px Georgia'); x.restore(); return;
+    }
+    if (st === 'beamarch') {
+      ttl('Балка і арка'); pin(160, 150); roller(700, 150); ln(160, 146, 700, 146, brn, 12); load(430, 140); ar(160, 270, 160, 204, grn, 6); ar(700, 270, 700, 214, grn, 6); tx('RA', 125, 290, grn, 'italic bold 24px Georgia'); tx('RB', 735, 290, grn, 'italic bold 24px Georgia'); tx('балка: опори тільки вгору, розпору немає', 430, 320, grn, 'bold 24px Georgia');
+      x.strokeStyle = brn; x.lineWidth = 12; x.beginPath(); x.moveTo(160, 540); x.quadraticCurveTo(430, 380, 700, 540); x.stroke(); load(430, 448); pin(160, 540); pin(700, 540); ar(100, 520, 190, 520, red, 6); ar(760, 520, 670, 520, red, 6); tx('H', 130, 500, red, 'italic bold 26px Georgia'); tx('H', 730, 500, red, 'italic bold 26px Georgia'); tx('арка: опори вгору і вбік, є розпір H', 430, 592, red, 'bold 24px Georgia'); x.restore(); return;
+    }
+    if (st === 'det') {
+      ttl('Статично визначена чи ні'); pin(100, 230); roller(380, 230); ln(100, 226, 380, 226, brn, 10); load(240, 220); tx('2 невідомі: RA, RB', 240, 360, ink, 'bold 24px Georgia'); tx('є 2 рівняння', 240, 400, grn, 'bold 24px Georgia'); tx('статично визначена', 240, 460, grn, 'bold 28px Georgia');
+      pin(500, 230); roller(680, 230); roller(840, 230); ln(500, 226, 840, 226, brn, 10); load(590, 220); tx('3 невідомі: RA, RB, RC', 670, 360, ink, 'bold 24px Georgia'); tx('рівнянь не вистачає', 670, 400, red, 'bold 24px Georgia'); tx('статично невизначена', 670, 460, red, 'bold 28px Georgia'); x.restore(); return;
+    }
+    if (st === 'sup1') {
+      ttl('Шарнірно-рухома опора'); bar(120, 700, 220, 24); roller(600, 244); ar(600, 400, 600, 304, red, 8); tx('R: одна реакція', 600, 440, red, 'bold 28px Georgia'); ar(250, 330, 150, 330, grn, 5); ar(250, 330, 350, 330, grn, 5); tx('ковзає вздовж площини', 250, 370, grn, 'bold 22px Georgia'); arc(600, 220, 40, 3.6, 6.0, grn); tx('обертається', 700, 190, grn, 'bold 22px Georgia', 'left'); tx('заборонено: рух поперек', 400, 500, red, 'bold 24px Georgia'); x.restore(); return;
+    }
+    if (st === 'sup2') {
+      ttl('Шарнірно-нерухома опора'); bar(120, 700, 220, 24); pin(600, 244); ar(600, 400, 600, 294, red, 8); tx('V', 570, 350, red, 'italic bold 28px Georgia'); ar(780, 268, 650, 268, red, 7); tx('H', 730, 252, red, 'italic bold 28px Georgia'); tx('дві реакції: V і H', 600, 450, red, 'bold 28px Georgia'); arc(600, 200, 50, 3.6, 6.0, grn); tx('можна лише обертатись', 250, 330, grn, 'bold 24px Georgia'); tx('рухи вбік і вниз заборонені', 400, 500, red, 'bold 24px Georgia'); x.restore(); return;
+    }
+    if (st === 'sup3') {
+      ttl('Жорстке защемлення'); wall(200, 300, 260); bar(200, 760, 300, 24); ar(260, 420, 260, 316, red, 8); tx('V', 232, 400, red, 'italic bold 28px Georgia'); ar(200, 270, 130, 270, red, 7); tx('H', 150, 250, red, 'italic bold 28px Georgia'); arc(340, 296, 50, 3.5, 6.0, red); tx('M', 340, 225, red, 'italic bold 28px Georgia'); tx('три реакції: V, H і момент M', 560, 420, red, 'bold 28px Georgia'); tx('не рухається і не повертається', 560, 480, gry, 'italic 24px Georgia'); x.restore(); return;
+    }
+    if (st === 'supall') {
+      ttl('Опори плоских систем'); bar(40, 280, 200, 20); roller(120, 230); tx('рухома', 160, 400, ink, 'bold 26px Georgia'); tx('1 реакція', 160, 440, red, 'bold 28px Georgia'); ar(120, 380, 120, 292, red, 5);
+      bar(310, 560, 200, 20); pin(430, 230); tx('нерухома', 440, 400, ink, 'bold 26px Georgia'); tx('2 реакції', 440, 440, red, 'bold 28px Georgia');
+      wall(660, 200, 120); bar(660, 860, 200, 20); tx('защемлення', 760, 400, ink, 'bold 26px Georgia'); tx('3 реакції', 760, 440, red, 'bold 28px Georgia'); tx('Чим жорсткіша опора, тим більше невідомих реакцій', 450, 540, grn, 'italic bold 28px Georgia'); x.restore(); return;
+    }
+    if (st === 'hand') {
+      ttl('Що таке реакція'); wall(700, 300, 280); ln(320, 300, 690, 300, '#c9a27e', 40); ar(320, 300, 450, 300, ink, 7); tx('ти тиснеш', 380, 270, ink, 'bold 26px Georgia'); ar(650, 340, 540, 340, red, 8); tx('стіна штовхає у відповідь', 480, 400, red, 'bold 26px Georgia'); tx('це і є реакція', 480, 450, red, 'italic bold 28px Georgia');
+      x.restore(); return;
+    }
+    if (st === 'hist') {
+      ttl('Хто створював будівельну механіку'); ln(50, 310, 850, 310, '#333', 5); var ev = [['1845', 'Журавський', 'ферми'], ['1857', 'Клапейрон', 'нерозрізна балка'], ['1864', 'Максвелл', 'метод сил'], ['1872', 'Семиколєнов', 'шарнірні балки'], ['1883', 'Мор', 'рами'], ['1893', 'Ясинський', 'стійкість'], ['1953', 'Патон', 'міст у Києві']];
+      ev.forEach(function (e, i) { var px = 90 + i * 120, up = i % 2 === 0; ln(px, 310, px, up ? 260 : 360, red, 3); x.fillStyle = red; x.beginPath(); x.arc(px, 310, 9, 0, 6.3); x.fill(); tx(e[0], px, up ? 232 : 395, red, 'bold 28px Georgia'); tx(e[1], px, up ? 192 : 432, ink, 'bold 22px Georgia'); tx(e[2], px, up ? 164 : 462, gry, 'italic 20px Georgia'); }); tx('наука виросла з практики', 450, 540, grn, 'italic bold 28px Georgia'); x.restore(); return;
+    }
+    if (st === 'sum') {
+      ttl('Як класифікують споруди'); var rows = [['Розташування', 'плоскі  |  просторові'], ['Елементи', 'стержневі  |  тонкостінні  |  масивні'], ['Реакції', 'безрозпірні  |  розпірні'], ['Розрахунок', 'статично визначені  |  невизначені']];
+      rows.forEach(function (r, i) { var y0 = 110 + i * 110; pill(40, y0, 220, 80, r[0], ink); x.fillStyle = '#ffffff'; x.strokeStyle = grn; x.lineWidth = 3; x.beginPath(); x.rect(280, y0, 580, 80); x.fill(); x.stroke(); tx(r[1], 570, y0 + 50, grn, 'bold 27px Georgia'); }); x.restore(); return;
+    }
+    x.restore();
+  }
   function drawScene(x) {
-    if (!scn) return; if (scn.k === 'r') { drawRods(x); return; } if (scn.k === 'c') { drawCG(x); return; }
+    if (!scn) return; if (scn.k === 'l') { drawLec(x); return; } if (scn.k === 'r') { drawRods(x); return; } if (scn.k === 'c') { drawCG(x); return; }
     var b = RB.beam(scn.t), st = scn.s || 'scheme', now = performance.now(), sweep = (st === 'q' || st === 'm');
     var pr = sweep ? (scn.p != null ? scn.p : Math.min(1, (now - (scn.t0 || now)) / 4500)) : 1;
     if (pr < 1) pr = pr * pr * (3 - 2 * pr);
