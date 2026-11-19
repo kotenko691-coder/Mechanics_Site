@@ -2852,28 +2852,6 @@ function poseStatic(u, e, ts) {
         if (u.bub && nowMs > u.bubUntil) { g.remove(u.bub); u.bub = null; }
       });
     });
-    /* боти Б-31: сидять за партами в кабінеті будівельників (однакові в усіх; ховаються, коли справжній студент у кабінеті) */
-    (function () {
-      var NAMES = ['Лобода Андрій', 'Валюх Богдан', 'Марюхна Олексій', 'Міхеєнко Арсеній', 'Отрощенко Богдан', 'Карпишин Андрій', 'Шаповал Дмитро', 'Мірошниченко Мирослав', 'Токар Станіслав', 'Юхно Станіслав', 'Коротун Ілля', 'Крячок Євген', 'Волін Вадим'];
-      var SEATS = [0, 3, 4, 7, 8, 11, 12, 15, 16, 18, 19, 20, 21], made = false;
-      function hsh(t) { var h = 7; for (var i = 0; i < t.length; i++) h = (h * 31 + t.charCodeAt(i)) >>> 0; return h; }
-      updaters.push(function () {
-        var L = LOC.build; if (!L || !L.seats || !L.seats.length) return;
-        if (!made) {
-          made = true;
-          NAMES.forEach(function (nm, i) {
-            var st = L.seats[SEATS[i]]; if (!st) return; var h = hsh(nm), id = 'npc_' + i;
-            var g = makeGhost(id, { n: nm, g: 'Б-31', s: 'm', c: h % SHIRTS.length, h: (h >> 3) % HAIRS.length, k: (h >> 6) % CH_N.m, l: 'build', r: 0, x: st.x - L.X, z: st.z, y: 0, e: 4 });
-            g.userData.npc = nm.split(' ')[0].toLowerCase(); ghosts[id] = g;
-          });
-        }
-        var real = Object.keys(ghosts).filter(function (k) { return k.indexOf('npc_') !== 0 && ghosts[k].userData.loc === 'build'; }).map(function (k) { return String(ghosts[k].userData.name || '').toLowerCase(); });
-        Object.keys(ghosts).forEach(function (k) {
-          if (k.indexOf('npc_') !== 0) return; var g = ghosts[k], u = g.userData, here = real.some(function (n) { return n.indexOf(u.npc) >= 0; });
-          g.visible = !here; u.e = here ? 0 : 4;
-        });
-      });
-    })();
   }).catch(function (e) { toast('Присутність недоступна: ' + (e && (e.code || e.message) || e), 7000); });
 })();
 
@@ -4347,6 +4325,7 @@ window.__RB = RB;
     btn('Тонко', function () { width = 3; drawBar(); }, width === 3); btn('Товсто', function () { width = 9; drawBar(); }, width === 9);
     btn('Гумка', function () { eraser = !eraser; drawBar(); }, eraser);
     btn('Стерти моє', clearMine);
+    btn('Стерти слайд робота', clearRobot);
     if (isTeacher()) btn('Стерти все', clearAll);
     btn('Закрити', closeBoard);
   }
@@ -4657,7 +4636,8 @@ window.__RB = RB;
   function fail(e) { if (!warned) { warned = true; toast('Дошка поки видна лише вам: ' + (e && e.code || 'немає доступу до бази'), 5000); } }
   function push(s) { var f = fb(); if (!f) { fail(); return; } try { f.db.ref('board/' + KEY + '/' + f.uid).push({ c: s.c, w: s.w, p: enc(s.p), t: Date.now() }).catch(fail); } catch (e) { fail(e); } }
   function clearMine() { mine = []; renderAll(); var f = fb(); if (f) f.db.ref('board/' + KEY + '/' + f.uid).remove().catch(fail); }
-  function clearAll() { mine = []; remote = []; rbl = null; renderAll(); var f = fb(); if (f) f.db.ref('board/' + KEY).remove().catch(fail); }
+  function clearRobot() { scn = null; rbl = null; renderAll(); }
+  function clearAll() { mine = []; remote = []; scn = null; rbl = null; renderAll(); var f = fb(); if (f) f.db.ref('board/' + KEY).remove().catch(fail); }
 
   var wired = false;
   function wire() {
