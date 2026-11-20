@@ -2460,7 +2460,7 @@ function petGeo(kind, cb) {
 function Pet(kind) {
   this.kind = kind; this.g = new THREE.Group(); this.inner = new THREE.Group(); this.g.add(this.inner); this.clip = 'idle'; this.t = 0; this.prev = null; this.blend = 1; this.speed = 1; this.ready = false;
   var sh = new THREE.Mesh(new THREE.CircleGeometry(0.22, 20), new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.35, depthWrite: false })); sh.rotation.x = -Math.PI / 2; sh.position.y = 0.015; sh.scale.set(1, 1.7, 1); this.g.add(sh);
-  this.pose = { by: 0, bp: 0, br: 0, hd: 0, tl: 0, fl: 0, fr: 0, bl: 0, brr: 0, al: 0, ar: 0, az: 0 }; this.touched = [];
+  this.pose = { by: 0, bp: 0, br: 0, hd: 0, tl: 0, fl: 0, fr: 0, bl: 0, brr: 0, al: 0, ar: 0, az: 0, ll: 0, lr: 0 }; this.touched = [];
   var self = this; petGeo(kind, function (r) { self.build(r); });
 }
 Pet.prototype.build = function (r) {
@@ -2497,16 +2497,16 @@ Pet.prototype.tickDog = function (dt) {
   if (this.prev && this.blend < 1) { var pn = this.prev.clip, pt = this.prev.t + (this.t - 0); if (pn === 'lie' && cl.lie && pt * cl.lie.fps >= cl.lie.n - 1) { pn = 'rest'; pt -= (cl.lie.n - 1) / cl.lie.fps; } add(pn, pt, 1 - this.blend); }
 };
 Pet.prototype.tickProc = function (dt) {
-  var t = this.t, c = this.clip, T = performance.now() / 1000, deer = this.kind === 'deer', P = this.pose, tg = { by: 0, bp: 0, br: 0, hd: 0, tl: 0, fl: 0, fr: 0, bl: 0, brr: 0, al: 0, ar: 0, az: 0 };
+  var t = this.t, c = this.clip, T = performance.now() / 1000, deer = this.kind === 'deer', P = this.pose, tg = { by: 0, bp: 0, br: 0, hd: 0, tl: 0, fl: 0, fr: 0, bl: 0, brr: 0, al: 0, ar: 0, az: 0, ll: 0, lr: 0 };
   var s = Math.sin(T * 2.2) * 0.02, h = this.height || 1;
   if (c === 'idle' || c === 'rest') { tg.hd = Math.sin(T * 0.9) * 0.12; tg.tl = Math.sin(T * 3) * 0.3; tg.by = s * h; tg.al = tg.ar = Math.sin(T * 1.4) * 0.05; }
   else if (c === 'walk' || c === 'run') {
     var f = (c === 'run' ? 11 : 6) * this.speed, sw = Math.sin(T * f), amp = c === 'run' ? 0.7 : 0.4;
     tg.fl = sw * amp; tg.brr = sw * amp; tg.fr = -sw * amp; tg.bl = -sw * amp; tg.al = sw * amp * 1.2; tg.ar = -sw * amp * 1.2; tg.by = Math.abs(Math.sin(T * f)) * 0.03 * h * (c === 'run' ? 2 : 1); tg.hd = Math.sin(T * f) * 0.1; tg.tl = Math.sin(T * f * 1.5) * 0.4; tg.bp = c === 'run' ? 0.1 : 0;
-    if (!deer) tg.br = Math.sin(T * f) * 0.12;
+    if (!deer) { tg.br = Math.sin(T * f) * 0.1; tg.ll = sw * amp * 1.3; tg.lr = -sw * amp * 1.3; tg.al = -sw * amp * 1.1; tg.ar = sw * amp * 1.1; tg.bp = c === 'run' ? -0.18 : -0.06; tg.by = Math.abs(Math.sin(T * f)) * 0.025 * h * (c === 'run' ? 2.2 : 1.2); }
   }
-  else if (c === 'sit') { if (deer) { tg.by = -0.1 * h; tg.fl = tg.fr = 0.5; tg.bl = tg.brr = -1.2; tg.hd = -0.1; } else { tg.hd = Math.sin(T * 1.2) * 0.1; tg.al = tg.ar = 0.1; } }
-  else if (c === 'lie') { if (deer) { tg.by = -0.32 * h; tg.fl = tg.fr = 1.5; tg.bl = tg.brr = -1.5; tg.hd = 0.1; } else { tg.by = 0.1 * h; tg.br = 1.4; tg.al = 1.2; tg.ar = 1.2; } }
+  else if (c === 'sit') { if (!deer) { tg.by = -0.3 * h; tg.ll = tg.lr = 1.45; tg.al = tg.ar = 0.5; tg.hd = Math.sin(T * 1.2) * 0.1; } else if (deer) { tg.by = -0.1 * h; tg.fl = tg.fr = 0.5; tg.bl = tg.brr = -1.2; tg.hd = -0.1; } else { tg.hd = Math.sin(T * 1.2) * 0.1; tg.al = tg.ar = 0.1; } }
+  else if (c === 'lie') { if (deer) { tg.by = -0.32 * h; tg.fl = tg.fr = 1.5; tg.bl = tg.brr = -1.5; tg.hd = 0.1; } else { tg.by = 0.1 * h; tg.br = 1.4; tg.al = 1.2; tg.ar = 1.2; tg.ll = 0.3; tg.lr = 0.2; } }
   else if (c === 'beg') { if (deer) { tg.bp = -0.45; tg.by = 0.1 * h; tg.fl = tg.fr = 1.2 + Math.sin(T * 6) * 0.3; tg.hd = 0.2; } else { tg.al = tg.ar = 2.8 + Math.sin(T * 7) * 0.25; tg.hd = -0.2; } }
   else if (c === 'bark') { tg.hd = -Math.abs(Math.sin(T * 8)) * 0.35; tg.by = Math.abs(Math.sin(T * 8)) * 0.04 * h; if (deer) { tg.fl = Math.sin(T * 8) * 0.4; } else { tg.al = -Math.sin(T * 8) * 0.8 + 0.4; tg.ar = Math.sin(T * 8) * 0.8 + 0.4; tg.az = 0.5; } }
   else if (c === 'happy') { var j = Math.abs(Math.sin(T * 5)); tg.by = j * 0.18 * h; tg.hd = Math.sin(T * 10) * 0.25; tg.tl = Math.sin(T * 14) * 0.6; tg.fl = tg.fr = j * 0.6; tg.al = tg.ar = 2.6 + Math.sin(T * 10) * 0.4; tg.br = Math.sin(T * 5) * 0.1; }
@@ -2514,7 +2514,7 @@ Pet.prototype.tickProc = function (dt) {
   var pg = this.pg; this.inner.position.y = P.by; this.inner.rotation.x = P.bp; this.inner.rotation.z = P.br;
   if (pg.head) pg.head.rotation.x = P.hd; if (pg.tail) { pg.tail.rotation.z = P.tl; pg.tail.rotation.x = deer ? 0 : P.tl * 0.3; }
   if (deer) { if (pg.fll) pg.fll.rotation.x = P.fl; if (pg.flr) pg.flr.rotation.x = P.fr; if (pg.bll) pg.bll.rotation.x = P.bl; if (pg.blr) pg.blr.rotation.x = P.brr; }
-  else { if (pg.arml) { pg.arml.rotation.x = P.al; pg.arml.rotation.z = -P.az; } if (pg.armr) { pg.armr.rotation.x = P.ar; pg.armr.rotation.z = P.az; } }
+  else { if (pg.legl) pg.legl.rotation.x = P.ll; if (pg.legr) pg.legr.rotation.x = P.lr; if (pg.arml) { pg.arml.rotation.x = P.al; pg.arml.rotation.z = -P.az; } if (pg.armr) { pg.armr.rotation.x = P.ar; pg.armr.rotation.z = P.az; } }
 };
 
 /* ---- стан власного питомця ---- */
