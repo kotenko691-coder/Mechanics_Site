@@ -63,6 +63,20 @@ button.rb{position:fixed;right:12px;z-index:6;display:none;align-items:center;ju
 <div id="emo"></div>
 <div id="fade"></div>
 <div id="modal"><div id="mcard"><button id="mclose" type="button" aria-label="Закрити">×</button><div id="mbody"></div></div></div>
+<script>
+/* автооновлення: хол звіряє свою версію з hall-version.json (без кешу) і за потреби перезавантажується на нову */
+(function(){try{
+if(location.protocol.indexOf('http')!==0)return;
+var cur=(location.search.match(/[?&]v=(\d+)/)||[])[1]||'';
+function chk(){fetch('../hall-version.json?_='+Date.now(),{cache:'no-store'}).then(function(r){return r.json();}).then(function(j){
+ if(!j||!j.v||String(j.v)===cur)return;
+ var k='hallRel',n=+(sessionStorage.getItem(k)||0);if(n>2)return;sessionStorage.setItem(k,n+1);
+ location.replace(location.pathname+'?v='+j.v+(location.hash||''));
+}).catch(function(){});}
+chk();
+document.addEventListener('visibilitychange',function(){if(!document.hidden)chk();});
+}catch(e){}})();
+</script>
 <script>/**
  * @license
  * Copyright 2010-2021 Three.js Authors
