@@ -2103,6 +2103,180 @@ function console_(loc, wi, lx, w) {
   window.__prak = { cg: { solve: cgSolve, draw: drawCG, CV: CV, open: function (i) { var st = null; STS.forEach(function (q) { if (!st && q.kind === 'cg' && q.loc === cur) st = q; }); if (!st) return false; curSt = st; C = st.S; if (i !== undefined) setC(i); openCG(); return true; }, S: function () { return C; } }, scene: botScene,  openBeam: openBeam, openRods: openRods, STS: STS, beamSolve: beamSolve, rodSolve: rodSolve, check: function (st) { curSt = st; if (st.kind === 'beam') { B = st.S; openBeam(); checkBeam(); } else { R = st.S; openRods(); checkRods(); } } };
 })();
 
+/* ====== 3 ПОВЕРХ: відпочинок і мініігри (f3, f3_rank, f3_shoot, f3_race) ====== */
+ROOMX.f3 = 700; ROOMX.f3_rank = 740; ROOMX.f3_shoot = 780; ROOMX.f3_race = 820;
+
+/* рекорди мініігор (зберігаються в браузері, найкращий результат кожної гри) */
+var F3_REC = (function () {
+  var S = { shoot: 0, race: 0 };
+  try { var z = JSON.parse(localStorage.getItem('hall-f3') || '{}'); S.shoot = +z.shoot || 0; S.race = +z.race || 0; } catch (e) {}
+  function save() { try { localStorage.setItem('hall-f3', JSON.stringify(S)); } catch (e) {} }
+  return {
+    best: function (k) { return S[k] || 0; },
+    add: function (k, pts) { var nb = pts > (S[k] || 0); if (nb) { S[k] = pts; save(); } return nb; },
+    html: function () {
+      return '<h3>Рекорди мініігор</h3><p class="muted">Показано ваші найкращі результати на цьому пристрої.</p>' +
+        '<table style="width:100%;border-collapse:collapse;text-align:left">' +
+        '<tr><td style="padding:6px 8px">Тир</td><td style="padding:6px 8px"><b>' + S.shoot + '</b> очок</td></tr>' +
+        '<tr><td style="padding:6px 8px">Реакція (гонки)</td><td style="padding:6px 8px"><b>' + S.race + '</b> очок</td></tr>' +
+        '<tr><td style="padding:6px 8px">Разом</td><td style="padding:6px 8px"><b>' + (S.shoot + S.race) + '</b></td></tr></table>';
+    }
+  };
+})();
+
+var F3 = newRoom('f3', 18, 8, 3.5, { floor: TX.planks, wall: TX.wallpaper, ceil: 0xe8eceb, amb: 0xf4f7f6, ambI: 0.72, bg: 0x101518 });
+var f3Door = {};
+(function () {
+  var G = F3.group;
+  pubLoc(F3, '3 поверх: відпочинок', { id: 'f2', sp: { x: F2.X - 3.6, z: 3.0, yaw: 0 } });
+  pl(F3, 0xfff0d8, 0.8, 12, -5, 3.0, 0); pl(F3, 0xfff0d8, 0.8, 12, 5, 3.0, 0);
+
+  /* сходи: з 2 поверху вгору і з 3 вниз */
+  spiral(F2.group, -4.8, 3.0, 'Піднятися на 3 поверх', function () { teleport('f3', F3.spawn); });
+  obs(F2, -4.8, 3.0, 0.4, 0.4);
+  spiral(G, 7.4, 2.4, 'Спуститися на 2 поверх', function () { teleport('f2', { x: F2.X - 3.6, z: 3.0, yaw: 0 }); });
+  obs(F3, 7.4, 2.4, 0.4, 0.4);
+  var sg = signPlane(['2 поверх ▼'], 1.3, 0.4, { bg: '#17110b', fg: '#f2d9a0', px: 120 }); sg.position.set(7.4, 2.2, 3.7); sg.rotation.y = Math.PI; G.add(sg);
+
+  /* двері до мініігор: задня стіна (wall 0) */
+  var DOORS = [
+    { id: 'f3_rank', lx: -2.4, lines: ['Рекорди'], title: 'Рекорди мініігор' },
+    { id: 'f3_shoot', lx: 1.2, lines: ['Мінігра', 'Тир'], title: 'Мінігра: тир' },
+    { id: 'f3_race', lx: 4.8, lines: ['Мінігра', 'Реакція'], title: 'Мінігра: реакція' }
+  ];
+  DOORS.forEach(function (c) {
+    var d = pdoor(F3, 0, c.lx, c.lines, function () { walkIn(d.leaf, function () { teleport(c.id, LOC[c.id].spawn); }); });
+    f3Door[c.id] = d;
+  });
+
+  /* фотозона */
+  box(2.6, 2.4, 0.12, mat(0x2b3640, { rough: 0.5 }), -6.2, 1.2, -3.85, G);
+  box(2.2, 1.95, 0.05, mat(0xf7d060, { rough: 0.4 }), -6.2, 1.25, -3.77, G);
+  var frames = ['Фотозона: «3 поверх 3D-холу»', 'Фотозона: «Клуб рекордів»', 'Фотозона: «Група на відпочинку»'], fi = 0;
+  var stand = box(0.75, 0.9, 0.5, mat(0x4a5d6e, { rough: 0.6 }), -6.2, 0.45, -2.2, G);
+  obs(F3, -6.2, -3.8, 1.3, 0.2); obs(F3, -6.2, -2.2, 0.45, 0.3);
+  act(stand, 'Фотозона: змінити рамку', function () { fi = (fi + 1) % frames.length; toast(frames[fi] + '. Клікніть ще раз, щоб змінити рамку.'); }, { reach: 3.6 });
+  plant(F3, -8.2, 3.2); plant(F3, 8.2, -3.2);
+})();
+
+/* кімната мініігор: вихід у коридор 3 поверху */
+function f3Room(id, W, D, title, o) {
+  var loc = newRoom(id, W, D, 3.5, o), lx = { f3_rank: -2.4, f3_shoot: 1.2, f3_race: 4.8 }[id];
+  var back = { id: 'f3', sp: { x: F3.X + lx, z: -F3.D / 2 + 2.3, yaw: Math.PI } };
+  pubLoc(loc, title, back);
+  var d = pdoor(loc, 2, 0, ['Вихід'], function () { walkIn(d.leaf, function () { teleport('f3', back.sp); }); });
+  pl(loc, 0xfff0d8, 0.8, 11, -W / 4, 3.0, 0); pl(loc, 0xfff0d8, 0.8, 11, W / 4, 3.0, 0);
+  return loc;
+}
+
+/* ---------- Рекорди ---------- */
+(function () {
+  var loc = f3Room('f3_rank', 8, 7, 'Рекорди мініігор', { floor: TX.tile, wall: TX.wall2, ceil: 0xe4ebe8, amb: 0xf2f7f5, ambI: 0.72, bg: 0x0d1214 }), G = loc.group;
+  var bd = box(2.8, 1.5, 0.12, mat(0x1f2a33, { rough: 0.4 }), 0, 1.7, -3.3, G);
+  var dk = box(1.2, 0.85, 0.6, mat(0x3a4b59, { rough: 0.55 }), 0, 0.425, -1.8, G);
+  obs(loc, 0, -1.8, 0.65, 0.35);
+  var show = function () { modal(F3_REC.html()); };
+  act(bd, 'Табло рекордів', show, { reach: 6 }); act(dk, 'Пульт рекордів', show, { reach: 4.6 });
+  plant(loc, -3.2, 2.6); plant(loc, 3.2, 2.6);
+})();
+
+/* ---------- Тир ---------- */
+(function () {
+  var loc = f3Room('f3_shoot', 10, 11, 'Мінігра: тир', { floor: TX.tile, wall: TX.wall2, ceil: 0xe4eae8, amb: 0xf2f6f5, ambI: 0.72, bg: 0x0e1316 }), G = loc.group;
+  var bench = box(1.8, 0.85, 0.7, mat(0x3b4856, { rough: 0.55 }), 0, 0.425, 2.0, G);
+  obs(loc, 0, 2.0, 0.95, 0.42);
+  var rifle = grp(0.4, 0.93, 1.95, G);
+  box(0.06, 0.06, 0.95, mat(0x222831, { rough: 0.35 }), 0, 0.03, -0.35, rifle);
+  box(0.07, 0.09, 0.38, mat(0x6e472b, { rough: 0.7 }), 0, 0.01, 0.25, rifle);
+  box(4.8, 1.5, 0.35, mat(0x2c353d, { rough: 0.6 }), 0, 0.75, -4.6, G); obs(loc, 0, -4.6, 2.5, 0.25);
+  var defs = [
+    { k: 'c', x: -1.7, y: 1.67, pts: 15, c: 0xe74c3c }, { k: 'c', x: -0.85, y: 1.67, pts: 15, c: 0x3498db }, { k: 'c', x: 0, y: 1.67, pts: 20, c: 0xf1c40f },
+    { k: 'c', x: 0.85, y: 1.67, pts: 15, c: 0x2ecc71 }, { k: 'c', x: 1.7, y: 1.67, pts: 20, c: 0x9b59b6 },
+    { k: 'd', x: -1.2, y: 2.3, pts: 25, c: 0xe67e22 }, { k: 'd', x: 0, y: 2.5, pts: 30, c: 0xff4757 }, { k: 'd', x: 1.2, y: 2.3, pts: 25, c: 0x1abc9c }
+  ];
+  var T = defs.map(function (d, i) {
+    var m = d.k === 'd' ? cyl(0.22, 0.22, 0.08, mat(d.c, { rough: 0.35 }), d.x, d.y, -4.3, G) : cyl(0.11, 0.11, 0.26, mat(d.c, { rough: 0.3 }), d.x, d.y, -4.3, G);
+    if (d.k === 'd') m.rotation.x = Math.PI / 2;
+    return { m: m, d: d, hit: false, ph: i * 0.9 };
+  });
+  function reset() { T.forEach(function (t) { t.hit = false; t.m.visible = true; }); }
+  var on = false, pts = 0, shots = 0, rec = 0, last = 0, raf = 0, hud = null, ret = null, info = null;
+  var shots_max = 12;
+  function mkHud() {
+    if (hud) return;
+    hud = document.createElement('div'); hud.style.cssText = 'position:fixed;inset:0;z-index:30;pointer-events:none;display:none';
+    info = document.createElement('div'); info.style.cssText = 'position:fixed;top:12px;left:50%;transform:translateX(-50%);background:rgba(16,21,24,.85);color:#f4f7f6;padding:8px 14px;border-radius:10px;font:600 13px sans-serif;pointer-events:auto;display:flex;gap:12px;align-items:center';
+    hud.appendChild(info);
+    ret = document.createElement('div'); ret.style.cssText = 'position:fixed;left:50%;top:50%;width:40px;height:40px;margin:-20px 0 0 -20px;border:2px solid #ff4757;border-radius:50%;box-shadow:0 0 0 1px rgba(255,255,255,.7)';
+    ret.innerHTML = '<div style="position:absolute;left:50%;top:50%;width:6px;height:6px;margin:-3px 0 0 -3px;background:#ff4757;border-radius:50%"></div>'; hud.appendChild(ret);
+    var fb = document.createElement('button'); fb.type = 'button'; fb.textContent = 'ВОГОНЬ';
+    fb.style.cssText = 'position:fixed;right:22px;bottom:90px;width:96px;height:96px;border-radius:50%;background:rgba(231,76,60,.92);color:#fff;border:3px solid #fff;font:700 15px sans-serif;pointer-events:auto;touch-action:none;cursor:pointer';
+    fb.addEventListener('pointerdown', function (e) { e.preventDefault(); e.stopPropagation(); if (on) shoot(); });
+    hud.appendChild(fb); document.body.appendChild(hud);
+    addEventListener('keydown', function (e) { if (!on || modalOpen) return; if (e.code === 'Space') { e.preventDefault(); if (!e.repeat) shoot(); } });
+  }
+  function txt() {
+    info.innerHTML = '<span>Очки: <b>' + pts + '</b></span><span>Набої: <b>' + (shots_max - shots) + '</b></span><button type="button" id="f3sx" style="padding:4px 10px;border-radius:6px;border:0;background:#e74c3c;color:#fff;font-weight:700;cursor:pointer">Завершити</button>';
+    document.getElementById('f3sx').onclick = function () { stop(true); };
+  }
+  var sx = 0, sy = 0;
+  function shoot() {
+    var n = performance.now(); if (n - last < 220) return; last = n; shots++; rec = 1;
+    var rc = new THREE.Raycaster(); rc.setFromCamera({ x: sx, y: sy }, camera);
+    var hs = rc.intersectObjects(T.filter(function (t) { return !t.hit; }).map(function (t) { return t.m; }), false);
+    if (hs.length) { var t = T.filter(function (q) { return q.m === hs[0].object; })[0]; t.hit = true; t.m.visible = false; pts += t.d.pts; toast('Влучання! +' + t.d.pts); }
+    else toast('Мимо! Приціл хитається.');
+    txt(); if (shots >= shots_max || T.every(function (q) { return q.hit; })) setTimeout(function () { stop(true); }, 450);
+  }
+  function loop(ms) {
+    if (!on) return;
+    if (cur !== loc) { stop(false); return; }
+    var t = ms / 1000; sx = Math.sin(t * 2.3) * 0.05 + Math.cos(t * 4.1) * 0.018; sy = Math.cos(t * 1.9) * 0.045 + Math.sin(t * 3.7) * 0.014 + rec * 0.03; rec = Math.max(0, rec - 0.07);
+    ret.style.left = ((sx * 0.5 + 0.5) * innerWidth) + 'px'; ret.style.top = ((-sy * 0.5 + 0.5) * innerHeight) + 'px';
+    T.forEach(function (q) { if (q.d.k === 'd' && !q.hit) q.m.position.x = q.d.x + Math.sin(t * 1.1 + q.ph) * 0.35; });
+    raf = requestAnimationFrame(loop);
+  }
+  function start() { if (on) return; mkHud(); reset(); T.forEach(function (q) { q.m.position.x = q.d.x; }); on = true; pts = 0; shots = 0; rec = 0; hud.style.display = 'block'; txt(); toast('Наведіть приціл на мішень (дивіться мишею або пальцем). ПК: Пробіл, телефон: кнопка «Вогонь». Набоїв: ' + shots_max, 5200); raf = requestAnimationFrame(loop); }
+  function stop(sum) {
+    if (!on) return; on = false; cancelAnimationFrame(raf); hud.style.display = 'none';
+    if (sum) { var nb = F3_REC.add('shoot', pts); modal('<h3>Результат тиру</h3><p>Набрано: <b>' + pts + '</b> очок, пострілів: <b>' + shots + '</b>.</p><p>Ваш рекорд: <b>' + F3_REC.best('shoot') + '</b>' + (nb && pts ? ' (новий!)' : '') + '.</p>'); }
+  }
+  act(rifle, 'Взяти рушницю і стріляти', start, { reach: 3.8 }); act(bench, 'Стіл тиру: взяти рушницю', start, { reach: 3.8 });
+  plant(loc, -4.2, 4.6); plant(loc, 4.2, 4.6);
+})();
+
+/* ---------- Реакція (гонки на старті) ---------- */
+(function () {
+  var loc = f3Room('f3_race', 10, 9, 'Мінігра: реакція', { floor: TX.tile, wall: TX.wall2, ceil: 0xece8e2, amb: 0xf7f5f0, ambI: 0.72, bg: 0x14110e }), G = loc.group;
+  var desk = box(1.8, 0.85, 0.8, mat(0x4a3b32, { rough: 0.55 }), 0, 0.425, 0.4, G);
+  var car = box(0.45, 0.22, 0.85, mat(0xe67e22, { rough: 0.3 }), 0, 0.96, 0.4, G);
+  var lights = [0, 1, 2].map(function (i) { return sph(0.11, basic(0x551111), -0.35 + i * 0.35, 1.6, -0.1, G); });
+  obs(loc, 0, 0.4, 0.95, 0.45);
+  var tok = 0;
+  function paint(c) { lights.forEach(function (l) { l.material.color.set(c); }); }
+  function menu() {
+    paint(0x551111);
+    modal('<h3>Старт гонки</h3><p>Натисніть «Старт». Коли світлофор стане зеленим, якнайшвидше натисніть «ГАЗ». Раніше часу це фальстарт.</p><p class="muted">Ваш рекорд: <b>' + F3_REC.best('race') + '</b> очок.</p><button class="main" id="f3go">Старт</button>', function () { tok++; paint(0x551111); });
+    document.getElementById('f3go').onclick = round;
+  }
+  function round() {
+    var my = ++tok, ready = false, t0 = 0;
+    var b = modal('<h3>Приготуйтесь...</h3><p>Чекайте зелений сигнал.</p><button class="main" id="f3gas" style="background:#8a2a2a">ГАЗ</button>', function () { tok++; paint(0x551111); });
+    paint(0xd03030);
+    document.getElementById('f3gas').onclick = function () {
+      if (my !== tok) return;
+      if (!ready) { tok++; paint(0x551111); modal('<h3>Фальстарт!</h3><p>Ви натиснули раніше сигналу: 0 очок.</p><button class="main" id="f3a">Ще раз</button>'); document.getElementById('f3a').onclick = round; return; }
+      var ms = Math.round(performance.now() - t0), pts = Math.max(0, Math.min(100, Math.round(100 - (ms - 150) / 6)));
+      tok++; var nb = F3_REC.add('race', pts);
+      modal('<h3>Реакція: ' + ms + ' мс</h3><p>Очки: <b>' + pts + '</b>' + (nb && pts ? ' (новий рекорд!)' : '') + '. Ваш рекорд: <b>' + F3_REC.best('race') + '</b>.</p><button class="main" id="f3a">Ще раз</button>');
+      document.getElementById('f3a').onclick = round;
+    };
+    setTimeout(function () { if (my !== tok) return; paint(0x30d060); var g = document.getElementById('f3gas'); if (g) g.style.background = '#1f8a45'; ready = true; t0 = performance.now(); }, 1500 + Math.random() * 2500);
+  }
+  act(car, 'Сісти за кермо: гонки', menu, { reach: 3.5 }); act(desk, 'Пульт гонок', menu, { reach: 3.5 });
+  plant(loc, -4.2, 3.4); plant(loc, 4.2, 3.4);
+})();
+
 var CODES={};
 /* ====== СТАН ГРИ, ТАЙМЕРИ, БАЛИ, ПЕРЕХОДИ, ЗВ'ЯЗОК ІЗ САЙТОМ ====== */
 /* У кабінеті (iframe) бали й час рахує сервер сайту: ті самі завдання z1..z5.
