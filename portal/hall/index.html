@@ -2441,7 +2441,8 @@ function petGeo(kind, cb) {
       for (var f = 0; f < nf; f++) { var a = new Float32Array(n * 3); for (i = 0; i < n * 3; i++) a[i] = p[f * n * 3 + i] / k; mt.push(new THREE.BufferAttribute(a, 3)); }
       var s0 = d.clips.idle.s; g.setAttribute('position', new THREE.BufferAttribute(mt[s0].array.slice(), 3)); g.setAttribute('normal', new THREE.BufferAttribute(nf3, 3)); g.setAttribute('color', new THREE.BufferAttribute(cf, 3)); g.setIndex(new THREE.BufferAttribute(ix, 1));
       g.morphAttributes.position = mt;
-      r = { dog: 1, geo: g, clips: d.clips, nf: nf, h: d.h, mat: new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.85, metalness: 0, morphTargets: true, side: THREE.DoubleSide }) };
+      if (d.mn) { var mnr = b(d.mn, Int8Array), mm = []; for (f = 0; f < nf; f++) { var na = new Float32Array(n * 3); for (i = 0; i < n * 3; i++) na[i] = mnr[f * n * 3 + i] / 127; mm.push(new THREE.BufferAttribute(na, 3)); } g.morphAttributes.normal = mm; }
+      r = { dog: 1, geo: g, clips: d.clips, nf: nf, h: d.h, mat: new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.85, metalness: 0, morphTargets: true, morphNormals: !!d.mn, side: THREE.DoubleSide }) };
     } else {
       r = { parts: {}, h: d.h, mat: P2.mat ? null : null };
       Object.keys(d.parts).forEach(function (key) { var pd = d.parts[key]; r.parts[key] = { geo: P2.dec(pd), piv: pd.piv }; });
@@ -2454,6 +2455,7 @@ function petGeo(kind, cb) {
 /* ---- об'єкт тварини з анімаціями ---- */
 function Pet(kind) {
   this.kind = kind; this.g = new THREE.Group(); this.inner = new THREE.Group(); this.g.add(this.inner); this.clip = 'idle'; this.t = 0; this.prev = null; this.blend = 1; this.speed = 1; this.ready = false;
+  var sh = new THREE.Mesh(new THREE.CircleGeometry(0.22, 20), new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.35, depthWrite: false })); sh.rotation.x = -Math.PI / 2; sh.position.y = 0.015; sh.scale.set(1, 1.7, 1); this.g.add(sh);
   this.pose = { by: 0, bp: 0, br: 0, hd: 0, tl: 0, fl: 0, fr: 0, bl: 0, brr: 0, al: 0, ar: 0, az: 0 }; this.touched = [];
   var self = this; petGeo(kind, function (r) { self.build(r); });
 }
