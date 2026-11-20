@@ -2104,7 +2104,7 @@ function console_(loc, wi, lx, w) {
 })();
 
 /* ====== 3 ПОВЕРХ: відпочинок і мініігри (f3, f3_rank, f3_shoot, f3_race) ====== */
-ROOMX.f3 = 700; ROOMX.f3_rank = 740; ROOMX.f3_shoot = 780; ROOMX.f3_race = 820;
+ROOMX.f3 = 700; ROOMX.f3_shoot = 780; ROOMX.f3_race = 820; ROOMX.f3_relax = 860;
 
 /* рекорди мініігор (зберігаються в браузері, найкращий результат кожної гри) */
 var F3_REC = (function () {
@@ -2140,7 +2140,7 @@ var f3Door = {};
 
   /* двері до мініігор: задня стіна (wall 0) */
   var DOORS = [
-    { id: 'f3_rank', lx: -2.4, lines: ['Рекорди'], title: 'Рекорди мініігор' },
+    { id: 'f3_relax', lx: -2.4, lines: ['Кімната', 'відпочинку'], title: 'Кімната відпочинку' },
     { id: 'f3_shoot', lx: 1.2, lines: ['Мінігра', 'Тир'], title: 'Мінігра: тир' },
     { id: 'f3_race', lx: 4.8, lines: ['Мінігра', 'Реакція'], title: 'Мінігра: реакція' }
   ];
@@ -2156,29 +2156,41 @@ var f3Door = {};
   var stand = box(0.75, 0.9, 0.5, mat(0x4a5d6e, { rough: 0.6 }), -6.2, 0.45, -2.2, G);
   obs(F3, -6.2, -3.8, 1.3, 0.2); obs(F3, -6.2, -2.2, 0.45, 0.3);
   act(stand, 'Фотозона: змінити рамку', function () { fi = (fi + 1) % frames.length; toast(frames[fi] + '. Клікніть ще раз, щоб змінити рамку.'); }, { reach: 3.6 });
-  plant(F3, -8.2, 3.2); plant(F3, 8.2, -3.2);
+  plant(F3, -8.2, 3.2); plant(F3, -8.4, -3.2);
+
+  /* стенд рекордів на стіні коридору (малюється на полотні й оновлюється при вході) */
+  (function () {
+    var cv2 = document.createElement('canvas'); cv2.width = 1024; cv2.height = 640; var cx = cv2.getContext('2d');
+    var tex = new THREE.CanvasTexture(cv2); tex.anisotropy = 4;
+    function draw() {
+      cx.fillStyle = '#17110b'; cx.fillRect(0, 0, 1024, 640);
+      cx.strokeStyle = '#d9b46a'; cx.lineWidth = 8; cx.strokeRect(14, 14, 996, 612);
+      cx.fillStyle = '#f2d9a0'; cx.textAlign = 'center'; cx.font = '700 64px Georgia, serif'; cx.fillText('СТЕНД РЕКОРДІВ', 512, 110);
+      cx.font = '600 40px Georgia, serif'; cx.textAlign = 'left';
+      var rows = [['Тир', F3_REC.best('shoot')], ['Реакція (гонки)', F3_REC.best('race')]], y = 230;
+      rows.forEach(function (r) { cx.fillStyle = '#f2d9a0'; cx.fillText(r[0], 90, y); cx.textAlign = 'right'; cx.fillStyle = '#ffffff'; cx.fillText(r[1] + ' очок', 934, y); cx.textAlign = 'left'; y += 90; });
+      cx.strokeStyle = '#8a7340'; cx.lineWidth = 3; cx.beginPath(); cx.moveTo(90, 400); cx.lineTo(934, 400); cx.stroke();
+      cx.fillStyle = '#f2d9a0'; cx.fillText('Разом', 90, 470); cx.textAlign = 'right'; cx.fillStyle = '#ffd36b'; cx.font = '700 52px Georgia, serif'; cx.fillText((F3_REC.best('shoot') + F3_REC.best('race')) + ' очок', 934, 470);
+      cx.textAlign = 'center'; cx.font = '400 24px sans-serif'; cx.fillStyle = '#bdae88'; cx.fillText('Ваші найкращі результати на цьому пристрої', 512, 575);
+      tex.needsUpdate = true;
+    }
+    draw();
+    var frame = box(2.6, 1.7, 0.08, mat(0x3a2a18, { rough: 0.5 }), 7.4, 1.95, -3.93, G);
+    var pl2 = new THREE.Mesh(new THREE.PlaneGeometry(2.4, 1.5), new THREE.MeshBasicMaterial({ map: tex })); pl2.position.set(7.4, 1.95, -3.88); G.add(pl2);
+    act(pl2, 'Стенд рекордів', function () { draw(); modal(F3_REC.html()); }, { reach: 6 }); act(frame, 'Стенд рекордів', function () { draw(); modal(F3_REC.html()); }, { reach: 6 });
+    F3.onEnter = draw;
+  })();
 })();
 
 /* кімната мініігор: вихід у коридор 3 поверху */
 function f3Room(id, W, D, title, o) {
-  var loc = newRoom(id, W, D, 3.5, o), lx = { f3_rank: -2.4, f3_shoot: 1.2, f3_race: 4.8 }[id];
+  var loc = newRoom(id, W, D, 3.5, o), lx = { f3_relax: -2.4, f3_shoot: 1.2, f3_race: 4.8 }[id];
   var back = { id: 'f3', sp: { x: F3.X + lx, z: -F3.D / 2 + 2.3, yaw: Math.PI } };
   pubLoc(loc, title, back);
   var d = pdoor(loc, 2, 0, ['Вихід'], function () { walkIn(d.leaf, function () { teleport('f3', back.sp); }); });
   pl(loc, 0xfff0d8, 0.8, 11, -W / 4, 3.0, 0); pl(loc, 0xfff0d8, 0.8, 11, W / 4, 3.0, 0);
   return loc;
 }
-
-/* ---------- Рекорди ---------- */
-(function () {
-  var loc = f3Room('f3_rank', 8, 7, 'Рекорди мініігор', { floor: TX.tile, wall: TX.wall2, ceil: 0xe4ebe8, amb: 0xf2f7f5, ambI: 0.72, bg: 0x0d1214 }), G = loc.group;
-  var bd = box(2.8, 1.5, 0.12, mat(0x1f2a33, { rough: 0.4 }), 0, 1.7, -3.3, G);
-  var dk = box(1.2, 0.85, 0.6, mat(0x3a4b59, { rough: 0.55 }), 0, 0.425, -1.8, G);
-  obs(loc, 0, -1.8, 0.65, 0.35);
-  var show = function () { modal(F3_REC.html()); };
-  act(bd, 'Табло рекордів', show, { reach: 6 }); act(dk, 'Пульт рекордів', show, { reach: 4.6 });
-  plant(loc, -3.2, 2.6); plant(loc, 3.2, 2.6);
-})();
 
 /* ---------- Тир ---------- */
 (function () {
@@ -2275,6 +2287,81 @@ function f3Room(id, W, D, title, o) {
   }
   act(car, 'Сісти за кермо: гонки', menu, { reach: 3.5 }); act(desk, 'Пульт гонок', menu, { reach: 3.5 });
   plant(loc, -4.2, 3.4); plant(loc, 4.2, 3.4);
+})();
+
+/* ---------- Кімната відпочинку: лаунж-зони (15 місць), люстри, торшери ---------- */
+var F3R = null;
+(function () {
+  var loc = F3R = f3Room('f3_relax', 16, 12, 'Кімната відпочинку', { floor: TX.tile, wall: TX.wall2, ceil: 0xd9d9d6, amb: 0xfff0dc, ambI: 0.38, bg: 0x0d0f10, H: 3.8 }), G = loc.group;
+  loc.H = 3.8; var W = 16, D = 12, H = 3.5;
+  pl(loc, 0xffe6c0, 0.55, 14, -4, 3.0, -2); pl(loc, 0xffe6c0, 0.55, 14, 4, 3.0, -2); pl(loc, 0xffe6c0, 0.5, 14, 0, 3.0, 3);
+  /* текстури: підлога мармурова плитка, стеля вінілова, стіни бетон з дерев'яними вставками (близько 30%) */
+  var TL = new THREE.TextureLoader(), IMG = {}, need = ['concrete', 'tile', 'wood', 'vinyl'], got = 0;
+  need.forEach(function (n) { TL.load('tex/relax_' + n + '.jpg', function (t) { IMG[n] = t.image; if (++got === need.length) build(); }); });
+  function build() {
+    var fl = G.children.filter(function (o) { return o.isMesh && o.geometry.type === 'PlaneGeometry'; });
+    var fm = fl[0], cm = fl[1];
+    var tf = new THREE.Texture(IMG.tile); tf.wrapS = tf.wrapT = THREE.RepeatWrapping; tf.repeat.set(W / 2.4, D / 2.4); tf.anisotropy = 4; tf.needsUpdate = true; fm.material = new THREE.MeshStandardMaterial({ map: tf, roughness: 0.35 });
+    var tc = new THREE.Texture(IMG.vinyl); tc.wrapS = tc.wrapT = THREE.RepeatWrapping; tc.repeat.set(W / 1.5, D / 1.5); tc.needsUpdate = true; if (cm) cm.material = new THREE.MeshStandardMaterial({ map: tc, roughness: 0.9 });
+    var FR = [[0, 0.18], [1, 0.15], [0, 0.22], [1, 0.15], [0, 0.30]]; /* 1 = дерево: 15% + 15% = 30% довжини стіни */
+    loc.walls.forEach(function (wg) {
+      var pn = wg.children[0], len = pn.geometry.parameters.width, PPM = 96, cw = Math.round(len * PPM), ch = Math.round(3.5 * PPM);
+      var cv = document.createElement('canvas'); cv.width = cw; cv.height = ch; var x = cv.getContext('2d');
+      function tile(img, x0, x1, tw) { for (var tx = x0; tx < x1; tx += tw) { var w = Math.min(tw, x1 - tx); x.drawImage(img, 0, 0, img.width * (w / tw), img.height, tx, 0, w, ch); } }
+      var cx0 = 0;
+      FR.forEach(function (f) { var x1 = cx0 + Math.round(f[1] * cw); if (f[0]) { tile(IMG.wood, cx0, x1, Math.round(1.2 * PPM)); x.fillStyle = 'rgba(0,0,0,.45)'; x.fillRect(cx0, 0, 3, ch); x.fillRect(x1 - 3, 0, 3, ch); } else tile(IMG.concrete, cx0, x1, Math.round(1.8 * PPM)); cx0 = x1; });
+      var t = new THREE.CanvasTexture(cv); t.anisotropy = 4; pn.material = new THREE.MeshStandardMaterial({ map: t, roughness: 0.8 });
+    });
+  }
+  /* лаунж-зони: диван-куток + крісло, 5 місць у кожній */
+  var seatsAll = [];
+  function seatAt(g, rx, rz, ry, lx, lz, yaw) {
+    var c = Math.cos(ry), s = Math.sin(ry), wx = g.x + lx * c + lz * s, wz = g.z - lx * s + lz * c;
+    return { x: loc.X + wx, z: wz, yaw: yaw + ry, lx: wx, lz: wz };
+  }
+  var ZONES = [{ x: -4.2, z: -3.4, ry: 0 }, { x: 4.2, z: -3.4, ry: 0 }, { x: 5.7, z: 3.0, ry: -Math.PI / 2 }, { x: -5.7, z: 3.0, ry: Math.PI / 2 }];
+  var SEATS = [[-0.586, -1.337, Math.PI], [0.304, -1.337, Math.PI], [1.284, -0.687, Math.PI], [-2.446, 1.333, -Math.PI / 2]]; /* 3 дивани + крісло = 4 місця в зоні, 4 зони = 16 місць */
+  function sitSeat(s) {
+    if (window.__seatTaken && window.__seatTaken(s.x, s.z)) { toast('Це місце зайняте.'); return; }
+    sitDown({ x: s.x, z: s.z, yaw: s.yaw });
+  }
+  P2.file('props_lounge', function (d) {
+    ZONES.forEach(function (zn) {
+      var m = P2.mesh(d.lounge, 'v'); var g = new THREE.Group(); g.position.set(zn.x + d.lounge.cx * 0, 0, zn.z); g.rotation.y = zn.ry; g.add(m); G.add(g);
+    });
+  });
+  ZONES.forEach(function (zn) {
+    SEATS.forEach(function (sd) {
+      var s = seatAt(zn, 0, 0, zn.ry, sd[0], sd[1], sd[2]); seatsAll.push(s);
+      var h = hit(G, 0.85, 0.7, 0.8, s.lx, 0.45, s.lz); act(h, 'Сісти', function () { sitSeat(s); }, { reach: 4.4 });
+    });
+    /* перешкоди: диванний ряд, крісло, столик */
+    var c = Math.cos(zn.ry), sn = Math.sin(zn.ry);
+    function ob(lx, lz, hw, hd) { var wx = zn.x + lx * c + lz * sn, wz = zn.z - lx * sn + lz * c, sw = Math.abs(c) > 0.5; obs(loc, wx, wz, sw ? hw : hd, sw ? hd : hw); }
+    ob(0.2, -1.2, 2.0, 0.7); ob(1.3, -0.5, 0.6, 0.9); ob(-2.45, 1.33, 0.55, 0.55); ob(-0.2, 0.9, 0.75, 0.5);
+  });
+  loc.seats = seatsAll;
+  /* люстри (Light_Ceiling2) і торшери (Light_Floor1) із невикористаних моделей пакету */
+  P2.file('props_extra', function (d) {
+    [[-4, -1], [4, -1], [0, 2.5], [-4, 3.5], [4, 3.5]].forEach(function (p) {
+      var m = P2.mesh(d.Light_Ceiling2, 'v'); m.position.set(p[0], 3.5 - d.Light_Ceiling2.h, p[1]); m.scale.setScalar(1.15); G.add(m);
+    });
+    [[-7.2, -5.2], [7.2, -5.2], [-7.2, 5.0], [2.4, -4.9]].forEach(function (p) { var m = P2.mesh(d.Light_Floor1, 'v'); m.position.set(p[0], 0, p[1]); G.add(m); obs(loc, p[0], p[1], 0.2, 0.2); });
+    [[-7.4, 0.5], [7.4, 0.5], [-7.4, -3]].forEach(function (p) { var m = P2.mesh(d.Houseplant_8, 'v'); m.position.set(p[0], 0, p[1]); G.add(m); obs(loc, p[0], p[1], 0.4, 0.4); });
+  });
+})();
+
+/* ---------- Декор: кімнатні рослини (Indoor Plants) у нових кімнатах 3 поверху ---------- */
+(function () {
+  var SPOTS = [
+    [F3, 'indor_plants_1', -8.4, 0.6, 1.4], [F3, 'indor_plants_2', 3.0, -3.45, 1.1],
+    [LOC.f3_shoot, 'indor_plants_2', -4.3, -5.0, 1.1], [LOC.f3_shoot, 'indor_plants_1', 4.3, -5.0, 1.4],
+    [LOC.f3_race, 'indor_plants_1', -4.3, -3.8, 1.4], [LOC.f3_race, 'indor_plants_2', 4.3, -3.8, 1.1],
+    [LOC.f3_relax, 'indor_plants_1', -7.4, -1.6, 1.5], [LOC.f3_relax, 'indor_plants_2', 7.4, -1.6, 1.2], [LOC.f3_relax, 'indor_plants_2', 1.5, -5.2, 1.2]
+  ];
+  P2.file('props_decor', function (d) {
+    SPOTS.forEach(function (s) { var m = P2.mesh(d[s[1]], 'v'); m.position.set(s[2], 0, s[3]); m.scale.setScalar(s[4]); s[0].group.add(m); obs(s[0], s[2], s[3], 0.3, 0.3); });
+  });
 })();
 
 var CODES={};
