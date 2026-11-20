@@ -2338,7 +2338,7 @@ var F3R = null;
     /* перешкоди: диванний ряд, крісло, столик */
     var c = Math.cos(zn.ry), sn = Math.sin(zn.ry);
     function ob(lx, lz, hw, hd) { var wx = zn.x + lx * c + lz * sn, wz = zn.z - lx * sn + lz * c, sw = Math.abs(c) > 0.5; obs(loc, wx, wz, sw ? hw : hd, sw ? hd : hw); }
-    ob(0.2, -1.25, 2.0, 0.5); ob(1.3, -0.6, 0.5, 0.75); ob(-2.45, 1.33, 0.5, 0.5); ob(-0.2, 0.95, 0.6, 0.28);
+    ob(0.2, -1.8, 2.0, 0.2); ob(1.9, -0.6, 0.15, 0.75); ob(-2.95, 1.33, 0.15, 0.5); ob(-0.2, 0.95, 0.6, 0.28);
   });
   loc.seats = seatsAll;
   /* люстри (Light_Ceiling2) і торшери (Light_Floor1) із невикористаних моделей пакету */
@@ -2346,7 +2346,7 @@ var F3R = null;
     [[-4, -1], [4, -1], [0, 2.5], [-4, 3.5], [4, 3.5]].forEach(function (p) {
       var m = P2.mesh(d.Light_Ceiling2, 'v'); m.position.set(p[0], 3.5 - d.Light_Ceiling2.h, p[1]); m.scale.setScalar(1.15); G.add(m);
     });
-    [[-7.2, -5.2], [7.2, -5.2], [-7.2, 5.0], [2.4, -4.9]].forEach(function (p) { var m = P2.mesh(d.Light_Floor1, 'v'); m.position.set(p[0], 0, p[1]); G.add(m); obs(loc, p[0], p[1], 0.2, 0.2); });
+    [[-7.2, 5.0], [2.4, -4.9]].forEach(function (p) { var m = P2.mesh(d.Light_Floor1, 'v'); m.position.set(p[0], 0, p[1]); G.add(m); obs(loc, p[0], p[1], 0.2, 0.2); });
     [[-7.4, 0.5], [7.4, 0.5], [-7.4, -3]].forEach(function (p) { var m = P2.mesh(d.Houseplant_8, 'v'); m.position.set(p[0], 0, p[1]); G.add(m); obs(loc, p[0], p[1], 0.4, 0.4); });
   });
 })();
@@ -2362,6 +2362,325 @@ var F3R = null;
   P2.file('props_decor', function (d) {
     SPOTS.forEach(function (s) { var m = P2.mesh(d[s[1]], 'v'); m.position.set(s[2], 0, s[3]); m.scale.setScalar(s[4]); s[0].group.add(m); obs(s[0], s[2], s[3], 0.3, 0.3); });
   });
+})();
+
+/* ====== ПИТОМЦІ: гаманець балів, тварини в кімнаті відпочинку, дресирування, звуки, синхронізація ====== */
+var WAL = (function () {
+  var S = { pts: 0 };
+  try { S.pts = +JSON.parse(localStorage.getItem('hall-wallet') || '{}').pts || 0; } catch (e) {}
+  function save() { try { localStorage.setItem('hall-wallet', JSON.stringify(S)); } catch (e) {} }
+  return {
+    get: function () { return S.pts; },
+    add: function (n, why) { n = Math.round(n); if (n <= 0) return; S.pts += n; save(); toast('+' + n + ' балів' + (why ? ' (' + why + ')' : '') + '. Усього: ' + S.pts, 3200); },
+    spend: function (n) { if (S.pts < n) return false; S.pts -= n; save(); return true; }
+  };
+})();
+/* бали за мініігри 3 поверху */
+(function () {
+  var a = F3_REC.add, nm = { shoot: 'тир', race: 'реакція' };
+  F3_REC.add = function (k, p) { if (p > 0) WAL.add(p, nm[k] || k); return a.apply(this, arguments); };
+})();
+
+window.__camYaw = function () { return yaw; };
+var PETDEF = {
+  collie: { nm: 'Коллі', file: 'pet_collie', dog: 1, pitch: 1.0, d: 'Швидка й розумна. Бігає, гавкає, любить служити.' },
+  lab: { nm: 'Лабрадор', file: 'pet_lab', dog: 1, pitch: 0.75, d: 'Добрий і ласий до ласощів. Дуже старанний.' },
+  deer: { nm: 'Лань', file: 'pet_deer', d: 'Лякливе, граціозне створіння. Складніше приручити.' },
+  monkey: { nm: 'Мавпа', file: 'pet_monkey', d: 'Кумедна й непосидюча. Стрибає від радості.' }
+};
+var PET_LVL = ['Дикун', 'Недовірливий', 'Слухняний', 'Вихований', 'Друг', 'Вірний'];
+var PET_STEP = [3, 8, 15, 25, 40];
+var PET_CMD = { sit: ['Сидіти', 'sit'], lie: ['Лежати', 'lie'], beg: ['Служити', 'beg'], speak: ['Голос', 'bark'], dance: ['Танцювати', 'happy'], come: ['До мене', 'run'] };
+
+/* ---- звуки (синтез) ---- */
+var PSND = (function () {
+  var ac = null;
+  function ctx() { if (!ac) { try { ac = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) {} } if (ac && ac.state === 'suspended') ac.resume(); return ac; }
+  function tone(type, f0, f1, t0, dur, vol, filt) {
+    var c = ctx(); if (!c) return; var o = c.createOscillator(), g = c.createGain(), n = c.currentTime + t0; o.type = type;
+    o.frequency.setValueAtTime(f0, n); o.frequency.exponentialRampToValueAtTime(Math.max(30, f1), n + dur);
+    g.gain.setValueAtTime(0.0001, n); g.gain.exponentialRampToValueAtTime(vol, n + 0.015); g.gain.exponentialRampToValueAtTime(0.0001, n + dur);
+    var out = g; if (filt) { var b = c.createBiquadFilter(); b.type = 'bandpass'; b.frequency.value = filt; b.Q.value = 1.2; o.connect(b); b.connect(g); } else o.connect(g);
+    g.connect(c.destination); o.start(n); o.stop(n + dur + 0.05);
+  }
+  function noise(t0, dur, vol, f) {
+    var c = ctx(); if (!c) return; var n = c.currentTime + t0, len = Math.floor(c.sampleRate * dur), b = c.createBuffer(1, len, c.sampleRate), d = b.getChannelData(0);
+    for (var i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / len);
+    var s = c.createBufferSource(), fl = c.createBiquadFilter(), g = c.createGain(); fl.type = 'bandpass'; fl.frequency.value = f; fl.Q.value = 0.8; g.gain.value = vol;
+    s.buffer = b; s.connect(fl); fl.connect(g); g.connect(c.destination); s.start(n);
+  }
+  function play(kind, type) {
+    var def = PETDEF[kind]; if (!def || !ctx()) return;
+    if (def.dog) {
+      var p = def.pitch;
+      if (type === 'bark') { for (var i = 0; i < 2; i++) { tone('sawtooth', 520 * p, 230 * p, i * 0.28, 0.16, 0.16, 900); noise(i * 0.28, 0.1, 0.12, 1500); } }
+      else if (type === 'happy') { tone('sine', 700 * p, 1100 * p, 0, 0.18, 0.1); tone('sine', 900 * p, 700 * p, 0.2, 0.2, 0.1); }
+      else if (type === 'whine') { tone('sine', 900 * p, 500 * p, 0, 0.5, 0.09); }
+      else if (type === 'ok') { tone('sawtooth', 450 * p, 260 * p, 0, 0.14, 0.12, 800); }
+    } else if (kind === 'deer') {
+      tone('sawtooth', 300, 250, 0, 0.55, 0.1, 700); tone('triangle', 150, 130, 0, 0.55, 0.07);
+    } else {
+      for (var j = 0; j < 4; j++) tone('triangle', 500 + j * 90, 900 + j * 60, j * 0.16, 0.13, 0.11, 1200);
+    }
+  }
+  return { play: play };
+})();
+
+/* ---- завантаження моделей ---- */
+var PETGEO = {};
+function petGeo(kind, cb) {
+  if (PETGEO[kind]) { cb(PETGEO[kind]); return; }
+  var def = PETDEF[kind];
+  P2.file(def.file, function (d) {
+    var b = function (s, T) { var bin = atob(s), u = new Uint8Array(bin.length); for (var i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i); return new T(u.buffer); };
+    var r;
+    if (def.dog) {
+      var n = d.n, p = b(d.p, Int16Array), nn = b(d.nn, Int8Array), c = b(d.c, Uint8Array), ix = b(d.i, Uint16Array), nf = d.nf, k = d.k;
+      var g = new THREE.BufferGeometry(), nf3 = new Float32Array(n * 3), cf = new Float32Array(n * 3), mt = [];
+      for (var i = 0; i < n * 3; i++) { nf3[i] = nn[i] / 127; cf[i] = c[i] / 255; }
+      for (var f = 0; f < nf; f++) { var a = new Float32Array(n * 3); for (i = 0; i < n * 3; i++) a[i] = p[f * n * 3 + i] / k; mt.push(new THREE.BufferAttribute(a, 3)); }
+      var s0 = d.clips.idle.s; g.setAttribute('position', new THREE.BufferAttribute(mt[s0].array.slice(), 3)); g.setAttribute('normal', new THREE.BufferAttribute(nf3, 3)); g.setAttribute('color', new THREE.BufferAttribute(cf, 3)); g.setIndex(new THREE.BufferAttribute(ix, 1));
+      g.morphAttributes.position = mt;
+      r = { dog: 1, geo: g, clips: d.clips, nf: nf, h: d.h, mat: new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.85, metalness: 0, morphTargets: true, side: THREE.DoubleSide }) };
+    } else {
+      r = { parts: {}, h: d.h, mat: P2.mat ? null : null };
+      Object.keys(d.parts).forEach(function (key) { var pd = d.parts[key]; r.parts[key] = { geo: P2.dec(pd), piv: pd.piv }; });
+      r.mat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.85, metalness: 0, side: THREE.DoubleSide });
+    }
+    PETGEO[kind] = r; cb(r);
+  });
+}
+
+/* ---- об'єкт тварини з анімаціями ---- */
+function Pet(kind) {
+  this.kind = kind; this.g = new THREE.Group(); this.inner = new THREE.Group(); this.g.add(this.inner); this.clip = 'idle'; this.t = 0; this.prev = null; this.blend = 1; this.speed = 1; this.ready = false;
+  this.pose = { by: 0, bp: 0, br: 0, hd: 0, tl: 0, fl: 0, fr: 0, bl: 0, brr: 0, al: 0, ar: 0, az: 0 }; this.touched = [];
+  var self = this; petGeo(kind, function (r) { self.build(r); });
+}
+Pet.prototype.build = function (r) {
+  this.r = r; var def = PETDEF[this.kind];
+  if (r.dog) {
+    this.mesh = new THREE.Mesh(r.geo, r.mat); this.mesh.frustumCulled = false; this.mesh.updateMorphTargets(); this.mesh.rotation.y = def.rot || 0; this.inner.add(this.mesh);
+  } else {
+    this.pg = {}; var self = this;
+    Object.keys(r.parts).forEach(function (k) { var pr = r.parts[k], gr = new THREE.Group(); gr.position.set(pr.piv[0], pr.piv[1], pr.piv[2]); var m = new THREE.Mesh(pr.geo, r.mat); m.frustumCulled = false; gr.add(m); self.inner.add(gr); self.pg[k] = gr; });
+  }
+  this.ready = true; this.height = r.h;
+};
+Pet.prototype.play = function (name) {
+  if (name === this.clip) return;
+  this.prev = { clip: this.clip, t: this.t }; this.clip = name; this.t = 0; this.blend = 0;
+};
+Pet.prototype.tick = function (dt) {
+  if (!this.ready) return;
+  this.t += dt; if (this.blend < 1) this.blend = Math.min(1, this.blend + dt / 0.25);
+  if (this.r.dog) this.tickDog(dt); else this.tickProc(dt);
+};
+Pet.prototype.tickDog = function (dt) {
+  var inf = this.mesh.morphTargetInfluences, i, cl = this.r.clips;
+  for (i = 0; i < this.touched.length; i++) inf[this.touched[i]] = 0; this.touched.length = 0;
+  var self = this;
+  function add(name, t, w) {
+    var c = cl[name]; if (!c || w <= 0) return; var pos = t * c.fps * self.speed, i0, i1, fr;
+    if (c.loop) { pos = ((pos % c.n) + c.n) % c.n; i0 = Math.floor(pos); i1 = (i0 + 1) % c.n; } else { pos = Math.min(pos, c.n - 1); i0 = Math.floor(pos); i1 = Math.min(i0 + 1, c.n - 1); }
+    fr = pos - i0; inf[c.s + i0] += (1 - fr) * w; inf[c.s + i1] += fr * w; self.touched.push(c.s + i0, c.s + i1);
+  }
+  var nm = this.clip, t = this.t;
+  if (nm === 'lie' && cl.lie && t * cl.lie.fps >= cl.lie.n - 1) { nm = 'rest'; t -= (cl.lie.n - 1) / cl.lie.fps; }
+  add(nm, t, this.blend);
+  if (this.prev && this.blend < 1) { var pn = this.prev.clip, pt = this.prev.t + (this.t - 0); if (pn === 'lie' && cl.lie && pt * cl.lie.fps >= cl.lie.n - 1) { pn = 'rest'; pt -= (cl.lie.n - 1) / cl.lie.fps; } add(pn, pt, 1 - this.blend); }
+};
+Pet.prototype.tickProc = function (dt) {
+  var t = this.t, c = this.clip, T = performance.now() / 1000, deer = this.kind === 'deer', P = this.pose, tg = { by: 0, bp: 0, br: 0, hd: 0, tl: 0, fl: 0, fr: 0, bl: 0, brr: 0, al: 0, ar: 0, az: 0 };
+  var s = Math.sin(T * 2.2) * 0.02, h = this.height || 1;
+  if (c === 'idle' || c === 'rest') { tg.hd = Math.sin(T * 0.9) * 0.12; tg.tl = Math.sin(T * 3) * 0.3; tg.by = s * h; tg.al = tg.ar = Math.sin(T * 1.4) * 0.05; }
+  else if (c === 'walk' || c === 'run') {
+    var f = (c === 'run' ? 11 : 6) * this.speed, sw = Math.sin(T * f), amp = c === 'run' ? 0.7 : 0.4;
+    tg.fl = sw * amp; tg.brr = sw * amp; tg.fr = -sw * amp; tg.bl = -sw * amp; tg.al = sw * amp * 1.2; tg.ar = -sw * amp * 1.2; tg.by = Math.abs(Math.sin(T * f)) * 0.03 * h * (c === 'run' ? 2 : 1); tg.hd = Math.sin(T * f) * 0.1; tg.tl = Math.sin(T * f * 1.5) * 0.4; tg.bp = c === 'run' ? 0.1 : 0;
+    if (!deer) tg.br = Math.sin(T * f) * 0.12;
+  }
+  else if (c === 'sit') { if (deer) { tg.by = -0.1 * h; tg.fl = tg.fr = 0.5; tg.bl = tg.brr = -1.2; tg.hd = -0.1; } else { tg.hd = Math.sin(T * 1.2) * 0.1; tg.al = tg.ar = 0.1; } }
+  else if (c === 'lie') { if (deer) { tg.by = -0.32 * h; tg.fl = tg.fr = 1.5; tg.bl = tg.brr = -1.5; tg.hd = 0.1; } else { tg.by = 0.1 * h; tg.br = 1.4; tg.al = 1.2; tg.ar = 1.2; } }
+  else if (c === 'beg') { if (deer) { tg.bp = -0.45; tg.by = 0.1 * h; tg.fl = tg.fr = 1.2 + Math.sin(T * 6) * 0.3; tg.hd = 0.2; } else { tg.al = tg.ar = 2.8 + Math.sin(T * 7) * 0.25; tg.hd = -0.2; } }
+  else if (c === 'bark') { tg.hd = -Math.abs(Math.sin(T * 8)) * 0.35; tg.by = Math.abs(Math.sin(T * 8)) * 0.04 * h; if (deer) { tg.fl = Math.sin(T * 8) * 0.4; } else { tg.al = -Math.sin(T * 8) * 0.8 + 0.4; tg.ar = Math.sin(T * 8) * 0.8 + 0.4; tg.az = 0.5; } }
+  else if (c === 'happy') { var j = Math.abs(Math.sin(T * 5)); tg.by = j * 0.18 * h; tg.hd = Math.sin(T * 10) * 0.25; tg.tl = Math.sin(T * 14) * 0.6; tg.fl = tg.fr = j * 0.6; tg.al = tg.ar = 2.6 + Math.sin(T * 10) * 0.4; tg.br = Math.sin(T * 5) * 0.1; }
+  var k = Math.min(1, dt * 9); for (var key in tg) P[key] += (tg[key] - P[key]) * k;
+  var pg = this.pg; this.inner.position.y = P.by; this.inner.rotation.x = P.bp; this.inner.rotation.z = P.br;
+  if (pg.head) pg.head.rotation.x = P.hd; if (pg.tail) { pg.tail.rotation.z = P.tl; pg.tail.rotation.x = deer ? 0 : P.tl * 0.3; }
+  if (deer) { if (pg.fll) pg.fll.rotation.x = P.fl; if (pg.flr) pg.flr.rotation.x = P.fr; if (pg.bll) pg.bll.rotation.x = P.bl; if (pg.blr) pg.blr.rotation.x = P.brr; }
+  else { if (pg.arml) { pg.arml.rotation.x = P.al; pg.arml.rotation.z = -P.az; } if (pg.armr) { pg.armr.rotation.x = P.ar; pg.armr.rotation.z = P.az; } }
+};
+
+/* ---- стан власного питомця ---- */
+var PETST = (function () {
+  var S = null;
+  try { S = JSON.parse(localStorage.getItem('hall-pet') || 'null'); } catch (e) {}
+  return { get: function () { return S; }, set: function (v) { S = v; try { if (v) localStorage.setItem('hall-pet', JSON.stringify(v)); else localStorage.removeItem('hall-pet'); } catch (e) {} } };
+})();
+function petSat(st) { return Math.max(0, Math.min(100, st.food - (Date.now() - st.t0) / 90000)); }
+function petLvl(st) { var l = 0; PET_STEP.forEach(function (n) { if (st.ok >= n) l++; }); return l; }
+
+var PETS = (function () {
+  var me = null, loc = null, pos = { x: 0, z: -3.6 }, yaw = 0, mode = 'idle', modeT = 0, tgt = null, cmd = null, sndStamp = 0, sndKind = '';
+  var BED = { x: -0.9, z: -4.7 }, relaxLoc = null;
+  function wpos() { return { x: loc.group.position.x + pos.x, z: loc.group.position.z + pos.z }; }
+  function ensure() { if (!PETST.get() || me) return; var st = PETST.get(); me = new Pet(st.k); me.g.scale.setScalar(1); relaxLoc = LOC.f3_relax; loc = relaxLoc; loc.group.add(me.g); pos.x = BED.x + 0.9; pos.z = BED.z + 1.0; place();
+    var hb = hit(me.g, 0.8, 0.9, 1.3, 0, 0.45, 0); act(hb, 'Мій улюбленець', function () { petPanel(); }, { reach: 4.5 }); me.hb = hb; }
+  function place() { me.g.position.set(pos.x, 0, pos.z); me.g.rotation.y = yaw; }
+  function say2(t) { toast(t, 3500); }
+  function clampMove(nx, nz) {
+    var b = loc.bounds, ox = loc.group.position.x, m = 0.5; var wx = ox + nx, wz = nz;
+    wx = Math.max(b.x1 + m, Math.min(b.x2 - m, wx)); wz = Math.max(b.z1 + m, Math.min(b.z2 - m, wz));
+    loc.obst.forEach(function (r) { var mm = 0.35, x1 = r.x1 - mm, x2 = r.x2 + mm, z1 = r.z1 - mm, z2 = r.z2 + mm; if (wx > x1 && wx < x2 && wz > z1 && wz < z2) { var dl = wx - x1, dr = x2 - wx, d1 = wz - z1, d2 = z2 - wz, mn = Math.min(dl, dr, d1, d2); if (mn === dl) wx = x1; else if (mn === dr) wx = x2; else if (mn === d1) wz = z1; else wz = z2; } });
+    pos.x = wx - ox; pos.z = wz;
+  }
+  function moveTo(x, z, sp, dt) { /* x,z локальні; повертає відстань */
+    var dx = x - pos.x, dz = z - pos.z, d = Math.hypot(dx, dz); if (d < 0.05) return d;
+    var want = Math.atan2(-dx, -dz), df = ((want - yaw + Math.PI * 3) % (Math.PI * 2)) - Math.PI; yaw += df * Math.min(1, dt * 8);
+    var st = Math.min(d, sp * dt); clampMove(pos.x + dx / d * st, pos.z + dz / d * st); return d;
+  }
+  function face(px, pz, dt) { var dx = px - pos.x, dz = pz - pos.z, want = Math.atan2(-dx, -dz), df = ((want - yaw + Math.PI * 3) % (Math.PI * 2)) - Math.PI; yaw += df * Math.min(1, dt * 6); }
+  function playerLocal() { return { x: camera.position.x - loc.group.position.x, z: camera.position.z - loc.group.position.z }; }
+  function clipFor(name) { return name; }
+  function playCmd(name, dur) { cmd = { clip: name, until: performance.now() + dur }; }
+  function sound(type) { sndKind = type; sndStamp = Date.now(); PSND.play(PETST.get().k, type); }
+  function companionLoc() { var st = PETST.get(); return st && st.cp && petLvl(st) >= 4; }
+  function tick(s) {
+    var st = PETST.get(); if (!st) return; ensure(); if (!me || !me.ready) return;
+    var now = performance.now(), dt = Math.min(0.05, (now - (tick.l || now)) / 1000); tick.l = now;
+    if (window.__petHold) { yaw = 0; me.play(window.__petHold); me.tick(dt); place(); return; }
+    /* супровід між кімнатами */
+    var want = companionLoc() ? cur : relaxLoc;
+    if (want && loc !== want) {
+      loc.group.remove(me.g); loc = want; loc.group.add(me.g);
+      if (loc === relaxLoc && want === relaxLoc) { pos.x = BED.x + 0.9; pos.z = BED.z + 1; } else { var a = yaw0(); pos.x = camera.position.x - loc.group.position.x + Math.sin(a) * 1.4 + 0.6; pos.z = camera.position.z - loc.group.position.z + Math.cos(a) * 1.4; clampMove(pos.x, pos.z); }
+      mode = 'idle'; modeT = 0;
+    }
+    var lvl = petLvl(st), pl2 = playerLocal(), dist = Math.hypot(pl2.x - pos.x, pl2.z - pos.z), clip = 'idle', sp = 0;
+    if (cmd && now > cmd.until) cmd = null;
+    if (cmd) {
+      clip = cmd.clip;
+      if (cmd.clip === 'run') { var d0 = moveTo(pl2.x, pl2.z, 4.2, dt); if (d0 < 1.3) { cmd = null; } else sp = 1; }
+      else face(pl2.x, pl2.z, dt);
+    } else {
+      modeT -= dt;
+      if (lvl === 0) {
+        if (dist < 3.2 && cur === loc) { /* тікає від гравця */
+          var ax = pos.x - pl2.x, az = pos.z - pl2.z, l = Math.hypot(ax, az) || 1; moveTo(pos.x + ax / l * 3, pos.z + az / l * 3, 3.6, dt); clip = 'run'; sp = 1; if (dist < 1.2 && !tick.warned) { tick.warned = 1; say2(st.nm + ' боїться вас: потрібно дресирувати (ласощі й команди).'); setTimeout(function () { tick.warned = 0; }, 20000); }
+        } else idleWander(dt, 1.0);
+      } else if (lvl === 1) idleWander(dt, 1.1);
+      else {
+        if (dist > 3.0 || mode === 'follow') { mode = dist > 1.6 ? 'follow' : 'idle'; if (mode === 'follow') { moveTo(pl2.x, pl2.z, dist > 4.5 ? 4 : 2.2, dt); clip = dist > 4.5 ? 'run' : 'walk'; sp = 1; } }
+        else idleWander(dt, 0.6);
+      }
+      if (mode === 'walk') { clip = 'walk'; }
+    }
+    function idleWander(dt, k) {
+      if (mode !== 'walk' && mode !== 'idle') mode = 'idle';
+      if (modeT <= 0) {
+        if (mode === 'idle') { mode = 'walk'; modeT = 3 + Math.random() * 4; var b = loc.bounds, ox = loc.group.position.x; tgt = { x: Math.max(b.x1 + 1, Math.min(b.x2 - 1, ox + pos.x + (Math.random() - 0.5) * 6)) - ox, z: Math.max(b.z1 + 1, Math.min(b.z2 - 1, pos.z + (Math.random() - 0.5) * 6)) }; if (loc === relaxLoc) { tgt.z = Math.min(tgt.z, 4.5); } }
+        else { mode = 'idle'; modeT = 2 + Math.random() * 5; }
+      }
+      if (mode === 'walk' && tgt) { var d = moveTo(tgt.x, tgt.z, 1.1 * k, dt); if (d < 0.2) { mode = 'idle'; modeT = 2 + Math.random() * 4; } else { clip = 'walk'; sp = 1; } }
+    }
+    if (me.clip !== clip) me.play(clip); me.speed = (clip === 'walk' ? 1 : clip === 'run' ? 1 : 1);
+    me.tick(dt); place();
+    me.g.visible = true;
+    send();
+  }
+  function yaw0() { return window.__camYaw ? window.__camYaw() : 0; }
+  /* ---- мережа: інші гравці бачать питомця (вузол pets/<uid>, окремо від presence) ---- */
+  var ghosts = {}, lastSend = 0, netOn = false, nref = null;
+  function send() {
+    if (!window.__fb || !PETST.get() || !me) return; var nowMs = Date.now(); if (nowMs - lastSend < 500) return; lastSend = nowMs;
+    var st = PETST.get(), w = window.NET && NET.who ? NET.who() : { name: '' };
+    var rec = { k: st.k, nm: st.nm, ow: String(w.name || '').slice(0, 30), l: loc.id, x: Math.round(pos.x * 100) / 100, z: Math.round(pos.z * 100) / 100, y: Math.round(yaw * 100) / 100, a: me.clip, t: firebase.database.ServerValue.TIMESTAMP };
+    if (sndStamp) { rec.s = sndKind; rec.st = sndStamp; }
+    if (!nref) { nref = window.__fb.db.ref('pets/' + window.__fb.uid); nref.onDisconnect().remove(); window.__fb.db.ref('pets').on('value', onNet, function () {}); }
+    nref.set(rec).catch(function () { if (!send.err) { send.err = 1; } });
+  }
+  function labelSprite(txt) {
+    var c = document.createElement('canvas'); c.width = 256; c.height = 64; var x = c.getContext('2d'); x.fillStyle = 'rgba(16,12,8,.75)'; x.fillRect(0, 6, 256, 52); x.fillStyle = '#f2e2c0'; x.font = 'bold 28px Georgia'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText(txt, 128, 33);
+    var sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(c), transparent: true, depthTest: false })); sp.scale.set(0.8, 0.2, 1); sp.renderOrder = 10; return sp;
+  }
+  function onNet(snap) {
+    var v = snap.val() || {}, seen = {}, myId = window.__fb && window.__fb.uid, now = Date.now() + (window.__srvOff || 0);
+    Object.keys(v).forEach(function (id) {
+      if (id === myId) return; var d = v[id]; if (!d || !PETDEF[d.k] || now - d.t > 25000 || !LOC[d.l]) return; seen[id] = d;
+      var g = ghosts[id];
+      if (!g || g.k !== d.k) { if (g) { g.p.g.parent && g.p.g.parent.remove(g.p.g); } var p = new Pet(d.k); var lab = labelSprite(d.nm + ' · ' + (d.ow || '')); lab.position.y = 0.9; p.g.add(lab); g = ghosts[id] = { p: p, k: d.k, loc: null, st: 0, x: d.x, z: d.z, y: d.y }; }
+      g.tx = d.x; g.tz = d.z; g.ty = d.y; g.a = d.a;
+      if (g.loc !== d.l) { g.p.g.parent && g.p.g.parent.remove(g.p.g); LOC[d.l].group.add(g.p.g); g.loc = d.l; g.x = d.x; g.z = d.z; g.y = d.y; }
+      if (d.st && d.st !== g.st) { if (g.st && cur && cur.id === d.l) PSND.play(d.k, d.s); g.st = d.st; }
+    });
+    Object.keys(ghosts).forEach(function (id) { if (!seen[id]) { var g = ghosts[id]; g.p.g.parent && g.p.g.parent.remove(g.p.g); delete ghosts[id]; } });
+  }
+  function ghostTick(dt) {
+    Object.keys(ghosts).forEach(function (id) {
+      var g = ghosts[id], k = Math.min(1, dt * 6); g.x += (g.tx - g.x) * k; g.z += (g.tz - g.z) * k; var df = ((g.ty - g.y + Math.PI * 3) % (Math.PI * 2)) - Math.PI; g.y += df * k;
+      g.p.g.position.set(g.x, 0, g.z); g.p.g.rotation.y = g.y; if (g.p.clip !== g.a) g.p.play(g.a); g.p.tick(dt);
+    });
+  }
+  updaters.push(function (s) { var t = performance.now(); var dt = Math.min(0.05, (t - (ghostTick.l || t)) / 1000); ghostTick.l = t; tick(s); ghostTick(dt); });
+  /* ---- команди ---- */
+  function command(key) {
+    var st = PETST.get(); if (!st) return; if (st.treats < 1) { toast('Немає ласощів. Купіть у панелі (5 балів).', 3000); return; }
+    st.treats--; var lvl = petLvl(st), sat = petSat(st), p = [0.15, 0.4, 0.6, 0.78, 0.9, 0.97][lvl] * (sat < 30 ? 0.6 : 1) * (PETST.get().k === 'deer' ? 0.9 : 1);
+    var okk = Math.random() < p; closeModal();
+    if (okk) {
+      st.ok++; var nl = petLvl(st); PETST.set(st);
+      var c = PET_CMD[key]; if (key === 'come') playCmd('run', 4000); else playCmd(c[1], key === 'lie' ? 7000 : 4500);
+      sound(c[1] === 'bark' ? 'bark' : 'ok');
+      if (nl > lvl) { setTimeout(function () { sound('happy'); playCmd('happy', 3500); }, 4500); toast('Новий рівень! ' + st.nm + ': «' + PET_LVL[nl] + '»' + (nl === 4 ? '. Тепер може ходити з вами по всіх кімнатах.' : ''), 5000); }
+      else toast(st.nm + ' виконав команду «' + c[0] + '». Тренування пройдено!', 3500);
+    } else {
+      PETST.set(st); sound('whine'); playCmd('idle', 1500); toast(st.nm + (lvl === 0 ? ' злякався і не слухається.' : sat < 30 ? ' голодний і не слухає. Погодуйте.' : ' не зрозумів команду. Спробуйте ще.'), 3500);
+    }
+  }
+  function petPanel() {
+    var st = PETST.get(); if (!st) { choose(); return; } var lvl = petLvl(st), sat = Math.round(petSat(st)), nxt = PET_STEP[lvl], pd = PETDEF[st.k];
+    var h = '<h3>' + pd.nm + ' «' + st.nm.replace(/</g, '') + '»</h3><p class="muted">Рівень ' + lvl + ': ' + PET_LVL[lvl] + '. Успішних команд: ' + st.ok + (nxt ? ' (до наступного рівня: ' + (nxt - st.ok) + ')' : ' (максимум)') + '</p>' +
+      '<p>Ваші бали: <b>' + WAL.get() + '</b> · Ситість: <b>' + sat + '%</b> · Ласощі: <b>' + st.treats + '</b></p>' +
+      '<p><button class="btn" data-a="food">Корм (15)</button> <button class="btn" data-a="treat">Ласощі (5)</button></p><p class="muted">Команда витрачає 1 ласощі. Голодна тварина слухається гірше. Бали дають мініігри (тир, реакція) та гонки.</p><p>';
+    Object.keys(PET_CMD).forEach(function (k) { h += '<button class="btn" data-c="' + k + '">' + PET_CMD[k][0] + '</button> '; });
+    h += '</p>';
+    if (lvl >= 4) h += '<p><button class="btn" data-a="cp">' + (st.cp ? 'Залишити в кімнаті відпочинку' : 'Йти зі мною по всіх кімнатах') + '</button></p>'; else h += '<p class="muted">З рівня 4 тварина зможе ходити з вами по всіх кімнатах.</p>';
+    h += '<p><button class="btn" data-a="ren">Перейменувати</button> <button class="btn" data-a="new">Обрати іншу тварину</button></p>';
+    var b = modal(h);
+    b.querySelectorAll('[data-c]').forEach(function (e) { e.addEventListener('click', function () { command(e.dataset.c); }); });
+    b.querySelectorAll('[data-a]').forEach(function (e) { e.addEventListener('click', function () {
+      var a = e.dataset.a, s2 = PETST.get();
+      if (a === 'food') { if (!WAL.spend(15)) { toast('Не вистачає балів.'); return; } s2.food = Math.min(100, petSat(s2) + 45); s2.t0 = Date.now(); PETST.set(s2); sound('happy'); playCmd('happy', 2500); petPanel(); }
+      else if (a === 'treat') { if (!WAL.spend(5)) { toast('Не вистачає балів.'); return; } s2.treats++; PETST.set(s2); petPanel(); }
+      else if (a === 'cp') { s2.cp = !s2.cp; PETST.set(s2); petPanel(); toast(s2.cp ? 'Тепер ' + s2.nm + ' піде за вами.' : s2.nm + ' повернеться в кімнату відпочинку.'); }
+      else if (a === 'ren') { var n = prompt('Нове ім\'я', s2.nm); if (n) { s2.nm = n.slice(0, 14); PETST.set(s2); petPanel(); } }
+      else if (a === 'new') { if (confirm('Обрати іншу тварину? Рівень дресирування буде скинуто.')) { remove(); choose(); } }
+    }); });
+  }
+  function remove() { if (me) { me.g.parent && me.g.parent.remove(me.g); me = null; } PETST.set(null); if (nref) { nref.remove(); } }
+  function choose() {
+    var h = '<h3>Оберіть улюбленця</h3><p class="muted">Ваша тварина житиме в кімнаті відпочинку. Спочатку вона не слухається і тікає. Дресируйте її за бали, зароблені в іграх.</p><div style="display:flex;flex-wrap:wrap;gap:8px">';
+    Object.keys(PETDEF).forEach(function (k) { h += '<div style="flex:1 1 150px;border:1px solid #8a7347;padding:8px"><b>' + PETDEF[k].nm + '</b><br><span class="muted" style="font-size:14px">' + PETDEF[k].d + '</span><br><button class="btn" data-k="' + k + '">Обрати</button></div>'; });
+    h += '</div>';
+    var b = modal(h);
+    b.querySelectorAll('[data-k]').forEach(function (e) { e.addEventListener('click', function () {
+      var k = e.dataset.k, nm = prompt('Як назвемо? (до 14 букв)', PETDEF[k].nm) || PETDEF[k].nm;
+      PETST.set({ k: k, nm: nm.slice(0, 14), lvl: 0, ok: 0, treats: 2, food: 70, t0: Date.now(), cp: 0 }); closeModal(); ensure(); toast('Ваш улюбленець у кімнаті відпочинку. Підійдіть і натисніть на нього.', 4500);
+    }); });
+  }
+  return { panel: function () { if (PETST.get()) petPanel(); else choose(); }, ensure: ensure, bed: BED, me: function () { return me; }, choose: choose };
+})();
+
+/* куточок тварин у кімнаті відпочинку: лежак і табличка */
+(function () {
+  var loc = LOC.f3_relax, G = loc.group, B = PETS.bed;
+  var bed = cyl(0.62, 0.7, 0.14, mat(0x6b4f3a), B.x, 0.07, B.z, G, 28); cyl(0.5, 0.5, 0.05, mat(0xc9a37a), B.x, 0.16, B.z, G, 28);
+  var sign = signPlane(['Куточок', 'тварин'], 1.3, 0.55, { bg: '#3a2a1c', fg: '#f2e2c0', px: 140 }); sign.position.set(B.x, 1.8, -loc.D / 2 + 0.05 || -5.95); G.add(sign);
+  var hb = hit(G, 1.6, 1.0, 1.4, B.x, 0.5, B.z);
+  var fn = function () { PETS.panel(); };
+  act(sign, 'Куточок тварин', fn, { reach: 6 }); act(hb, 'Куточок тварин', fn, { reach: 5 });
+  loc.onEnter = (function (old) { return function () { if (old) old(); PETS.ensure(); }; })(loc.onEnter);
+  window.__pets = PETS;
 })();
 
 var CODES={};
