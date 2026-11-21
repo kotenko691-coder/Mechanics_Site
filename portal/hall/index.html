@@ -460,7 +460,7 @@ cv.addEventListener('pointermove', function (e) {
 cv.addEventListener('pointerup', function (e) {
   if (!drag || e.pointerId !== drag.id) return;
   var moved = Math.hypot(e.clientX - drag.sx, e.clientY - drag.sy), dt = performance.now() - drag.t; drag = null;
-  if (moved < 8 && dt < 600) pick(e.clientX, e.clientY);
+  if (moved < 8 && dt < 600) { if (window.__shootClick && window.__shootClick()) return; pick(e.clientX, e.clientY); }
 });
 cv.addEventListener('pointercancel', function () { drag = null; });
 var mv = { x: 0, y: 0 }, sid = null, stick = $('stick'), knob = $('knob'), keys = {};
@@ -498,6 +498,7 @@ function norm(a) { while (a > Math.PI) a -= 2 * Math.PI; while (a < -Math.PI) a 
 function tween(dur, from, to, done) { tw = { t0: performance.now(), dur: dur, from: from, to: to, done: done }; busy = true; }
 function fade(on) { $('fade').style.opacity = on ? 1 : 0; }
 function teleport(id, sp, instant) {
+  if (window.__noWalk && cur && id !== cur.id) { toast('Спочатку покладіть зброю.'); return; }
   var go = function () {
     showLoc(id); camera.position.set(sp.x, EYE, sp.z); yaw = sp.yaw || 0; pitch = 0;
     if (LOC[id].onEnter) LOC[id].onEnter();
@@ -524,7 +525,7 @@ function loop(t) {
     if (k >= 1) { var f = tw.done; tw = null; busy = false; if (f) f(); }
   }
   var s = t / 1000;
-  if (!busy && !tw && !modalOpen) walk(Math.min(0.05, (t - (loop.last || t)) / 1000));
+  if (!busy && !tw && !modalOpen && !window.__noWalk) walk(Math.min(0.05, (t - (loop.last || t)) / 1000));
   loop.last = t;
   for (var i = 0; i < updaters.length; i++) updaters[i](s);
   if (cur && cur.update) cur.update(s);
@@ -2192,70 +2193,7 @@ function f3Room(id, W, D, title, o) {
   return loc;
 }
 
-/* ---------- Тир ---------- */
-(function () {
-  var loc = f3Room('f3_shoot', 10, 11, 'Мінігра: тир', { floor: TX.tile, wall: TX.wall2, ceil: 0xe4eae8, amb: 0xf2f6f5, ambI: 0.72, bg: 0x0e1316 }), G = loc.group;
-  var bench = box(1.8, 0.85, 0.7, mat(0x3b4856, { rough: 0.55 }), 0, 0.425, 2.0, G);
-  obs(loc, 0, 2.0, 0.95, 0.42);
-  var rifle = grp(0.4, 0.93, 1.95, G);
-  box(0.06, 0.06, 0.95, mat(0x222831, { rough: 0.35 }), 0, 0.03, -0.35, rifle);
-  box(0.07, 0.09, 0.38, mat(0x6e472b, { rough: 0.7 }), 0, 0.01, 0.25, rifle);
-  box(4.8, 1.5, 0.35, mat(0x2c353d, { rough: 0.6 }), 0, 0.75, -4.6, G); obs(loc, 0, -4.6, 2.5, 0.25);
-  var defs = [
-    { k: 'c', x: -1.7, y: 1.67, pts: 15, c: 0xe74c3c }, { k: 'c', x: -0.85, y: 1.67, pts: 15, c: 0x3498db }, { k: 'c', x: 0, y: 1.67, pts: 20, c: 0xf1c40f },
-    { k: 'c', x: 0.85, y: 1.67, pts: 15, c: 0x2ecc71 }, { k: 'c', x: 1.7, y: 1.67, pts: 20, c: 0x9b59b6 },
-    { k: 'd', x: -1.2, y: 2.3, pts: 25, c: 0xe67e22 }, { k: 'd', x: 0, y: 2.5, pts: 30, c: 0xff4757 }, { k: 'd', x: 1.2, y: 2.3, pts: 25, c: 0x1abc9c }
-  ];
-  var T = defs.map(function (d, i) {
-    var m = d.k === 'd' ? cyl(0.22, 0.22, 0.08, mat(d.c, { rough: 0.35 }), d.x, d.y, -4.3, G) : cyl(0.11, 0.11, 0.26, mat(d.c, { rough: 0.3 }), d.x, d.y, -4.3, G);
-    if (d.k === 'd') m.rotation.x = Math.PI / 2;
-    return { m: m, d: d, hit: false, ph: i * 0.9 };
-  });
-  function reset() { T.forEach(function (t) { t.hit = false; t.m.visible = true; }); }
-  var on = false, pts = 0, shots = 0, rec = 0, last = 0, raf = 0, hud = null, ret = null, info = null;
-  var shots_max = 12;
-  function mkHud() {
-    if (hud) return;
-    hud = document.createElement('div'); hud.style.cssText = 'position:fixed;inset:0;z-index:30;pointer-events:none;display:none';
-    info = document.createElement('div'); info.style.cssText = 'position:fixed;top:12px;left:50%;transform:translateX(-50%);background:rgba(16,21,24,.85);color:#f4f7f6;padding:8px 14px;border-radius:10px;font:600 13px sans-serif;pointer-events:auto;display:flex;gap:12px;align-items:center';
-    hud.appendChild(info);
-    ret = document.createElement('div'); ret.style.cssText = 'position:fixed;left:50%;top:50%;width:40px;height:40px;margin:-20px 0 0 -20px;border:2px solid #ff4757;border-radius:50%;box-shadow:0 0 0 1px rgba(255,255,255,.7)';
-    ret.innerHTML = '<div style="position:absolute;left:50%;top:50%;width:6px;height:6px;margin:-3px 0 0 -3px;background:#ff4757;border-radius:50%"></div>'; hud.appendChild(ret);
-    var fb = document.createElement('button'); fb.type = 'button'; fb.textContent = 'ВОГОНЬ';
-    fb.style.cssText = 'position:fixed;right:22px;bottom:90px;width:96px;height:96px;border-radius:50%;background:rgba(231,76,60,.92);color:#fff;border:3px solid #fff;font:700 15px sans-serif;pointer-events:auto;touch-action:none;cursor:pointer';
-    fb.addEventListener('pointerdown', function (e) { e.preventDefault(); e.stopPropagation(); if (on) shoot(); });
-    hud.appendChild(fb); document.body.appendChild(hud);
-    addEventListener('keydown', function (e) { if (!on || modalOpen) return; if (e.code === 'Space') { e.preventDefault(); if (!e.repeat) shoot(); } });
-  }
-  function txt() {
-    info.innerHTML = '<span>Очки: <b>' + pts + '</b></span><span>Набої: <b>' + (shots_max - shots) + '</b></span><button type="button" id="f3sx" style="padding:4px 10px;border-radius:6px;border:0;background:#e74c3c;color:#fff;font-weight:700;cursor:pointer">Завершити</button>';
-    document.getElementById('f3sx').onclick = function () { stop(true); };
-  }
-  var sx = 0, sy = 0;
-  function shoot() {
-    var n = performance.now(); if (n - last < 220) return; last = n; shots++; rec = 1;
-    var rc = new THREE.Raycaster(); rc.setFromCamera({ x: sx, y: sy }, camera);
-    var hs = rc.intersectObjects(T.filter(function (t) { return !t.hit; }).map(function (t) { return t.m; }), false);
-    if (hs.length) { var t = T.filter(function (q) { return q.m === hs[0].object; })[0]; t.hit = true; t.m.visible = false; pts += t.d.pts; toast('Влучання! +' + t.d.pts); }
-    else toast('Мимо! Приціл хитається.');
-    txt(); if (shots >= shots_max || T.every(function (q) { return q.hit; })) setTimeout(function () { stop(true); }, 450);
-  }
-  function loop(ms) {
-    if (!on) return;
-    if (cur !== loc) { stop(false); return; }
-    var t = ms / 1000; sx = Math.sin(t * 2.3) * 0.05 + Math.cos(t * 4.1) * 0.018; sy = Math.cos(t * 1.9) * 0.045 + Math.sin(t * 3.7) * 0.014 + rec * 0.03; rec = Math.max(0, rec - 0.07);
-    ret.style.left = ((sx * 0.5 + 0.5) * innerWidth) + 'px'; ret.style.top = ((-sy * 0.5 + 0.5) * innerHeight) + 'px';
-    T.forEach(function (q) { if (q.d.k === 'd' && !q.hit) q.m.position.x = q.d.x + Math.sin(t * 1.1 + q.ph) * 0.35; });
-    raf = requestAnimationFrame(loop);
-  }
-  function start() { if (on) return; mkHud(); reset(); T.forEach(function (q) { q.m.position.x = q.d.x; }); on = true; pts = 0; shots = 0; rec = 0; hud.style.display = 'block'; txt(); toast('Наведіть приціл на мішень (дивіться мишею або пальцем). ПК: Пробіл, телефон: кнопка «Вогонь». Набоїв: ' + shots_max, 5200); raf = requestAnimationFrame(loop); }
-  function stop(sum) {
-    if (!on) return; on = false; cancelAnimationFrame(raf); hud.style.display = 'none';
-    if (sum) { var nb = F3_REC.add('shoot', pts); modal('<h3>Результат тиру</h3><p>Набрано: <b>' + pts + '</b> очок, пострілів: <b>' + shots + '</b>.</p><p>Ваш рекорд: <b>' + F3_REC.best('shoot') + '</b>' + (nb && pts ? ' (новий!)' : '') + '.</p>'); }
-  }
-  act(rifle, 'Взяти рушницю і стріляти', start, { reach: 3.8 }); act(bench, 'Стіл тиру: взяти рушницю', start, { reach: 3.8 });
-  plant(loc, -4.2, 4.6); plant(loc, 4.2, 4.6);
-})();
+/* Тир: див. shoot.js */
 
 /* ---------- Реакція (гонки на старті) ---------- */
 (function () {
@@ -2359,7 +2297,7 @@ var F3R = null;
 (function () {
   var SPOTS = [
     [F3, 'indor_plants_1', -8.4, 0.6, 1.4], [F3, 'indor_plants_2', 3.0, -3.45, 1.1],
-    [LOC.f3_shoot, 'indor_plants_2', -4.3, -5.0, 1.1], [LOC.f3_shoot, 'indor_plants_1', 4.3, -5.0, 1.4],
+    
     [LOC.f3_race, 'indor_plants_1', -4.3, -3.8, 1.4], [LOC.f3_race, 'indor_plants_2', 4.3, -3.8, 1.1],
     [LOC.f3_relax, 'indor_plants_1', -7.4, -1.6, 1.5], [LOC.f3_relax, 'indor_plants_2', 7.4, -1.6, 1.2], [LOC.f3_relax, 'indor_plants_2', 1.5, -5.2, 1.2]
   ];
@@ -2725,7 +2663,7 @@ var GAR = (function () {
 /* ---- параметри авто з урахуванням прокачки ---- */
 function carParams(id, up) {
   var s = RCARS[id]; up = up || {}; var e = up.eng | 0, t = up.tire | 0, b = up.brk | 0, w = up.wgt | 0, g = up.gear | 0;
-  var P = { id: id, hp: s.hp * (1 + 0.05 * e), rpmP: s.rpmP, rpmR: s.rpmR, rpmI: 900, m: s.kg * (1 - 0.035 * w), mu: s.mu * (1 + 0.035 * t), brk: 1 + 0.07 * b, vlim: s.vmax * (1 + 0.03 * g) / 3.6, cda: s.cda, cla: s.cla, h: s.h, wf: s.wf, drv: s.drv, n: s.gears, R: 0.33, L: 2.7 };
+  var P = { id: id, hp: s.hp * (1 + 0.05 * e), rpmP: s.rpmP, rpmR: s.rpmR, rpmI: 900, m: s.kg * (1 - 0.035 * w), mu: s.mu * 1.4 * (1 + 0.035 * t), brk: 1 + 0.07 * b, vlim: s.vmax * (1 + 0.03 * g) / 3.6, cda: s.cda, cla: s.cla, h: s.h, wf: s.wf, drv: s.drv, n: s.gears, R: 0.33, L: 2.7 };
   return P;
 }
 var RHO = 1.2, GR = 9.81;
@@ -2866,14 +2804,16 @@ function rcDec(d) {
 }
 var RCMAT = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.55, metalness: 0.15, side: THREE.DoubleSide });
 var RTIREMAT = new THREE.MeshStandardMaterial({ color: 0x151515, roughness: 0.95 });
+var RWR = { bmw850: 0.33, m3gtr: 0.33, m3gtr_alms: 0.33, v12lmr: 0.31 }; /* цільовий радіус коліс (у моделях розміри не збігаються з арками) */
+var RWZ = { m3gtr_alms: -0.42 };
 function carModel(id, cb) {
   var mk = function (d) {
     var g = new THREE.Group(), body = new THREE.Mesh(rcDec(d.body), RCMAT); g.add(body); var wh = {};
     Object.keys(d.wheels).forEach(function (k) {
-      var wd = d.wheels[k], pv = new THREE.Group(), st = new THREE.Group(), sp = new THREE.Group(), gm = rcDec(wd); gm.computeBoundingBox(); var bb = gm.boundingBox, wdt = Math.max(0.2, bb.max.x - bb.min.x), rad = Math.max(0.12, (bb.max.y - bb.min.y) / 2), tb = Math.min(0.07, rad * 0.3);
-      sp.add(new THREE.Mesh(gm, RCMAT));
+      var wd = d.wheels[k], pv = new THREE.Group(), st = new THREE.Group(), sp = new THREE.Group(), gm = rcDec(wd); gm.computeBoundingBox(); var bb = gm.boundingBox, wdt = Math.max(0.2, bb.max.x - bb.min.x), rad0 = Math.max(0.12, (bb.max.y - bb.min.y) / 2), rad = RWR[id] || rad0, sc = rad / rad0, tb = Math.min(0.07, rad * 0.3);
+      var wm = new THREE.Mesh(gm, RCMAT); wm.scale.setScalar(sc); sp.add(wm);
       var tire = new THREE.Mesh(new THREE.TorusGeometry(rad - tb, tb, 8, 20), RTIREMAT); tire.rotation.y = Math.PI / 2; tire.scale.set(1, 1, Math.max(1, Math.min(wdt, 0.4) / (2 * tb))); sp.add(tire);
-      st.add(sp); pv.add(st); pv.position.set(wd.pos[0], wd.pos[1], wd.pos[2]); g.add(pv); wh[k] = { piv: pv, st: st, sp: sp };
+      st.add(sp); pv.add(st); pv.position.set(wd.pos[0], RWR[id] ? rad : wd.pos[1], wd.pos[2] + ((RWZ[id] && k[1] === 'f') ? RWZ[id] : 0)); g.add(pv); wh[k] = { piv: pv, st: st, sp: sp };
     });
     return { g: g, wheels: wh, R: d.R || 0.33, wb: d.wb || 2.7, tr: d.tr || 1.55 };
   };
@@ -2924,9 +2864,9 @@ Veh.prototype.step = function (dt, inp, T) {
   var sgb = sgu; Ff -= sgb * Fbf; Fr -= sgb * Fbr;
   var rearGrip = inp.hb ? 0.38 : 1;
   /* бічні сили шин (коло тертя) */
-  var ud = Math.max(Math.abs(u), 3) * sgu, af = Math.atan2(v + P.a * r, ud) - del * (sgu), ar = Math.atan2(v - P.b * r, ud);
+  var ud = Math.max(Math.abs(u), 3) * sgu, af = Math.atan((v + P.a * r) / ud) - del, ar = Math.atan((v - P.b * r) / ud);
   var Fyfm = Math.sqrt(Math.max(0, Math.pow(mu * Fzf, 2) - Ff * Ff)), Fyrm = Math.sqrt(Math.max(0, Math.pow(mu * Fzr * rearGrip, 2) - Fr * Fr));
-  var Fyf = -mu * Fzf * Math.sin(1.45 * Math.atan(9 * af)), Fyr = -1.12 * mu * Fzr * rearGrip * Math.sin(1.45 * Math.atan(12 * ar)); if (Math.abs(Fyf) > Fyfm) Fyf = Fyf < 0 ? -Fyfm : Fyfm; if (Math.abs(Fyr) > Fyrm) Fyr = Fyr < 0 ? -Fyrm : Fyrm;
+  var Fyf = -mu * Fzf * Math.sin(1.45 * Math.atan(14 * af)), Fyr = -1.12 * mu * Fzr * rearGrip * Math.sin(1.45 * Math.atan(18 * ar)); if (Math.abs(Fyf) > Fyfm) Fyf = Fyf < 0 ? -Fyfm : Fyfm; if (Math.abs(Fyr) > Fyrm) Fyr = Fyr < 0 ? -Fyrm : Fyrm;
   /* опір */
   var Fdrag = 0.5 * RHO * P.cda * u * Math.abs(u), Froll = crr * m * GR * (Math.abs(u) > 0.05 ? sgu : 0) * Math.min(1, Math.abs(u) / 1.5);
   var cd = Math.cos(del), sd = Math.sin(del);
@@ -2947,6 +2887,7 @@ Veh.prototype.step = function (dt, inp, T) {
     var vx = u * fx + v * lx, vz = u * fz + v * lz, vn = vx * nr2.nx * sg + vz * nr2.nz * sg; if (vn > 0) { vx -= nr2.nx * sg * vn * 1.3; vz -= nr2.nz * sg * vn * 1.3; u = vx * fx + vz * fz; v = vx * lx + vz * lz; u *= 0.7; r *= 0.5; this.hit = Math.max(this.hit, Math.min(1, vn / 20)); }
     nr2 = T.near(this.x, this.z);
   }
+  if (this.rev && u < -13) u = -13;
   this.u = u; this.v = v; this.r = r; this.nr = nr2;
   /* прогрес кола */
   var di = nr2.i - this.lastI; if (di < -T.N / 2) di += T.N; else if (di > T.N / 2) di -= T.N; this.pg += di; this.lastI = nr2.i;
@@ -3258,7 +3199,334 @@ function setupUI() {
   $('s_gar').addEventListener('click', function () { garageUI(); }); $('s_x').addEventListener('click', closeModal);
   $('s_go').addEventListener('click', function () { raceStart({ map: c.map, rev: c.rev, laps: c.laps, mode: c.mode, ai: c.ai, diff: c.diff, role: c.role }); });
 }
-window.__race = { start: raceStart, tick: raceTick, state: function () { return RCS; }, track: makeTrack, check: trackCheck, setup: setupUI, garage: garageUI, Veh: Veh, aiProfile: aiProfile, aiDrive: aiDrive };
+window.__auto = RAUTO; window.__race = { start: raceStart, tick: raceTick, state: function () { return RCS; }, track: makeTrack, check: trackCheck, setup: setupUI, garage: garageUI, Veh: Veh, aiProfile: aiProfile, aiDrive: aiDrive };
+
+/* ====== ТИР: 5 місць, зброя з rifles.glb, соло (15 мішеней / 60 с) і онлайн-турнір ====== */
+var SHOOT = {};
+(function () {
+  var W = 14, D = 13, LX = [-5.2, -2.6, 0, 2.6, 5.2], ZT = -4.7, ZS = 3.3, ZTAB = 2.55, TR = 0.4;
+  var loc = SHOOT.loc = f3Room('f3_shoot', W, D, 'Мінігра: тир', { floor: TX.tile, wall: TX.wall2, ceil: 0xe4eae8, amb: 0xf2f6f5, ambI: 0.7, bg: 0x0e1316 }), G = loc.group;
+  var RIF = {
+    m4a1: { n: 'M4A1', ymin: -0.15, ymax: 0.073, rate: 0.085, rec: 0.12, mag: 30, auto: true, len: 0.84 },
+    ak47: { n: 'AK-47', ymin: -0.228, ymax: 0.037, rate: 0.1, rec: 0.16, mag: 30, auto: true, len: 0.88 },
+    ar15: { n: 'AR-15', ymin: -0.144, ymax: 0.072, rate: 0.12, rec: 0.1, mag: 30, auto: false, len: 0.99 }
+  }, RIDS = ['m4a1', 'ak47', 'ar15'];
+  pl(loc, 0xfff0d8, 0.9, 13, -4, 3.1, 1); pl(loc, 0xfff0d8, 0.9, 13, 4, 3.1, 1); pl(loc, 0xfff0d8, 0.8, 13, 0, 3.1, -3);
+
+  /* текстури кімнати з папки «Тір» */
+  (function () {
+    var TL = new THREE.TextureLoader(), IM = {}, got = 0, need = ['floor', 'wall', 'ceil'];
+    need.forEach(function (n) { TL.load('tex/shoot_' + n + '.jpg', function (t) { IM[n] = t.image; if (++got === need.length) apply(); }); });
+    function tex(img, rx, ry) { var t = new THREE.Texture(img); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(rx, ry); t.anisotropy = 4; t.needsUpdate = true; return t; }
+    function apply() {
+      var pls = G.children.filter(function (o) { return o.isMesh && o.geometry.type === 'PlaneGeometry'; });
+      if (pls[0]) pls[0].material = new THREE.MeshStandardMaterial({ map: tex(IM.floor, W / 2.2, D / 2.2), roughness: 0.55 });
+      if (pls[1]) pls[1].material = new THREE.MeshStandardMaterial({ map: tex(IM.ceil, W / 2.5, D / 2.5), roughness: 0.9 });
+      loc.walls.forEach(function (wg) { var pn = wg.children[0], len = pn.geometry.parameters.width; pn.material = new THREE.MeshStandardMaterial({ map: tex(IM.wall, len / 2.6, 3.5 / 2.6), roughness: 0.85 }); });
+    }
+  })();
+
+  /* кулеуловлювач і позначки доріжок */
+  box(W - 1.2, 2.8, 0.2, mat(0x222a31, { rough: 0.7 }), 0, 1.4, ZT - 0.9, G); obs(loc, 0, ZT - 0.9, W / 2 - 0.6, 0.2);
+  var occ = [null, null, null, null, null], signs = [];
+  function drawSign(i) {
+    var s = signs[i], cx = s.ctx, o = occ[i], free = !o || (o.u === (window.__fb && window.__fb.uid) && H.on);
+    cx.fillStyle = '#17110b'; cx.fillRect(0, 0, 512, 128); cx.strokeStyle = free ? '#5fbf6e' : '#d9645a'; cx.lineWidth = 6; cx.strokeRect(5, 5, 502, 118);
+    cx.fillStyle = '#f2d9a0'; cx.font = '700 46px Georgia, serif'; cx.textAlign = 'center'; cx.fillText('Місце ' + (i + 1), 256, 58);
+    cx.font = '600 28px sans-serif'; cx.fillStyle = o ? '#ffb4aa' : '#9fe0aa'; cx.fillText(o ? ('Зайнято: ' + (o.n || '')) : 'Вільне', 256, 100); s.tex.needsUpdate = true;
+  }
+  LX.forEach(function (lx, i) {
+    box(2.5, 0.02, 9.2, mat(i % 2 ? 0x3a4a3d : 0x2f3a42, { rough: 0.9 }), lx, 0.011, -1.2, G);
+    box(2.3, 0.9, 0.08, mat(0x4a525a, { rough: 0.6 }), lx, 0.45, ZT + 0.35, G); /* бар'єр, з-за якого виринають мішені */
+    var t = box(2.0, 0.9, 0.6, mat(0x3b4856, { rough: 0.55 }), lx, 0.45, ZTAB, G); obs(loc, lx, ZTAB, 1.05, 0.32);
+    box(2.1, 0.04, 0.7, mat(0x6b5a45, { rough: 0.5 }), lx, 0.92, ZTAB, G);
+    var cv = document.createElement('canvas'); cv.width = 512; cv.height = 128; var cx = cv.getContext('2d'), tx = new THREE.CanvasTexture(cv);
+    var sg = new THREE.Mesh(new THREE.PlaneGeometry(1.8, 0.45), new THREE.MeshBasicMaterial({ map: tx })); sg.position.set(lx, 2.55, 0.6); G.add(sg); signs.push({ ctx: cx, tex: tx }); drawSign(i);
+    if (i < 4) { var px = (lx + LX[i + 1]) / 2; box(0.06, 1.15, 2.4, mat(0x56606a, { rough: 0.6 }), px, 0.575, 2.7, G); obs(loc, px, 2.7, 0.09, 1.2); }
+  });
+  [-1, 1].forEach(function (s) { var px = s * (LX[4] + 1.3); box(0.06, 1.15, 2.4, mat(0x56606a, { rough: 0.6 }), px, 0.575, 2.7, G); obs(loc, px, 2.7, 0.09, 1.2); });
+  var tt = signPlane(['ТИР · 5 МІСЦЬ'], 5, 0.7, { bg: '#17110b', fg: '#ffd36b', px: 110 }); tt.position.set(0, 3.1, ZT - 0.78); G.add(tt);
+  plant(loc, -6.2, 5.6); plant(loc, 6.2, 5.6);
+
+  /* ---- моделі зброї ---- */
+  var RG = {}, RMATL = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.6, metalness: 0.2, side: THREE.DoubleSide }), loadedN = 0;
+  function rifleMesh(id) { return new THREE.Mesh(RG[id], RMATL); }
+  RIDS.forEach(function (id) { P2.file('rifle_' + id, function (d) { RG[id] = rcDec(d); if (++loadedN === 3) mkDisplay(); }); });
+  function mkDisplay() {
+    LX.forEach(function (lx, i) {
+      RIDS.forEach(function (id, k) {
+        var m = rifleMesh(id), x = lx + (k - 1) * 0.62; m.position.set(x, 0.94 - RIF[id].ymin + 0.005, ZTAB); G.add(m);
+        var hb = hit(G, 0.32, 0.3, RIF[id].len + 0.05, x, 1.0, ZTAB); act(hb, 'Взяти ' + RIF[id].n + ' (місце ' + (i + 1) + ')', function () { take(i, id); }, { reach: 4 });
+      });
+    });
+  }
+  LX.forEach(function (lx, i) { var hb = hit(G, 2.0, 0.9, 0.6, lx, 0.45, ZTAB); act(hb, 'Місце ' + (i + 1) + ': взяти зброю', function () { weaponMenu(i); }, { reach: 4 }); });
+
+  /* ---- стан ---- */
+  var H = { on: false, lane: -1, w: null, mdl: null, mag: 0, reload: 0, aim: 0, aimOn: false, heat: 0, last: 0, ox: 0, oy: 0, vx: 0, vy: 0, dx: 0, dy: 0, nextI: 0, kick: 0, flash: 0, ph: 0 }, S = null, hud = null, EL = {};
+  var rnd = Math.random;
+  function mulb(a) { return function () { a |= 0; a = a + 0x6D2B79F5 | 0; var t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+  function who() { try { return (typeof NET !== 'undefined' && NET.who && NET.who().name) || 'Гравець'; } catch (e) { return 'Гравець'; } }
+  function fb() { return window.__fb; }
+  function snd(kind) {
+    try {
+      var ac = snd.ac = snd.ac || new (window.AudioContext || window.webkitAudioContext)(); if (ac.state === 'suspended') ac.resume(); var t = ac.currentTime;
+      if (kind === 'shot') {
+        var len = Math.floor(ac.sampleRate * 0.16), b = ac.createBuffer(1, len, ac.sampleRate), d = b.getChannelData(0); for (var i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 2.2);
+        var s = ac.createBufferSource(); s.buffer = b; var f = ac.createBiquadFilter(); f.type = 'lowpass'; f.frequency.setValueAtTime(5000, t); f.frequency.exponentialRampToValueAtTime(400, t + 0.15); var g = ac.createGain(); g.gain.value = 0.55; s.connect(f); f.connect(g); g.connect(ac.destination); s.start(t);
+        var o = ac.createOscillator(), g2 = ac.createGain(); o.frequency.setValueAtTime(140, t); o.frequency.exponentialRampToValueAtTime(40, t + 0.12); g2.gain.setValueAtTime(0.5, t); g2.gain.exponentialRampToValueAtTime(0.001, t + 0.14); o.connect(g2); g2.connect(ac.destination); o.start(t); o.stop(t + 0.15);
+      } else if (kind === 'click' || kind === 'hit') {
+        var o2 = ac.createOscillator(), g3 = ac.createGain(); o2.type = kind === 'hit' ? 'triangle' : 'square'; o2.frequency.value = kind === 'hit' ? 880 : 300; g3.gain.setValueAtTime(0.12, t); g3.gain.exponentialRampToValueAtTime(0.001, t + 0.09); o2.connect(g3); g3.connect(ac.destination); o2.start(t); o2.stop(t + 0.1);
+      }
+    } catch (e) {}
+  }
+
+  /* ---- мішені ---- */
+  var ringTex = (function () {
+    var cv = document.createElement('canvas'); cv.width = cv.height = 256; var x = cv.getContext('2d');
+    for (var k = 1; k <= 10; k++) { var r = 128 * (11 - k) / 10; x.fillStyle = k === 10 ? '#d63a2f' : (k % 2 ? '#f4f1e6' : '#1d2327'); x.beginPath(); x.arc(128, 128, r, 0, 7); x.fill(); x.strokeStyle = k > 6 ? '#f4f1e6' : '#1d2327'; x.lineWidth = 1.5; x.stroke(); }
+    x.fillStyle = '#f4f1e6'; x.beginPath(); x.arc(128, 128, 5, 0, 7); x.fill(); return new THREE.CanvasTexture(cv);
+  })();
+  var tgMats = [new THREE.MeshStandardMaterial({ color: 0x20262a, roughness: 0.6 }), new THREE.MeshStandardMaterial({ map: ringTex, roughness: 0.7 }), new THREE.MeshStandardMaterial({ color: 0x20262a, roughness: 0.6 })];
+  var holeGeo = new THREE.CircleGeometry(0.012, 8), holeMat = new THREE.MeshBasicMaterial({ color: 0x050505 });
+  function mkTarget(t) {
+    var g = new THREE.Group(), d = new THREE.Mesh(new THREE.CylinderGeometry(TR, TR, 0.04, 32), tgMats); d.rotation.x = Math.PI / 2; g.add(d);
+    var st = new THREE.Mesh(new THREE.BoxGeometry(0.04, 1.6, 0.03), tgMats[0]); st.position.set(0, -0.8 - TR * 0.5, -0.03); g.add(st);
+    g.position.set(t.x, t.hidden, ZT); G.add(g); t.g = g; t.holes = 0; return g;
+  }
+  function genTargets(n, T, seed) {
+    var r = mulb(seed), life = Math.max(2.4, Math.min(4.6, T / n * 1.15)), L = [], span = Math.max(1, T - life - 1.2);
+    for (var i = 0; i < n; i++) {
+      var ty = r(), type = ty < 0.4 ? 'pop' : (ty < 0.8 ? 'move' : 'both'), step = span / n;
+      L.push({ i: i, t0: 1.0 + i * step + r() * step * 0.35, life: life * (0.9 + r() * 0.25), type: type, x0: (r() - 0.5) * 1.5, y: 1.35 + r() * 0.6, vx: (r() < 0.5 ? -1 : 1) * (0.3 + r() * 0.55), state: 'wait', x: 0, hidden: -0.9 });
+    }
+    return L;
+  }
+  function clearTargets() { if (S && S.T) S.T.forEach(function (t) { if (t.g) { G.remove(t.g); t.g = null; } }); }
+
+  /* ---- HUD ---- */
+  function mkHud() {
+    if (hud) return;
+    hud = document.createElement('div'); hud.style.cssText = 'position:fixed;inset:0;z-index:30;pointer-events:none;display:none;font-family:sans-serif;color:#fff;text-shadow:0 1px 3px #000';
+    hud.innerHTML = '<div id="sh_in" style="position:fixed;top:10px;left:50%;transform:translateX(-50%);background:rgba(16,21,24,.82);padding:7px 14px;border-radius:10px;font:600 14px sans-serif;display:flex;gap:14px;pointer-events:none;white-space:nowrap"></div>' +
+      '<div id="sh_ret" style="position:fixed;left:50%;top:50%;width:34px;height:34px;margin:-17px 0 0 -17px;border:2px solid #ff4757;border-radius:50%;box-shadow:0 0 0 1px rgba(255,255,255,.7)"><div style="position:absolute;left:50%;top:50%;width:5px;height:5px;margin:-2.5px 0 0 -2.5px;background:#ff4757;border-radius:50%"></div></div>' +
+      '<div id="sh_msg" style="position:fixed;left:0;right:0;top:26%;text-align:center;font:700 64px Georgia,serif"></div>' +
+      '<div id="sh_pop" style="position:fixed;left:50%;top:38%;transform:translateX(-50%);font:700 34px sans-serif;opacity:0"></div>' +
+      '<div id="sh_board" style="position:fixed;left:10px;top:60px;background:rgba(16,21,24,.75);padding:6px 10px;border-radius:8px;font:600 13px sans-serif;display:none"></div>';
+    function B(id, txt, css, fn) { var b = document.createElement('button'); b.type = 'button'; b.id = id; b.textContent = txt; b.style.cssText = 'position:fixed;pointer-events:auto;touch-action:none;border:2px solid #fff;color:#fff;font:700 14px sans-serif;cursor:pointer;' + css; b.addEventListener('pointerdown', function (e) { e.preventDefault(); e.stopPropagation(); fn(e); }); hud.appendChild(b); return b; }
+    B('sh_fire', 'ВОГОНЬ', 'right:20px;bottom:90px;width:92px;height:92px;border-radius:50%;background:rgba(231,76,60,.9)', function () { EL.hold = true; fire(); });
+    B('sh_aim', 'ПРИЦІЛ', 'right:122px;bottom:60px;width:70px;height:70px;border-radius:50%;background:rgba(52,152,219,.85)', function () { H.aimOn = !H.aimOn; });
+    B('sh_rel', 'ЗАРЯДИТИ', 'right:20px;bottom:192px;width:84px;height:44px;border-radius:10px;background:rgba(90,100,110,.9)', function () { reload(); });
+    B('sh_menu', 'Меню', 'left:10px;top:10px;padding:7px 12px;border-radius:8px;background:rgba(40,50,60,.9)', function () { modeMenu(); });
+    B('sh_put', 'Покласти зброю', 'left:10px;top:48px;padding:7px 12px;border-radius:8px;background:rgba(150,50,40,.92)', function () { putDown(); });
+    document.body.appendChild(hud);
+    addEventListener('pointerup', function () { EL.hold = false; }); addEventListener('pointercancel', function () { EL.hold = false; });
+    addEventListener('keydown', function (e) { if (!H.on || modalOpen) return; if (e.code === 'Space') { e.preventDefault(); EL.hold = true; if (!e.repeat) fire(); } else if (e.code === 'KeyR') reload(); else if (e.code === 'KeyQ') putDown(); else if (e.code === 'KeyF') H.aimOn = !H.aimOn; });
+    addEventListener('keyup', function (e) { if (e.code === 'Space') EL.hold = false; });
+    cv.addEventListener('contextmenu', function (e) { if (H.on) { e.preventDefault(); H.aimOn = !H.aimOn; } });
+  }
+  function $h(id) { return document.getElementById(id); }
+  function info() {
+    var el = $h('sh_in'); if (!el) return;
+    var s = S && S.run ? ('<span>Очки <b>' + S.score + '</b></span><span>Цілі <b>' + S.res + '/' + S.n + '</b></span><span>Час <b>' + Math.max(0, Math.ceil(S.Tt - Math.max(0, S.t))) + ' с</b></span>') : '<span>Оберіть режим у меню</span>';
+    el.innerHTML = '<span>' + RIF[H.w].n + '</span>' + s + '<span>Набої <b>' + (H.reload > 0 ? '…' : H.mag) + '/' + RIF[H.w].mag + '</b></span>';
+  }
+  function pop(txt, col) { var e = $h('sh_pop'); if (!e) return; e.textContent = txt; e.style.color = col || '#fff'; e.style.transition = 'none'; e.style.opacity = 1; e.style.top = '38%'; void e.offsetWidth; e.style.transition = 'opacity .8s, top .8s'; e.style.opacity = 0; e.style.top = '30%'; }
+
+  /* ---- дії ---- */
+  function claim(i, cb) {
+    var F = fb(); if (!F) { occ[i] = { u: 'me', n: who() }; cb(true); return; }
+    F.db.ref('shoot/lanes/' + i).transaction(function (c) { if (c && c.u !== F.uid && Date.now() - (c.t || 0) < 45 * 60000) return; return { u: F.uid, n: String(who()).slice(0, 24), t: Date.now() }; }, function (err, ok) {
+      if (err || !ok) { cb(false); return; } try { F.db.ref('shoot/lanes/' + i).onDisconnect().remove(); } catch (e) {} cb(true);
+    }, false);
+  }
+  function release(i) { if (i < 0) return; var F = fb(); if (F) { try { F.db.ref('shoot/lanes/' + i).remove(); } catch (e) {} } occ[i] = null; drawSign(i); }
+  function weaponMenu(i) {
+    if (H.on) { toast('Ви вже тримаєте зброю. Спочатку покладіть її.'); return; }
+    modal('<h3>Місце ' + (i + 1) + ': оберіть зброю</h3><p class="muted">Поки ви тримаєте зброю, рухатися не можна. Щоб піти, натисніть «Покласти зброю».</p>' + RIDS.map(function (id) { return '<p><button class="main" data-w="' + id + '">' + RIF[id].n + '</button></p>'; }).join(''));
+    Array.prototype.forEach.call($('mbody').querySelectorAll('[data-w]'), function (b) { b.addEventListener('click', function () { closeModal(); take(i, b.dataset.w); }); });
+  }
+  function take(i, w) {
+    if (H.on) { toast('Ви вже тримаєте зброю.'); return; }
+    if (!RG[w]) { toast('Зброя ще завантажується…'); return; }
+    claim(i, function (ok) {
+      if (!ok) { toast('Це місце вже зайняте.'); return; }
+      mkHud(); occ[i] = { u: fb() ? fb().uid : 'me', n: who() }; drawSign(i);
+      H.on = true; H.lane = i; H.w = w; H.mag = RIF[w].mag; H.reload = 0; H.aimOn = false; H.aim = 0; H.heat = 0; H.ox = H.oy = H.vx = H.vy = H.dx = H.dy = 0; H.ph = rnd() * 6.28; H.nextI = 0.4;
+      if (!camera.parent) scene.add(camera);
+      H.mdl = rifleMesh(w); camera.add(H.mdl); window.__noWalk = true; if (window.__stopMove) window.__stopMove();
+      teleport('f3_shoot', { x: loc.X + LX[i], z: ZS, yaw: 0 }, true); pitch = 0;
+      hud.style.display = 'block'; EL.hold = false; info(); modeMenu();
+    });
+  }
+  function putDown() {
+    if (!H.on) return; abortSession(); H.on = false; if (H.mdl) { camera.remove(H.mdl); H.mdl = null; } window.__noWalk = false; var l = H.lane; H.lane = -1; release(l);
+    if (hud) hud.style.display = 'none'; camera.fov = 72; camera.updateProjectionMatrix(); closeModal(); toast('Зброю покладено. Можна ходити.');
+  }
+  function modeMenu() {
+    if (!H.on) return; if (S && S.run) { return; }
+    var b = modal('<h3>Місце ' + (H.lane + 1) + ' · ' + RIF[H.w].n + '</h3><p>Влучання в центр кола дають більше очок (до 10), чим далі від центру, тим менше. Мішені рухаються або виринають.</p><p><button class="main" id="sh_solo">Соло: 15 мішеней, 1 хвилина</button></p><p><button class="main" id="sh_tc">Турнір: створити</button></p><p><button class="main" id="sh_tj">Турнір: приєднатися за кодом</button></p><p><button class="btn" id="sh_x">Закрити меню</button></p><p class="muted" style="font-size:12px">ПК: клік/Пробіл — постріл, R — заряджати, F або права кнопка — приціл, Q — покласти зброю.</p>');
+    $('sh_solo').addEventListener('click', function () { closeModal(); startSession({ mode: 'solo', n: 15, Tt: 60, seed: (Math.random() * 1e9) | 0 }); });
+    $('sh_tc').addEventListener('click', tourCreateUI); $('sh_tj').addEventListener('click', tourJoinUI); $('sh_x').addEventListener('click', closeModal);
+  }
+
+  /* ---- сесія ---- */
+  function startSession(o) {
+    abortSessionKeep(); S = { mode: o.mode, n: o.n, Tt: o.Tt, seed: o.seed, run: true, t: -3.2, score: 0, hits: 0, shots: 0, res: 0, ringSum: 0, T: genTargets(o.n, o.Tt, o.seed), go: o.go || 0, done: false, code: o.code || null };
+    H.mag = RIF[H.w].mag; H.reload = 0; info(); $h('sh_board').style.display = o.mode === 'tour' ? 'block' : 'none';
+  }
+  function abortSessionKeep() { if (S) { clearTargets(); S.run = false; } }
+  function abortSession() { abortSessionKeep(); S = null; tourLeave(); var m = $h('sh_msg'); if (m) m.textContent = ''; }
+  function endSession() {
+    if (!S || S.done) return; S.done = true; S.run = false; clearTargets(); var s = S; $h('sh_msg').textContent = '';
+    var acc = s.shots ? Math.round(s.hits / s.shots * 100) : 0, avg = s.hits ? (s.ringSum / s.hits).toFixed(1) : '0';
+    if (s.mode === 'tour') { tourPush(true); tourFinal(s); return; }
+    var nb = F3_REC.add('shoot', s.score);
+    var b = modal('<h3>Результат тиру</h3><p>Очки: <b>' + s.score + '</b> з ' + (s.n * 10) + '</p><p>Влучань: <b>' + s.hits + '/' + s.n + '</b>, пострілів: ' + s.shots + ', точність ' + acc + '%, середнє кільце ' + avg + '.</p><p>Ваш рекорд: <b>' + F3_REC.best('shoot') + '</b>' + (nb && s.score ? ' (новий!)' : '') + '.</p><p><button class="main" id="sh_again">Ще раз (соло)</button></p><p><button class="btn" id="sh_men">Меню</button> <button class="btn" id="sh_pd">Покласти зброю</button></p>');
+    $('sh_again').addEventListener('click', function () { closeModal(); startSession({ mode: 'solo', n: 15, Tt: 60, seed: (Math.random() * 1e9) | 0 }); });
+    $('sh_men').addEventListener('click', function () { S = null; modeMenu(); }); $('sh_pd').addEventListener('click', function () { closeModal(); putDown(); });
+  }
+
+  /* ---- постріл ---- */
+  function reload() { if (!H.on || H.reload > 0 || H.mag === RIF[H.w].mag) return; H.reload = 1.5; snd('click'); }
+  function fire() {
+    if (!H.on || modalOpen) return false; var now = performance.now() / 1000, R = RIF[H.w];
+    if (!S || !S.run || S.t < 0) { if (!S || !S.run) toast('Оберіть режим у меню (кнопка «Меню»).', 1800); return false; }
+    if (H.reload > 0 || now - H.last < R.rate) return true;
+    if (H.mag <= 0) { reload(); return true; }
+    H.last = now; H.mag--; S.shots++; H.kick = 1; H.flash = 0.06; snd('shot');
+    var sp = H.heat * 0.0045, ox = H.ox + H.dx + (rnd() - 0.5) * 2 * sp, oy = H.oy + H.dy + (rnd() - 0.5) * 2 * sp;
+    H.vy += R.rec * (0.7 + rnd() * 0.7) * (H.aim > 0.5 ? 0.8 : 1); H.vx += (rnd() - 0.5) * R.rec * 0.9; H.heat = Math.min(3, H.heat + 0.45);
+    camera.updateMatrixWorld(); var m = camera.matrixWorld.elements, fw = new THREE.Vector3(-m[8], -m[9], -m[10]).normalize(), rt = new THREE.Vector3(m[0], m[1], m[2]), up = new THREE.Vector3(m[4], m[5], m[6]);
+    var dir = fw.clone().addScaledVector(rt, Math.tan(ox)).addScaledVector(up, Math.tan(oy)).normalize(), o = camera.position, best = null;
+    if (dir.z < -1e-4) S.T.forEach(function (t) {
+      if (t.state !== 'up' || !t.g) return; var wz = ZT, k = (wz - o.z) / dir.z; if (k <= 0) return; var px = o.x + dir.x * k - (loc.X + LX[H.lane] + t.x), py = o.y + dir.y * k - t.g.position.y, r = Math.hypot(px, py);
+      if (r < TR && (!best || k < best.k)) best = { t: t, r: r, k: k, px: px, py: py };
+    });
+    if (best) {
+      var pts = Math.max(1, 10 - Math.floor(best.r / TR * 10)); S.score += pts; S.hits++; S.ringSum += pts; best.t.state = 'hit'; best.t.hitT = 0; S.res++; snd('hit');
+      pop(pts === 10 ? '10 · ЦЕНТР!' : '+' + pts, pts >= 9 ? '#ffd36b' : (pts >= 6 ? '#9fe0aa' : '#fff'));
+      if (best.t.holes < 6) { var h = new THREE.Mesh(holeGeo, holeMat); h.position.set(best.px, best.py, 0.025); best.t.g.add(h); best.t.holes++; }
+      if (S.mode === 'tour') tourPush(false);
+    } else pop('мимо', '#ff9d8f');
+    info(); return true;
+  }
+  window.__shootClick = function () { if (!H.on || modalOpen) return false; fire(); return true; };
+
+  /* ---- онлайн-турнір ---- */
+  var NT = { ref: null, code: null, host: false, cfg: { n: 15, T: 60 }, players: {}, meta: null, cb: null };
+  function now() { return Date.now() + (window.__srvOff || 0); }
+  function tourLeave() {
+    if (NT.ref) { try { var F = fb(); NT.ref.child('p/' + F.uid).remove(); if (NT.host) NT.ref.remove(); NT.ref.off(); } catch (e) {} } NT.ref = null; NT.code = null; NT.host = false; NT.players = {}; NT.meta = null;
+  }
+  function needFb(f) { if (!fb()) { toast('Онлайн-турнір доступний після входу в зал (потрібне з’єднання).', 3500); return false; } return f !== false; }
+  function tourCreateUI() {
+    if (!needFb()) return; var c = NT.cfg;
+    var b = modal('<h3>Турнір: налаштування</h3><p>Кількість мішеней: <button class="btn" id="tn_m">−</button> <b id="tn_n">' + c.n + '</b> <button class="btn" id="tn_p">+</button></p><p>Час, секунд: <button class="btn" id="tt_m">−</button> <b id="tt_n">' + c.T + '</b> <button class="btn" id="tt_p">+</button></p><p class="muted">Усі гравці отримують однакові мішені. До 5 учасників, по одному на місце.</p><p><button class="main" id="tn_go">Створити турнір</button> <button class="btn" id="tn_x">Назад</button></p>');
+    function upd() { $('tn_n').textContent = c.n; $('tt_n').textContent = c.T; }
+    $('tn_m').addEventListener('click', function () { c.n = Math.max(5, c.n - 1); upd(); }); $('tn_p').addEventListener('click', function () { c.n = Math.min(40, c.n + 1); upd(); });
+    $('tt_m').addEventListener('click', function () { c.T = Math.max(20, c.T - 10); upd(); }); $('tt_p').addEventListener('click', function () { c.T = Math.min(300, c.T + 10); upd(); });
+    $('tn_x').addEventListener('click', modeMenu);
+    $('tn_go').addEventListener('click', function () {
+      var code = String(Math.floor(1000 + Math.random() * 9000)), F = fb(), ref = F.db.ref('shoot/t/' + code);
+      ref.child('m').set({ n: c.n, T: c.T, host: F.uid, go: 0, seed: (Math.random() * 1e9) | 0, ts: firebase.database.ServerValue.TIMESTAMP }).then(function () { NT.host = true; tourAttach(code, ref); }).catch(function () { toast('Не вдалося створити турнір (перевірте правила бази).', 4000); });
+    });
+  }
+  function tourJoinUI() {
+    if (!needFb()) return;
+    var b = modal('<h3>Турнір: приєднатися</h3><p>Введіть 4-значний код від організатора:</p><p><input id="tj_c" inputmode="numeric" maxlength="4" style="font-size:22px;width:120px;text-align:center"></p><p><button class="main" id="tj_go">Приєднатися</button> <button class="btn" id="tj_x">Назад</button></p>');
+    $('tj_x').addEventListener('click', modeMenu);
+    $('tj_go').addEventListener('click', function () {
+      var code = $('tj_c').value.trim(), F = fb(), ref = F.db.ref('shoot/t/' + code);
+      ref.child('m').once('value').then(function (sn) { var m = sn.val(); if (!m) { toast('Турнір з таким кодом не знайдено.'); return; } if (m.go) { toast('Цей турнір уже почався.'); return; } NT.host = false; tourAttach(code, ref); }).catch(function () { toast('Помилка з’єднання.'); });
+    });
+  }
+  function tourPush(done) {
+    if (!NT.ref || !S) return; var F = fb(); try { NT.ref.child('p/' + F.uid).update({ n: String(who()).slice(0, 24), l: H.lane + 1, w: RIF[H.w].n, s: S.score, h: S.hits, d: done ? 1 : 0 }); } catch (e) {}
+  }
+  function tourAttach(code, ref) {
+    NT.ref = ref; NT.code = code; var F = fb(); ref.child('p/' + F.uid).set({ n: String(who()).slice(0, 24), l: H.lane + 1, w: RIF[H.w].n, s: 0, h: 0, d: 0 }); try { ref.child('p/' + F.uid).onDisconnect().remove(); if (NT.host) ref.onDisconnect().remove(); } catch (e) {}
+    ref.on('value', function (sn) {
+      var v = sn.val(); if (!v) { if (NT.ref === ref && !(S && S.run)) { toast('Турнір закрито.'); } return; } NT.meta = v.m; NT.players = v.p || {};
+      if (v.m && v.m.go && !(S && S.mode === 'tour' && !S.done && S.run) && !NT.started) {
+        NT.started = true; closeModal(); startSession({ mode: 'tour', n: v.m.n, Tt: v.m.T, seed: v.m.seed, go: v.m.go, code: code }); S.t = (now() - v.m.go) / 1000 - 0; tourPush(false);
+      }
+      if (!NT.started) lobbyUI(); else boardUI();
+    });
+    NT.started = false; lobbyUI();
+  }
+  function lobbyUI() {
+    var P = NT.players, ids = Object.keys(P), m = NT.meta || NT.cfg, F = fb(); if (NT.started) return;
+    var rows = ids.map(function (k) { var p = P[k]; return '<tr><td>Місце ' + p.l + '</td><td>' + (k === F.uid ? '<b>Ви</b>' : p.n) + '</td><td>' + p.w + '</td></tr>'; }).join('');
+    var b = modal('<h3>Турнір · код <b style="font-size:26px">' + NT.code + '</b></h3><p>Мішеней: <b>' + (m.n) + '</b>, час: <b>' + (m.T) + ' с</b></p><table style="width:100%;text-align:left">' + rows + '</table><p class="muted">Гравців: ' + ids.length + ' з 5. ' + (NT.host ? 'Коли всі готові, натисніть «Старт».' : 'Чекайте, поки організатор почне.') + '</p><p>' + (NT.host ? '<button class="main" id="tl_go">Старт</button> ' : '') + '<button class="btn" id="tl_x">Вийти з турніру</button></p>', null);
+    var g = $('tl_go'); if (g) g.addEventListener('click', function () { var F2 = fb(); NT.ref.child('m/go').set(now() + 4500); });
+    $('tl_x').addEventListener('click', function () { tourLeave(); closeModal(); modeMenu(); });
+  }
+  function boardUI() {
+    var el = $h('sh_board'); if (!el) return; var P = NT.players, ids = Object.keys(P).sort(function (a, b) { return (P[b].s || 0) - (P[a].s || 0); });
+    el.style.display = 'block'; el.innerHTML = '<b>Турнір ' + NT.code + '</b><br>' + ids.map(function (k, i) { var p = P[k]; return (i + 1) + '. ' + (k === fb().uid ? 'Ви' : p.n) + ' — ' + (p.s || 0) + (p.d ? ' ✓' : ''); }).join('<br>');
+  }
+  function tourFinal(s) {
+    function show() {
+      var P = NT.players, ids = Object.keys(P).sort(function (a, b) { return (P[b].s || 0) - (P[a].s || 0); }), F = fb(), all = ids.every(function (k) { return P[k].d; });
+      var rows = ids.map(function (k, i) { var p = P[k]; return '<tr><td>' + (i + 1) + '</td><td>' + (k === F.uid ? '<b>Ви</b>' : p.n) + '</td><td>' + (p.s || 0) + '</td><td>' + (p.d ? 'завершив' : 'стріляє…') + '</td></tr>'; }).join('');
+      modal('<h3>Підсумок турніру</h3><p>Ваш результат: <b>' + s.score + '</b> очок, влучань ' + s.hits + '/' + s.n + '.</p><table style="width:100%;text-align:left">' + rows + '</table><p class="muted">' + (all ? 'Усі завершили.' : 'Чекаємо на інших учасників…') + '</p><p><button class="btn" id="tf_pd">Покласти зброю</button> <button class="btn" id="tf_m">Меню</button></p>', function () { NT.cb = null; });
+      $('tf_pd').addEventListener('click', function () { closeModal(); putDown(); }); $('tf_m').addEventListener('click', function () { closeModal(); abortSession(); modeMenu(); });
+    }
+    F3_REC.add('shoot', s.score); NT.started = false; NT.cb = show; show();
+    if (NT.ref) NT.ref.on('value', function () { if (NT.cb && modalOpen) NT.cb(); });
+  }
+
+  /* ---- щокадровий цикл ---- */
+  var lastS = 0;
+  updaters.push(function (sec) {
+    var dt = Math.min(0.05, Math.max(0, sec - lastS)); lastS = sec; if (!H.on) return;
+    if (cur !== loc) { putDown(); return; }
+    var R = RIF[H.w];
+    /* сесія */
+    if (S && S.run) {
+      if (S.mode === 'tour' && S.go) S.t = (now() - S.go) / 1000; else if (!modalOpen) S.t += dt;
+      var msg = $h('sh_msg'); if (S.t < 0) msg.textContent = String(Math.ceil(-S.t)); else if (S.t < 0.7) msg.textContent = 'СТАРТ!'; else msg.textContent = '';
+      if (S.t >= 0) S.T.forEach(function (t) {
+        var tl = S.t - t.t0;
+        if (t.state === 'wait' && tl >= 0) { t.state = 'rise'; t.x = t.x0; t.rt = 0; mkTarget(t); }
+        if (t.state === 'rise') { t.rt += dt; var k = Math.min(1, t.rt / 0.35); t.g.position.y = t.hidden + (t.y - t.hidden) * (k * (2 - k)); if (k >= 1) t.state = 'up'; }
+        if (t.state === 'up' || t.state === 'rise') {
+          if (t.type !== 'pop') { t.x += t.vx * dt; if (t.x > 1.05) { t.x = 1.05; t.vx = -Math.abs(t.vx); } if (t.x < -1.05) { t.x = -1.05; t.vx = Math.abs(t.vx); } }
+          t.g.position.x = loc.X * 0 + LX[H.lane] + t.x; if (t.type === 'both' && t.state === 'up') t.g.position.y = t.y + Math.sin(S.t * 1.7 + t.i) * 0.18;
+          if (tl > t.life) { t.state = 'fall'; t.rt = 0; S.res++; }
+        }
+        if (t.state === 'hit') { t.hitT += dt; t.g.rotation.x = -Math.min(1.3, t.hitT * 4); if (t.hitT > 0.5) { G.remove(t.g); t.g = null; t.state = 'gone'; } }
+        if (t.state === 'fall') { t.rt += dt; t.g.position.y -= dt * 3; if (t.rt > 0.5) { G.remove(t.g); t.g = null; t.state = 'gone'; } }
+      });
+      if (S.t >= 0 && (S.res >= S.n && S.T.every(function (t) { return t.state === 'gone' || t.state === 'hit' && false || t.state === 'fall' || t.state === 'gone'; }) || S.t >= S.Tt)) { if (S.res >= S.n || S.t >= S.Tt) endSession(); }
+      if (S && S.run) info();
+    }
+    /* коливання прицілу: пружина + випадкові поштовхи + дихання + повільний дрейф */
+    var sw = (H.aim > 0.5 ? 0.6 : 1) * (1 + H.heat * 0.15);
+    H.nextI -= dt; if (H.nextI <= 0) { H.nextI = 0.4 + rnd() * 1.3; H.vx += (rnd() - 0.5) * 0.06 * sw; H.vy += (rnd() - 0.5) * 0.05 * sw; }
+    var ax = -22 * H.ox - 5.5 * H.vx, ay = -22 * H.oy - 5.5 * H.vy; H.vx += ax * dt; H.vy += ay * dt; H.ox += H.vx * dt; H.oy += H.vy * dt;
+    H.dx += (-H.dx * 0.5 * dt) + (rnd() - 0.5) * 0.012 * Math.sqrt(dt) * 6 * sw; H.dy += (-H.dy * 0.5 * dt) + (rnd() - 0.5) * 0.012 * Math.sqrt(dt) * 6 * sw;
+    H.ph += dt; var br = Math.sin(H.ph * 1.4) * 0.0018 * sw;
+    H.heat = Math.max(0, H.heat - dt * 1.6); H.kick = Math.max(0, H.kick - dt * 9); H.flash = Math.max(0, H.flash - dt);
+    if (H.reload > 0) { H.reload -= dt; if (H.reload <= 0) { H.reload = 0; H.mag = R.mag; snd('click'); info(); } }
+    if (EL.hold && R.auto && !modalOpen) fire();
+    H.aim += ((H.aimOn ? 1 : 0) - H.aim) * Math.min(1, dt * 10);
+    var fov = 72 - 28 * H.aim; if (Math.abs(camera.fov - fov) > 0.1) { camera.fov = fov; camera.updateProjectionMatrix(); }
+    /* прицільна мітка */
+    var tx = H.ox + H.dx, ty = H.oy + H.dy + br, th = Math.tan(camera.fov * Math.PI / 360), ret = $h('sh_ret');
+    if (ret) { ret.style.transform = 'translate(' + (Math.tan(tx) / th * innerHeight / 2) + 'px,' + (-Math.tan(ty) / th * innerHeight / 2) + 'px)'; }
+    /* рушниця в руках */
+    if (H.mdl) {
+      var rl = H.reload > 0 ? Math.sin(Math.min(1, (1.5 - H.reload) / 1.5) * Math.PI) : 0;
+      H.mdl.scale.setScalar(0.85); H.mdl.position.set(0.15 * (1 - H.aim) + tx * 1.5, -0.2 - (R.ymax * 0.6) * H.aim * 0.6 + ty * 1.5 - rl * 0.16, -0.46 + H.aim * 0.08 + H.kick * 0.035);
+      H.mdl.rotation.set(H.kick * 0.07 + rl * 0.55 + ty * 0.5, 0.045 * (1 - H.aim) - tx * 0.5, 0);
+      H.mdl.position.y -= (R.ymax) * H.aim * 0.9;
+    }
+  });
+  SHOOT.state = function () { return { H: H, S: S, occ: occ }; }; SHOOT.take = take; SHOOT.fire = fire; SHOOT.put = putDown; SHOOT.start = startSession; SHOOT.RG = RG;
+})();
+window.__shoot = SHOOT;
 
 var CODES={};
 /* ====== СТАН ГРИ, ТАЙМЕРИ, БАЛИ, ПЕРЕХОДИ, ЗВ'ЯЗОК ІЗ САЙТОМ ====== */
@@ -3354,6 +3622,7 @@ function enterRoom(id) {
   }, function () { RS[id].entering = false; toast('Немає зв’язку із сервером. Спробуйте ще раз.'); });
 }
 function leaveRoom() {
+  if (window.__noWalk) { toast('Спочатку покладіть зброю.'); return; }
   var id = inRoom();
   if (!id) { if (cur && cur.back && !busy) { closeModal(); teleport(cur.back.id, cur.back.sp); } return; }
   if (busy) return;
