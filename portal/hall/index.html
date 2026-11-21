@@ -5622,6 +5622,83 @@ window.__RB = RB;
         ttl('Практична 1: головне'); [['поверхова схема: спершу другорядна, потім основні', ink], ['реакцію другорядної прикладаємо до основної в протилежний бік', grn], ['л.вп. будуємо від еталонних ліній, продовжуючи їх прямими', blu], ['перевірка: аналітика і л.вп. дають однакові числа', red]].forEach(function (r, i) { pill(40, 100 + i * 110, 820, 84, r[0], r[1]); }); x.restore(); return;
       }
     }
+    if (st.indexOf('p4') === 0) {
+      var TX = function (m) { return 150 + 54 * m; }, TB = 450, TT = 276;
+      var NP = { A: [0, 0], C: [3, 0], D: [6, 0], E: [9, 0], B: [12, 0], F: [3, 3], G: [6, 3], H: [9, 3] };
+      var nxy = function (k) { return [TX(NP[k][0]), NP[k][1] ? TT : TB]; };
+      var MB = [['A', 'C'], ['C', 'D'], ['D', 'E'], ['E', 'B'], ['A', 'F'], ['F', 'G'], ['G', 'H'], ['H', 'B'], ['F', 'C'], ['G', 'D'], ['H', 'E'], ['F', 'D'], ['H', 'D']];
+      var SV = ['13,5', '13,5', '6,5', '6,5', '−13,43', '−13', '−13', '−9,19', '0', '−6', '0', '−0,71', '9,19'];
+      var truss = function (cols, labels, nums) {
+        var i, k, p, q;
+        for (i = 0; i < 13; i++) { p = nxy(MB[i][0]); q = nxy(MB[i][1]); ln(p[0], p[1], q[0], q[1], (cols && cols[i]) || brn, (cols && cols[i]) ? 8 : 6); }
+        for (k in NP) { p = nxy(k); hn(p[0], p[1], '#333'); }
+        if (labels !== false) { var lb = { A: [-22, 24], C: [0, 28], D: [0, 28], E: [0, 28], B: [22, 24], F: [-24, -12], G: [26, -12], H: [18, -14] }; for (k in NP) { p = nxy(k); tx(k, p[0] + lb[k][0], p[1] + lb[k][1], ink, 'bold 22px Georgia'); } }
+        if (nums) for (i = 0; i < 13; i++) { p = nxy(MB[i][0]); q = nxy(MB[i][1]); var mx = (p[0] + q[0]) / 2, my = (p[1] + q[1]) / 2, off = (i < 4) ? 20 : (i < 8 ? -12 : -2); x.fillStyle = '#fff'; x.fillRect(mx - 15, my - 15 + (i >= 4 && i < 8 ? -12 : 0) + (i >= 8 ? 0 : 0), 30, 28); tx(String(i + 1), mx, my + 6 + (i >= 4 && i < 8 ? -12 : 0), gry, 'bold 20px Georgia'); }
+        pin(nxy('A')[0], nxy('A')[1]); roller(nxy('B')[0], nxy('B')[1]);
+      };
+      var tload = function () { var f = nxy('F'), g = nxy('G'); ar(f[0], f[1] - 90, f[0], f[1] - 8, red, 6); tx('10', f[0] - 22, f[1] - 70, red, 'bold 22px Georgia'); ar(f[0] - 80, f[1] - 40, f[0] - 8, f[1] - 40, red, 6); tx('4', f[0] - 80, f[1] - 52, red, 'bold 22px Georgia'); ar(g[0], g[1] - 90, g[0], g[1] - 8, red, 6); tx('6', g[0] - 20, g[1] - 70, red, 'bold 22px Georgia'); };
+      var tdims = function () { harrow(TX(0), TX(3), TB + 96, ink, '3 м'); harrow(TX(3), TX(6), TB + 96, ink, '3 м'); harrow(TX(6), TX(9), TB + 96, ink, '3 м'); harrow(TX(9), TX(12), TB + 96, ink, '3 м'); ln(TX(12) + 46, TB, TX(12) + 46, TT, ink, 2); ar(TX(12) + 46, (TB + TT) / 2 + 14, TX(12) + 46, TB, ink, 2); ar(TX(12) + 46, (TB + TT) / 2 - 14, TX(12) + 46, TT, ink, 2); tx('3 м', TX(12) + 56, (TB + TT) / 2 + 8, ink, 'italic 22px Georgia', 'left'); };
+      var nodeBox = function (cx, cy, items, nm) {
+        hn(cx, cy, '#333'); tx(nm, cx - 20, cy + 32, ink, 'bold 26px Georgia'); var i;
+        for (i = 0; i < items.length; i++) { var it = items[i], a = it[0] * Math.PI / 180, L = it[4] || 130; ar(cx, cy, cx + L * Math.cos(a), cy - L * Math.sin(a), it[3] || grn, 5); tx(it[1], cx + (L + 14) * Math.cos(a) + (Math.cos(a) < -0.1 ? -4 : 4), cy - (L + 14) * Math.sin(a) + (Math.sin(a) > 0.1 ? -4 : 20), it[3] || grn, 'bold 22px Georgia', Math.cos(a) < -0.1 ? 'right' : 'left'); }
+      };
+      if (st === 'p4task') {
+        ttl('Задача: ферма'); truss(); tload(); tdims(); tx('F1 = 10 кН вниз і 4 кН вправо; F2 = 6 кН вниз', 450, 100, red, 'bold 24px Georgia'); tx('знайти зусилля в усіх 13 стержнях', 450, 134, ink, 'bold 24px Georgia');
+      }
+      if (st === 'p4what') {
+        ttl('Що таке ферма'); var yb = 170; ln(220, yb, 680, yb, brn, 10); hn(220, yb, '#333'); hn(680, yb, '#333'); ar(450, yb, 600, yb, grn, 5); ar(450, yb, 300, yb, grn, 5); tx('розтяг  N > 0', 450, yb - 26, grn, 'bold 24px Georgia');
+        ln(220, 290, 680, 290, brn, 10); hn(220, 290, '#333'); hn(680, 290, '#333'); ar(560, 290, 680, 290, red, 5); ar(340, 290, 220, 290, red, 5); tx('стиск  N < 0', 450, 270, red, 'bold 24px Georgia');
+        tx('1  вузли — ідеальні шарніри', 100, 380, ink, 'bold 26px Georgia', 'left'); tx('2  осі стержнів сходяться в одній точці', 100, 424, ink, 'bold 26px Georgia', 'left'); tx('3  навантаження тільки у вузлах', 100, 468, ink, 'bold 26px Georgia', 'left'); tx('у стержні лише поздовжня сила', 100, 520, red, 'bold 28px Georgia', 'left');
+      }
+      if (st === 'p4count') {
+        ttl('Чи ферма нерухома'); truss(false); tx('вузлів: 8,  2·8 = 16', 450, 120, ink, 'bold 28px Georgia'); tx('стержнів 13 + опорних зв’язків 3 = 16', 450, 160, ink, 'bold 28px Georgia'); tx('13 + 3 = 2·8   —   ферма статично визначена', 450, 210, grn, 'bold 28px Georgia');
+        tx('умова:  S + C = 2·V', 450, 530, red, 'bold 28px Georgia');
+      }
+      if (st === 'p4react') {
+        ttl('Опорні реакції'); truss(); tload(); var a0 = nxy('A'), b0 = nxy('B'); ar(a0[0], a0[1] + 130, a0[0], a0[1] + 52, grn, 6); tx('YA = 9,5', a0[0] + 18, a0[1] + 150, grn, 'bold 22px Georgia', 'left'); ar(a0[0] - 8, a0[1] + 28, a0[0] - 74, a0[1] + 28, grn, 6); tx('XA = 4 (вліво)', a0[0] - 140, a0[1] + 56, grn, 'bold 22px Georgia', 'left');
+        ar(b0[0], b0[1] + 130, b0[0], b0[1] + 62, grn, 6); tx('YB = 6,5', b0[0] - 10, b0[1] + 152, grn, 'bold 22px Georgia', 'center');
+        tx('ΣX:  XA + 4 = 0  →  XA = −4', 450, 100, ink, 'bold 22px Georgia'); tx('ΣM(A):  YB·12 − 10·3 − 6·6 − 4·3 = 0  →  YB = 6,5', 450, 130, ink, 'bold 22px Georgia'); tx('ΣY:  YA = 16 − 6,5 = 9,5      перевірка ΣM(B) = 0', 450, 160, grn, 'bold 22px Georgia');
+      }
+      if (st === 'p4zero') {
+        ttl('Нульові стержні'); var cz = []; cz[8] = red; cz[10] = red; truss(cz, true, true); tx('S9 = 0 і S11 = 0', 450, 100, red, 'bold 28px Georgia');
+        tx('вузол без навантаження: два стержні на одній прямій,', 450, 530, ink, 'bold 22px Georgia'); tx('третій — нульовий', 450, 562, red, 'bold 24px Georgia');
+      }
+      if (st === 'p4joints') {
+        ttl('Порядок вузлів'); truss(); var od = ['A', 'C', 'F', 'G', 'D', 'E', 'H', 'B'], oi; for (oi = 0; oi < 8; oi++) { var pp = nxy(od[oi]); x.fillStyle = red; x.beginPath(); x.arc(pp[0], pp[1] + (NP[od[oi]][1] ? -44 : 56 + (od[oi] === 'A' || od[oi] === 'B' ? 18 : 0)), 16, 0, 6.3); x.fill(); tx(String(oi + 1), pp[0], pp[1] + (NP[od[oi]][1] ? -44 : 56 + (od[oi] === 'A' || od[oi] === 'B' ? 18 : 0)) + 7, '#fff', 'bold 20px Georgia'); }
+        tx('A → C → F → G → D → E → H → B', 450, 110, ink, 'bold 28px Georgia'); tx('у кожному вузлі — не більше двох невідомих', 450, 148, grn, 'bold 24px Georgia'); tx('вузол B — на перевірку', 450, 590, red, 'bold 24px Georgia');
+      }
+      if (st === 'p4nodeA') {
+        ttl('Вузол A'); nodeBox(620, 330, [[0, 'S1', 0, grn, 150], [45, 'S5', 0, grn, 150], [90, 'YA = 9,5', 0, red, 120], [180, 'XA = −4', 0, red, 130]], 'A');
+        tx('ΣY:  9,5 + S5·sin45° = 0', 100, 100, ink, 'bold 24px Georgia', 'left'); tx('S5 = −9,5·√2 = −13,43 кН (стиск)', 100, 136, red, 'bold 24px Georgia', 'left'); tx('ΣX:  −4 + S1 + S5·cos45° = 0', 100, 190, ink, 'bold 24px Georgia', 'left'); tx('S1 = 13,5 кН (розтяг)', 100, 226, grn, 'bold 24px Georgia', 'left');
+        tx('(зусилля показуємо від вузла, як розтяг)', 450, 540, gry, 'italic 22px Georgia');
+      }
+      if (st === 'p4nodeF') {
+        ttl('Вузол F'); nodeBox(620, 300, [[0, 'S6', 0, grn, 150], [225, 'S5 = −13,43', 0, grn, 140], [270, 'S9 = 0', 0, grn, 100], [315, 'S12', 0, grn, 150], [90, '10', 0, red, 110], [180, '4', 0, red, 110]], 'F');
+        
+        tx('ΣY:  9,5 − S12·0,7071 − 10 = 0', 100, 100, ink, 'bold 22px Georgia', 'left'); tx('S12 = −0,71 кН (стиск)', 100, 132, red, 'bold 22px Georgia', 'left'); tx('ΣX:  9,5 + S6 − 0,5 + 4 = 0', 100, 180, ink, 'bold 22px Georgia', 'left'); tx('S6 = −13 кН (стиск)', 100, 212, red, 'bold 22px Georgia', 'left');
+      }
+      if (st === 'p4nodeD') {
+        ttl('Вузол D'); nodeBox(620, 340, [[180, 'S2', 0, grn, 150], [0, 'S3', 0, grn, 150], [90, 'S10 = −6', 0, grn, 110], [135, 'S12', 0, grn, 140], [45, 'S13', 0, grn, 140]], 'D');
+        tx('ΣY:  −6 − 0,5 + S13·0,7071 = 0', 100, 100, ink, 'bold 22px Georgia', 'left'); tx('S13 = 9,19 кН (розтяг)', 100, 132, grn, 'bold 22px Georgia', 'left'); tx('ΣX:  −13,5 + S3 + 0,5 + 6,5 = 0', 100, 180, ink, 'bold 22px Georgia', 'left'); tx('S3 = 6,5 кН (розтяг)', 100, 212, grn, 'bold 22px Georgia', 'left');
+      }
+      if (st === 'p4cut') {
+        ttl('Спосіб перерізу'); var cc = []; cc[6] = red; cc[2] = red; cc[12] = red; truss(cc, true, false); ln(TX(7.5), TT - 80, TX(7.5), TB + 70, '#555', 3, true); tx('переріз: S7, S3, S13', TX(7.5) + 6, TT - 86, red, 'italic 22px Georgia', 'left');
+        tload(); tx('ΣM(D): −57 + 30 − 12 − 3·S7 = 0  →  S7 = −13', 450, 96, ink, 'bold 22px Georgia'); tx('ΣM(H): −97,5 + 60 + 18 + 3·S3 = 0  →  S3 = 6,5', 450, 126, ink, 'bold 22px Georgia'); tx('ΣY:  9,5 − 16 + S13·0,7071 = 0  →  S13 = 9,19', 450, 156, ink, 'bold 22px Georgia'); tx('збігається зі способом вузлів', 450, 590, grn, 'bold 24px Georgia');
+      }
+      if (st === 'p4tab') {
+        ttl('Таблиця зусиль, кН'); var ty0 = 110, ro, co = [60, 180, 330, 480, 600, 690], hd = ['№', 'вузли', 'S, кН', 'вид'];
+        var kinds = function (v) { return v === '0' ? 'нуль' : (v.charAt(0) === '−' ? 'стиск' : 'розтяг'); };
+        var colx = [[110, 250], [260, 400]], pj;
+        for (pj = 0; pj < 13; pj++) {
+          var cx = pj < 7 ? 70 : 480, cy = 120 + (pj < 7 ? pj : pj - 7) * 60, col = SV[pj] === '0' ? gry : (SV[pj].charAt(0) === '−' ? red : grn);
+          tx((pj + 1) + '', cx, cy, ink, 'bold 24px Georgia', 'left'); tx(MB[pj][0] + '–' + MB[pj][1], cx + 50, cy, ink, 'bold 24px Georgia', 'left'); tx(SV[pj], cx + 165, cy, col, 'bold 24px Georgia', 'left'); tx(kinds(SV[pj]), cx + 280, cy, col, 'bold 22px Georgia', 'left');
+        }
+        tx('нижній пояс розтягнутий, верхній стиснутий', 450, 570, ink, 'bold 24px Georgia');
+      }
+      if (st === 'p4sum') {
+        ttl('Ферма: головне'); [['ферма: прямі стержні, шарнірні вузли, сили у вузлах', ink], ['у стержні лише розтяг (+) або стиск (−)', ink], ['S + C = 2·V: ферма нерухома і визначена', ink], ['спочатку реакції, потім нульові стержні', grn], ['вузли: не більше двох невідомих; останній — перевірка', grn], ['переріз Ріттера — швидка перевірка', red]].forEach(function (r, i) { tx(r[0], 60, 130 + i * 70, r[1], 'bold 26px Georgia', 'left'); });
+      }
+    }
     if (st.indexOf('p3') === 0) {
       var AX = function (m) { return 150 + 50 * m; }, AB = 410, AY = function (m) { return AB - 50 * m; }, yy = function (m) { return m * (12 - m) / 9; };
       var curve = function (a, b, col, w) { var m; x.strokeStyle = col || brn; x.lineWidth = w || 10; x.beginPath(); for (m = a; m <= b + 0.001; m += 0.25) { if (m === a) x.moveTo(AX(m), AY(yy(m))); else x.lineTo(AX(m), AY(yy(m))); } x.stroke(); };
