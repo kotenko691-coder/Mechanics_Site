@@ -2988,11 +2988,12 @@ function raceStart(cfg) {
   toast('Готуємо трасу…', 2500);
   var T = makeTrack(cfg.map, !!cfg.rev);
   var my = GAR.sel(), pv = new Veh(my, GAR.up(my), false); pv.name = 'Ви';
-  var list = [pv], nAI = cfg.mode === 'chase' ? (cfg.role === 'runner' ? 2 : 1) : Math.max(0, Math.min(4, cfg.ai | 0));
+  var list = [pv], nAI = cfg.net ? 0 : (cfg.mode === 'chase' ? (cfg.role === 'runner' ? 2 : 1) : Math.max(0, Math.min(4, cfg.ai | 0)));
   var skillBase = [0.8, 0.9, 0.97][cfg.diff == null ? 1 : cfg.diff];
   var pw = pv.P.hp / pv.P.m, pool = RCAR_IDS.filter(function (id) { var P = carParams(id), q = P.hp / P.m; return q > pw * 0.6 && q < pw * 1.45; }); if (!pool.length) pool = RCAR_IDS.slice(0, 4);
   var names = ['Макс', 'Олег', 'Іра', 'Влад', 'Софія', 'Тарас'];
   for (var i = 0; i < nAI; i++) { var id = pool[Math.floor(Math.random() * pool.length)], v = new Veh(id, { eng: Math.floor(Math.random() * 2), tire: Math.floor(Math.random() * 2) }, true); v.skill = skillBase * (0.95 + Math.random() * 0.08); v.name = names[i % names.length]; v.off = (Math.random() - 0.5) * 3; list.push(v); }
+  if (cfg.net) cfg.net.uids.forEach(function (u) { if (u === cfg.net.me) return; var pd = cfg.net.players[u] || {}, rid = RCARS[pd.c] ? pd.c : RCAR_IDS[0], v = new Veh(rid, pd.u || { eng: 0, tire: 0 }, false); v.isRemote = true; v.uid = u; v.name = String(pd.n || 'Гравець'); v.rx = performance.now(); list.push(v); });
   var loaded = 0;
   list.forEach(function (v) { carModel(v.id, function (m) { v.mdl = m; if (++loaded === list.length) ready(); }); });
   function ready() {
@@ -3003,19 +3004,19 @@ function raceStart(cfg) {
       cops.forEach(function (c, k) { var bk = Math.round((8 + k * 8) / T.ds); c.place(T, (T.N - bk) % T.N, k % 2 ? 2.6 : -2.6, -bk); c.isCop = true; });
       RCS.runner = runner;
     } else {
-      var order = []; for (var k = 1; k < n; k++) order.push(k); order.splice(Math.floor(n / 2), 0, 0);
+      var order = []; if (cfg.net) { cfg.net.uids.forEach(function (u) { for (var q = 0; q < n; q++) if ((list[q] === pv && u === cfg.net.me) || list[q].uid === u) order.push(q); }); } else { for (var k = 1; k < n; k++) order.push(k); order.splice(Math.floor(n / 2), 0, 0); }
       order.forEach(function (li, slot) { var v = list[li], bk = Math.round((6 + slot * 7) / T.ds); v.place(T, (T.N - bk) % T.N, slot % 2 ? 2.8 : -2.8, -bk); });
     }
     list.forEach(function (v) { if (v.isAI) v.vp = aiProfile(T, v.P, v.skill); });
     var runnerKeep = RCS.runner;
-    RCS = { on: true, cfg: cfg, T: T, cars: list, p: pv, runner: runnerKeep, state: 'grid', t: -3.6, el: 0, view: 0, camYaw: pv.psi, loc: loc, wrong: 0, done: false, arrest: 0, fovBase: 66, last: performance.now() };
-    showLoc('f3_track'); busy = true; camera.far = 2600; camera.updateProjectionMatrix();
+    RCS = { on: true, cfg: cfg, T: T, cars: list, p: pv, runner: runnerKeep, state: 'grid', net: cfg.net || null, t: cfg.net ? Math.min(-1.2, -(cfg.net.go - (Date.now() + (window.__srvOff || 0))) / 1000) : -3.6, el: 0, view: 0, camYaw: pv.psi, loc: loc, wrong: 0, done: false, arrest: 0, fovBase: 66, last: performance.now() };
+    showLoc('f3_track'); busy = true; camera.far = 2600; camera.updateProjectionMatrix(); if (cfg.net && window.rnetReady) rnetReady(RCS);
     ['hud', 'hbtn', 'hint', 'stick', 'tip', 'chat'].forEach(function (id) { var e = $(id); if (e) { e.dataset.rcd = e.style.display || '-'; e.style.display = 'none'; } });
     rhud().style.display = 'block'; $('rc_ar').style.display = cfg.mode === 'chase' ? 'block' : 'none'; $('rc_msg').textContent = ''; RSND.start();
   }
 }
 function raceEnd() {
-  if (!RCS.on && !RCS.fin) return; RCS.on = false; RCS.fin = 0; RSND.stop(); if (RHUD) RHUD.style.display = 'none';
+  if (!RCS.on && !RCS.fin) return; if (RCS.net && window.rnetLeave) rnetLeave(); RCS.on = false; RCS.fin = 0; RSND.stop(); if (RHUD) RHUD.style.display = 'none';
   ['hud', 'hbtn', 'hint', 'stick', 'tip', 'chat'].forEach(function (id) { var e = $(id); if (e) e.style.display = (e.dataset.rcd && e.dataset.rcd !== '-') ? e.dataset.rcd : ''; });
   camera.far = 80; camera.fov = 72; camera.updateProjectionMatrix(); busy = false; pitch = 0; teleport('f3_auto', LOC.f3_auto.spawn, true);
   if (RCS.cars) RCS.cars.forEach(function (v) { if (v.mdl) RTRK.loc.group.remove(v.mdl.g); });
@@ -3043,9 +3044,10 @@ function raceTick() {
     var c = Math.ceil(-R.t + 0.5); var msg = R.t < -0.5 ? String(Math.ceil(-R.t)) : (R.t < 0.8 ? 'СТАРТ!' : ''); if (R.t < -0.5) { var cn = Math.ceil(-R.t); if (R.lastBeep !== cn) { R.lastBeep = cn; RSND.beep(440, 0.12); } } else if (R.lastBeep !== 0) { R.lastBeep = 0; RSND.beep(880, 0.35); }
     $('rc_msg').textContent = msg; if (R.t >= 0) { R.state = 'run'; R.el = 0; R.cars.forEach(function (v) { v.lapT0 = 0; }); }
   } else { R.el += dt; if (R.t > 0.8) $('rc_msg').textContent = ''; }
+  if (R.net && window.rnetTick) rnetTick(R, dt, now);
   var inp = rcInput(), lock = R.state === 'grid' || R.done;
   for (var s = 0; s < steps; s++) R.cars.forEach(function (v) {
-    var ii;
+    var ii; if (v.isRemote) return;
     if (v === R.p) ii = lock ? { th: 0, br: R.done ? 0.3 : 0, st: 0, hb: lock && !R.done ? 1 : 0 } : inp;
     else if (v.isAI) {
       if (R.state === 'grid') ii = { th: 0, br: 0, st: 0, hb: 1 };
@@ -3057,15 +3059,15 @@ function raceTick() {
   });
   /* зіткнення авто */
   for (i = 0; i < R.cars.length; i++) for (var j = i + 1; j < R.cars.length; j++) {
-    var a = R.cars[i], b = R.cars[j], dx = b.x - a.x, dz = b.z - a.z, d = Math.hypot(dx, dz), rr = 1.9; if (d < rr * 2 && d > 0.01) {
-      var pu = (rr * 2 - d) / 2, nx = dx / d, nz = dz / d; a.x -= nx * pu; a.z -= nz * pu; b.x += nx * pu; b.z += nz * pu;
-      var ma = a.P.m, mb = b.P.m, k = 0.15; a.u *= 1 - k * mb / (ma + mb); b.u *= 1 - k * ma / (ma + mb); a.v -= nx * 0.2; b.v += nx * 0.2; a.hit = 0.5; b.hit = 0.5;
+    var a = R.cars[i], b = R.cars[j]; if (a.isRemote && b.isRemote) continue; var dx = b.x - a.x, dz = b.z - a.z, d = Math.hypot(dx, dz), rr = 1.9; if (d < rr * 2 && d > 0.01) {
+      var pu = (rr * 2 - d) / 2, nx = dx / d, nz = dz / d; var sa = a.isRemote ? 0 : (b.isRemote ? 2 : 1), sb = b.isRemote ? 0 : (a.isRemote ? 2 : 1); a.x -= nx * pu * sa; a.z -= nz * pu * sa; b.x += nx * pu * sb; b.z += nz * pu * sb;
+      var ma = a.P.m, mb = b.P.m, k = 0.15; if (!a.isRemote) { a.u *= 1 - k * mb / (ma + mb); a.v -= nx * 0.2; } if (!b.isRemote) { b.u *= 1 - k * ma / (ma + mb); b.v += nx * 0.2; } a.hit = 0.5; b.hit = 0.5;
     }
   }
   /* кола, фініш, позиції */
   var N = T.N, laps = R.cfg.laps;
   R.cars.forEach(function (v) {
-    var lap = Math.floor(v.pg / N); if (lap > v.lapN && !v.fin) { if (v.lapN >= 0 && R.state === 'run') { var lt = R.el - v.lapT0; if (v.lapN > 0 || true) { if (lt > 8 && (!v.best || lt < v.best)) v.best = lt; } v.lapT0 = R.el; } v.lapN = lap; }
+    if (v.isRemote) return; var lap = Math.floor(v.pg / N); if (lap > v.lapN && !v.fin) { if (v.lapN >= 0 && R.state === 'run') { var lt = R.el - v.lapT0; if (v.lapN > 0 || true) { if (lt > 8 && (!v.best || lt < v.best)) v.best = lt; } v.lapT0 = R.el; } v.lapN = lap; }
     if (R.cfg.mode === 'race' && v.pg >= laps * N && !v.fin) { v.fin = R.el; v.fOrder = (R.fc = (R.fc || 0) + 1); }
   });
   var order = R.cars.slice().sort(function (a, b) { if (a.fin && b.fin) return a.fin - b.fin; if (a.fin) return -1; if (b.fin) return 1; return b.pg - a.pg; }); R.order = order;
@@ -3079,7 +3081,7 @@ function raceTick() {
     else if (R.el > 210) { R.done = true; R.endT = R.t; R.chaseWin = R.cfg.role === 'runner'; }
   }
   if (R.cfg.mode === 'race' && R.p.fin && !R.done) { R.done = true; R.endT = R.t; }
-  if (R.done && !R.shown && R.t - R.endT > 1.8) { R.shown = true; raceResult(R, pplace); }
+  if (R.done && !R.shown && R.t - R.endT > (R.net && window.rnetWait ? rnetWait(R) : 1.8)) { R.shown = true; raceResult(R, pplace); }
   /* неправильний напрямок */
   var dpg = R.p.pg - (R.p._pg0 || R.p.pg); R.p._pg0 = R.p.pg; if (R.state === 'run' && R.p.u > 4 && dpg < -0.01) R.wrong += dt; else R.wrong = Math.max(0, R.wrong - dt * 2); if (R.wrong > 1.2) $('rc_sub').textContent = 'НЕ ТОЙ НАПРЯМОК!'; else if (!R.done) $('rc_sub').textContent = R.cfg.mode === 'chase' ? (R.cfg.role === 'runner' ? 'Тікайте від поліції! Не дайте себе наздогнати' : 'Наздоженьте втікача й тримайтеся поруч') : '';
   /* модель, камера, HUD */
@@ -3110,8 +3112,8 @@ function raceResult(R, place) {
     h = '<h3>' + (win ? 'Перемога!' : 'Поразка') + '</h3><p>' + (cfg.role === 'runner' ? (win ? 'Ви вислизнули від поліції.' : 'Вас наздогнали.') : (win ? 'Втікача затримано.' : 'Втікач втік.')) + '</p>';
   }
   GAR.save(); if (reward) WAL.add(reward, 'нагорода');
-  h += '<p>Нагорода: <b>+' + reward + '</b> балів. Усього: <b>' + WAL.get() + '</b>.</p><p class="muted">Бали йдуть на прокачку авто та покупку нових машин у гаражі автоцентру.</p><p><button class="btn" id="rr_again">Ще раз</button> <button class="btn" id="rr_exit">До автоцентру</button></p>';
-  modal(h); $('rr_again').addEventListener('click', function () { var c = RCS.cfg; closeModal(); raceEnd(); setTimeout(function () { raceStart(c); }, 800); }); $('rr_exit').addEventListener('click', function () { closeModal(); raceEnd(); });
+  h += '<p>Нагорода: <b>+' + reward + '</b> балів. Усього: <b>' + WAL.get() + '</b>.</p><p class="muted">Бали йдуть на прокачку авто та покупку нових машин у гаражі автоцентру.</p><p>' + (R.net ? '' : '<button class="btn" id="rr_again">Ще раз</button> ') + '<button class="btn" id="rr_exit">До автоцентру</button></p>';
+  modal(h); if ($('rr_again')) $('rr_again').addEventListener('click', function () { var c = RCS.cfg; closeModal(); raceEnd(); setTimeout(function () { raceStart(c); }, 800); }); $('rr_exit').addEventListener('click', function () { closeModal(); raceEnd(); });
 }
 
 /* ====== Перегони, частина 4: автоцентр (кімната), гараж, меню заїзду ====== */
@@ -3185,7 +3187,7 @@ function setupUI() {
     '<p>Режим: <button class="btn" data-mo="race" style="' + (c.mode === 'race' ? 'outline:2px solid #ffd36b' : '') + '">Гонка</button> <button class="btn" data-mo="chase" style="' + (c.mode === 'chase' ? 'outline:2px solid #ffd36b' : '') + '">Погоня</button></p>' +
     '<p>Траса: ' + maps + '</p><p class="muted">' + M.d + (M.glb ? '' : ' Довжина кола ≈ ' + (M.target / 1000).toFixed(1) + ' км.') + '</p>' +
     '<p>Напрямок: <button class="btn" data-rv="0" style="' + (!c.rev ? 'outline:2px solid #ffd36b' : '') + '">Звичайний</button> <button class="btn" data-rv="1" style="' + (c.rev ? 'outline:2px solid #ffd36b' : '') + '">Реверс</button></p>';
-  if (c.mode === 'race') h += '<p>Кола: <button class="btn" id="s_lm">−</button> <b>' + c.laps + '</b> <button class="btn" id="s_lp">+</button> <span class="muted">≈ ' + km.toFixed(1) + ' км</span></p><p>Суперники (ШІ): <button class="btn" id="s_am">−</button> <b>' + c.ai + '</b> <button class="btn" id="s_ap">+</button></p>';
+  if (c.mode === 'race') h += '<p>Кола: <button class="btn" id="s_lm">−</button> <b>' + c.laps + '</b> <button class="btn" id="s_lp">+</button> <span class="muted">≈ ' + km.toFixed(1) + ' км</span></p><p>Суперники (ШІ): <button class="btn" id="s_am">−</button> <b>' + c.ai + '</b> <button class="btn" id="s_ap">+</button></p><p>Онлайн (до 5 гравців): <button class="btn" id="s_net">Створити / приєднатися</button></p>';
   else h += '<p>Ваша роль: <button class="btn" data-ro="runner" style="' + (c.role === 'runner' ? 'outline:2px solid #ffd36b' : '') + '">Втікач</button> <button class="btn" data-ro="cop" style="' + (c.role === 'cop' ? 'outline:2px solid #ffd36b' : '') + '">Поліція</button></p><p class="muted">Втікач тримається подалі 3,5 хвилини; поліція має наздогнати й утримувати дистанцію 16 м близько 7 секунд.</p>';
   h += '<p>Складність ШІ: ' + ['Легко', 'Середньо', 'Складно'].map(function (n, i) { return '<button class="btn" data-df="' + i + '" style="' + (c.diff === i ? 'outline:2px solid #ffd36b' : '') + '">' + n + '</button>'; }).join(' ') + '</p>' +
     '<p class="muted" style="font-size:12px">Керування: W/↑ газ, S/↓ гальмо і задній хід, A D / ← → кермо, Пробіл ручне гальмо, на телефоні — джойстик для керма та кнопки ГАЗ і ГАЛЬМО. За гонку нараховуються бали на прокачку.</p><p><button class="btn" id="s_go">Старт</button> <button class="btn" id="s_x">Закрити</button></p>';
@@ -3196,10 +3198,105 @@ function setupUI() {
   var q;
   if ((q = $('s_lm'))) q.addEventListener('click', function () { c.laps = Math.max(1, c.laps - 1); setupUI(); }); if ((q = $('s_lp'))) q.addEventListener('click', function () { c.laps = Math.min(20, c.laps + 1); setupUI(); });
   if ((q = $('s_am'))) q.addEventListener('click', function () { c.ai = Math.max(0, c.ai - 1); setupUI(); }); if ((q = $('s_ap'))) q.addEventListener('click', function () { c.ai = Math.min(4, c.ai + 1); setupUI(); });
-  $('s_gar').addEventListener('click', function () { garageUI(); }); $('s_x').addEventListener('click', closeModal);
+  $('s_gar').addEventListener('click', function () { garageUI(); }); if ((q = $('s_net'))) q.addEventListener('click', function () { if (window.rnetMenu) rnetMenu(); }); $('s_x').addEventListener('click', closeModal);
   $('s_go').addEventListener('click', function () { raceStart({ map: c.map, rev: c.rev, laps: c.laps, mode: c.mode, ai: c.ai, diff: c.diff, role: c.role }); });
 }
 window.__auto = RAUTO; window.__race = { start: raceStart, tick: raceTick, state: function () { return RCS; }, track: makeTrack, check: trackCheck, setup: setupUI, garage: garageUI, Veh: Veh, aiProfile: aiProfile, aiDrive: aiDrive };
+
+/* ---- онлайн-гонки (до 5 гравців) через Firebase races/<код> ---- */
+var RNET = { ref: null, code: null, host: false, meta: null, players: {}, started: false, min: 2 };
+(function () {
+  function srv() { return Date.now() + (window.__srvOff || 0); }
+  function fbd() { return window.__fb; }
+  function who() { try { return (typeof NET !== 'undefined' && NET.who && NET.who().name) || 'Гравець'; } catch (e) { return 'Гравець'; } }
+  function r2(x) { return Math.round(x * 100) / 100; }
+  function needFb() { if (!fbd()) { toast('Онлайн-гонки доступні після входу в зал (потрібне з’єднання).', 3500); return false; } return true; }
+  function tag(v) {
+    var c = document.createElement('canvas'); c.width = 256; c.height = 64; var x = c.getContext('2d'); x.font = 'bold 30px sans-serif'; x.textAlign = 'center'; x.fillStyle = 'rgba(0,0,0,.55)'; x.fillRect(8, 8, 240, 48); x.fillStyle = '#fff'; x.fillText(String(v.name).slice(0, 14), 128, 43);
+    var sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(c), transparent: true })); sp.scale.set(4.2, 1.05, 1); sp.position.y = 2.4; v.mdl.g.add(sp);
+  }
+  function leaveLobby() {
+    var ref = RNET.ref; if (!ref) return; var F = fbd(); RNET.ref = null; RNET.started = false;
+    try { ref.off(); if (RNET.host) ref.remove(); else ref.child('p/' + F.uid).remove(); } catch (e) {}
+    RNET.host = false;
+  }
+  window.rnetMenu = function () {
+    if (!needFb()) return; var c = RSET;
+    var b = modal('<h3>Онлайн-гонка</h3><p>Створіть лобі з поточними налаштуваннями (траса «' + RMAPS[c.map].name + '», ' + c.laps + ' кіл' + (c.rev ? ', реверс' : '') + ') або введіть код друга.</p><p><button class="main" id="rn_c">Створити лобі</button></p><p>Код: <input id="rn_code" inputmode="numeric" maxlength="4" style="font-size:22px;width:110px;text-align:center"> <button class="btn" id="rn_j">Приєднатися</button></p><p><button class="btn" id="rn_x">Назад</button></p>');
+    $('rn_x').addEventListener('click', setupUI);
+    $('rn_c').addEventListener('click', function () {
+      if (RMAPS[c.map].glb) { toast('Ця карта ще готується.'); return; }
+      var F = fbd(), code = String(Math.floor(1000 + Math.random() * 9000)), ref = F.db.ref('races/' + code);
+      ref.child('m').once('value').then(function (sn) {
+        if (sn.val()) { toast('Код зайнятий, спробуйте ще раз.'); return; }
+        return ref.child('m').set({ map: c.map, rev: c.rev ? 1 : 0, laps: c.laps, host: F.uid, go: 0, ts: firebase.database.ServerValue.TIMESTAMP }).then(function () { RNET.host = true; attach(code, ref); });
+      }).catch(function () { toast('Не вдалося створити лобі (перевірте правила бази).', 4000); });
+    });
+    $('rn_j').addEventListener('click', function () {
+      var code = $('rn_code').value.trim(), F = fbd(), ref = F.db.ref('races/' + code);
+      ref.once('value').then(function (sn) {
+        var v = sn.val(); if (!v || !v.m) { toast('Лобі з таким кодом не знайдено.'); return; }
+        if (v.m.go) { toast('Ця гонка вже почалась.'); return; }
+        if (Object.keys(v.p || {}).length >= 5) { toast('Лобі заповнене (5 гравців).'); return; }
+        RNET.host = false; attach(code, ref);
+      }).catch(function () { toast('Помилка з’єднання.'); });
+    });
+  };
+  function attach(code, ref) {
+    var F = fbd(), my = GAR.sel(); RNET.ref = ref; RNET.code = code; RNET.started = false; RNET.meta = null; RNET.players = {};
+    ref.child('p/' + F.uid).set({ n: who().slice(0, 24), c: my, u: GAR.up(my) });
+    try { ref.child('p/' + F.uid).onDisconnect().remove(); if (RNET.host) ref.onDisconnect().remove(); } catch (e) {}
+    ref.on('value', function (sn) {
+      var v = sn.val(); if (RNET.ref !== ref) return;
+      if (!v || !v.m) { if (!RNET.started) { toast('Лобі закрито.'); closeModal(); try { ref.off(); } catch (e) {} RNET.ref = null; } return; }
+      RNET.meta = v.m; RNET.players = v.p || {};
+      if (v.m.go && !RNET.started) { RNET.started = true; begin(); } else if (!RNET.started) lobbyUI();
+    });
+  }
+  function lobbyUI() {
+    var P = RNET.players, ids = Object.keys(P), m = RNET.meta, F = fbd(); if (!m || RNET.started) return;
+    var rows = ids.map(function (k) { var p = P[k]; return '<tr><td>' + (k === F.uid ? '<b>Ви</b>' : p.n) + (k === m.host ? ' ★' : '') + '</td><td>' + (RCARS[p.c] ? RCARS[p.c].n : '') + '</td></tr>'; }).join('');
+    modal('<h3>Онлайн-гонка · код <b style="font-size:26px">' + RNET.code + '</b></h3><p>Траса «' + RMAPS[m.map].name + '»' + (m.rev ? ' (реверс)' : '') + ', кіл: <b>' + m.laps + '</b></p><table style="width:100%;text-align:left">' + rows + '</table><p class="muted">Гравців: ' + ids.length + ' з 5. ' + (RNET.host ? 'Передайте код друзям. Коли всі зайшли — «Старт» (потрібно мінімум ' + RNET.min + ').' : 'Чекайте, поки організатор натисне «Старт».') + '</p><p>' + (RNET.host ? '<button class="main" id="rl_go"' + (ids.length < RNET.min ? ' disabled style="opacity:.5"' : '') + '>Старт</button> ' : '') + '<button class="btn" id="rl_x">Вийти</button></p>');
+    var g = $('rl_go'); if (g) g.addEventListener('click', function () { if (Object.keys(RNET.players).length >= RNET.min) RNET.ref.child('m/go').set(srv() + 6000); });
+    $('rl_x').addEventListener('click', function () { leaveLobby(); closeModal(); setupUI(); });
+  }
+  function begin() {
+    var ref = RNET.ref, m = RNET.meta, F = fbd(), uids = Object.keys(RNET.players).sort().slice(0, 5);
+    if (uids.indexOf(F.uid) < 0) { toast('Вас немає в списку гравців.'); leaveLobby(); closeModal(); return; }
+    closeModal(); try { ref.off(); if (RNET.host) ref.onDisconnect().cancel(); } catch (e) {}
+    var players = RNET.players; RNET.sref = ref.child('s');
+    raceStart({ map: m.map, rev: !!m.rev, laps: m.laps, mode: 'race', ai: 0, diff: 1, net: { code: RNET.code, go: m.go, uids: uids, me: F.uid, players: players } });
+  }
+  window.rnetReady = function (R) {
+    var N = R.net, F = fbd(), ref = RNET.ref; if (!ref) return; N.pubT = 0; N.sref = ref.child('s');
+    var h = function (sn) { var d = sn.val(), k = sn.key; if (!d || k === F.uid) return; R.cars.forEach(function (v) { if (v.uid === k) { d.rx = performance.now(); if (!v.net) { v.x = d.x; v.z = d.z; v.psi = d.a; } v.net = d; v.rx = d.rx; } }); };
+    N.h = h; N.sref.on('child_added', h); N.sref.on('child_changed', h);
+    try { N.sref.child(F.uid).onDisconnect().remove(); ref.child('p/' + F.uid).onDisconnect().remove(); } catch (e) {}
+    R.cars.forEach(function (v) { if (v.isRemote) tag(v); });
+  };
+  window.rnetTick = function (R, dt, now) {
+    var N = R.net, F = fbd(), i, v, d; if (!N || !N.sref) return;
+    for (i = R.cars.length - 1; i >= 0; i--) {
+      v = R.cars[i]; if (!v.isRemote) continue;
+      if (now - v.rx > 10000) { if (v.mdl) v.mdl.g.visible = false; R.cars.splice(i, 1); toast(v.name + ' залишив гонку', 2500); continue; }
+      d = v.net; if (!d) continue;
+      var age = Math.min(0.35, (now - d.rx) / 1000), tx = d.x - Math.sin(d.a) * d.u * age, tz = d.z - Math.cos(d.a) * d.u * age, k = Math.min(1, dt * 10);
+      if (Math.hypot(tx - v.x, tz - v.z) > 25) { v.x = tx; v.z = tz; } else { v.x += (tx - v.x) * k; v.z += (tz - v.z) * k; }
+      var da = d.a - v.psi; da = Math.atan2(Math.sin(da), Math.cos(da)); v.psi += da * k;
+      v.u = d.u; v.steer = d.s || 0; v.pg = d.g; v.fin = d.f || 0; v.wspin += d.u / v.P.R * dt; v.axs = 0; v.ays = 0;
+    }
+    N.pubT += dt; if (N.pubT >= 0.1) { N.pubT = 0; var p = R.p; try { N.sref.child(F.uid).set({ x: r2(p.x), z: r2(p.z), a: r2(p.psi * 100) / 100, u: r2(p.u), s: r2(p.steer), g: r2(p.pg), f: p.fin ? r2(p.fin) : 0 }); } catch (e) {} }
+    if (R.done && !R.shown && R.cars.some(function (c) { return c.isRemote && !c.fin; })) $('rc_msg').textContent = 'Фініш! Чекаємо інших…';
+  };
+  window.rnetWait = function (R) { return R.cars.some(function (v) { return v.isRemote && !v.fin; }) ? 20 : 1.8; };
+  window.rnetLeave = function () {
+    var R = RCS, N = R.net, F = fbd(), ref = RNET.ref; if (!N) return;
+    try { if (N.sref) { N.sref.off('child_added', N.h); N.sref.off('child_changed', N.h); N.sref.child(F.uid).remove(); } } catch (e) {}
+    if (ref) { try { ref.child('p/' + F.uid).remove().then(function () { return ref.child('p').once('value'); }).then(function (sn) { if (!sn.val()) ref.remove(); }); } catch (e) {} }
+    RNET.ref = null; RNET.started = false; RNET.host = false; R.net = null;
+  };
+  window.__rnet = RNET;
+})();
 
 /* ====== ТИР: 5 місць, зброя з rifles.glb, соло (15 мішеней / 60 с) і онлайн-турнір ====== */
 var SHOOT = {};
