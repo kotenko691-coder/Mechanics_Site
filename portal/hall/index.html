@@ -2689,6 +2689,574 @@ var PETS = (function () {
   window.__pets = PETS;
 })();
 
+/* ====== ПЕРЕГОНИ: автоцентр (3 поверх), гараж і прокачка, траси, фізика, гонки/погоня ====== */
+ROOMX.f3_auto = 900;
+
+/* ---- авто: реальні характеристики (hp, Нм, кг, привід, паспортна швидкість) ---- */
+var RCARS = {
+  bmw850: { n: 'BMW 850CSi', y: 1995, hp: 380, rpmP: 5300, nm: 550, kg: 1900, drv: 'RWD', vmax: 250, rpmR: 6200, gears: 6, mu: 0.95, cda: 0.58, cla: 0, h: 0.55, wf: 0.52, price: 0, acc: '6,0 с', src: 'auto-data.net (5.6 V12, 380 к.с. при 5300, 550 Нм при 4000, 1900 кг, 250 км/год)' },
+  charger: { n: 'Dodge Charger R/T', y: 1970, hp: 375, rpmP: 4600, nm: 651, kg: 1710, drv: 'RWD', vmax: 200, rpmR: 5300, gears: 4, mu: 0.85, cda: 0.99, cla: 0, h: 0.6, wf: 0.54, price: 700, acc: '≈6,5 с (оцінка)', src: '440 Magnum 7,2 л: 375 к.с. (gross) при 4600, 480 lb-ft ≈ 651 Нм; маса 1710–1765 кг (ultimatespecs); швидкість і розгін: оцінка' },
+  m3gtr_nfs: { n: 'BMW M3 GTR (Most Wanted)', y: 2005, hp: 380, rpmP: 7000, nm: 365, kg: 1350, drv: 'RWD', vmax: 290, rpmR: 7800, gears: 6, mu: 1.05, cda: 0.64, cla: 0.1, h: 0.5, wf: 0.5, price: 1200, acc: '≈4,6 с (оцінка)', src: 'Характеристики дорожньої M3 GTR: 4.0 V8 P60, 380 к.с. при 7000, 365 Нм при 5000, 1350 кг (supercars.net); швидкість: оцінка' },
+  m3gtr: { n: 'BMW M3 GTR Strassenversion', y: 2002, hp: 380, rpmP: 7000, nm: 365, kg: 1350, drv: 'RWD', vmax: 290, rpmR: 7800, gears: 6, mu: 1.05, cda: 0.64, cla: 0.1, h: 0.5, wf: 0.5, price: 1300, acc: '≈4,6 с (оцінка)', src: '4.0 V8 P60: 380 к.с. при 7000, 365 Нм при 5000, 1350 кг, 6МКПП (supercars.net); швидкість: оцінка' },
+  m3cs: { n: 'BMW M3 CS Touring', y: 2025, hp: 543, rpmP: 6250, nm: 650, kg: 1870, drv: 'AWD', vmax: 300, rpmR: 7200, gears: 8, mu: 1.1, cda: 0.82, cla: 0.1, h: 0.55, wf: 0.52, price: 2200, acc: '3,5 с', src: 'BMW Group: 550 к.с. (543 hp) при 6250, 650 Нм при 2750–5950, M xDrive, 8-ступ. автомат, 0-100 за 3,5 с, 300 км/год; маса ≈1870 кг (оцінка)' },
+  m3gtr_alms: { n: 'BMW M3 GTR (ALMS)', y: 2001, hp: 444, rpmP: 7500, nm: 468, kg: 1120, drv: 'RWD', vmax: 285, rpmR: 8300, gears: 6, mu: 1.35, cda: 0.8, cla: 0.55, h: 0.45, wf: 0.48, price: 3200, acc: '≈3,6 с (оцінка)', src: '4.0 V8 гоночний: 444 к.с. при 7500, 345 lb-ft ≈ 468 Нм при 5500, 1120 кг (supercars.net); швидкість і розгін: оцінка' },
+  viper: { n: 'Dodge SRT Viper GTS', y: 2013, hp: 640, rpmP: 6150, nm: 814, kg: 1520, drv: 'RWD', vmax: 331, rpmR: 6400, gears: 6, mu: 1.1, cda: 0.72, cla: 0.1, h: 0.5, wf: 0.49, price: 3800, acc: '≈3,5 с', src: 'SRT: 8.4 V10, 640 к.с. при 6150, 600 lb-ft ≈ 814 Нм, ≈1520 кг, 6МКПП, до 331 км/год (відкриті дані виробника, перевірити при потребі)' },
+  v12lmr: { n: 'BMW V12 LMR', y: 1999, hp: 585, rpmP: 7000, nm: 700, kg: 900, drv: 'RWD', vmax: 342, rpmR: 7400, gears: 6, mu: 1.55, cda: 0.61, cla: 1.0, h: 0.38, wf: 0.45, price: 6000, acc: '≈3,0 с (оцінка)', src: 'Вікіпедія: 6.0 V12 S70/3, 580–590 к.с., 6-ступ. секвентальна КПП, 342 км/год у Ле-Мані 1999; момент, обороти і маса (мінімум регламенту 900 кг): оцінка' }
+};
+var RCAR_IDS = ['bmw850', 'charger', 'm3gtr_nfs', 'm3gtr', 'm3cs', 'm3gtr_alms', 'viper', 'v12lmr'];
+var RUP = [['eng', 'Двигун', '+5% потужності за рівень'], ['tire', 'Шини', '+3,5% зчеплення'], ['brk', 'Гальма', '+7% гальмівного зусилля'], ['wgt', 'Полегшення', '−3,5% маси'], ['gear', 'Трансмісія', '+3% максимальної швидкості']];
+function rupCost(id, lvl) { var b = 80 + RCARS[id].price * 0.04; return Math.round(b * (1 + lvl * 0.9)); }
+
+/* ---- гараж (збереження в браузері) ---- */
+var GAR = (function () {
+  var S = { own: { bmw850: { eng: 0, tire: 0, brk: 0, wgt: 0, gear: 0 } }, sel: 'bmw850', races: 0, wins: 0 };
+  try { var z = JSON.parse(localStorage.getItem('hall-garage') || 'null'); if (z && z.own) S = z; } catch (e) {}
+  function save() { try { localStorage.setItem('hall-garage', JSON.stringify(S)); } catch (e) {} }
+  return {
+    S: S, save: save,
+    sel: function () { return S.sel; },
+    up: function (id) { return S.own[id || S.sel]; },
+    buy: function (id) { var p = RCARS[id].price; if (S.own[id]) return 'own'; if (!WAL.spend(p)) return 'no'; S.own[id] = { eng: 0, tire: 0, brk: 0, wgt: 0, gear: 0 }; S.sel = id; save(); return 'ok'; },
+    upgrade: function (id, k) { var u = S.own[id]; if (!u || u[k] >= 5) return 'max'; if (!WAL.spend(rupCost(id, u[k]))) return 'no'; u[k]++; save(); return 'ok'; },
+    choose: function (id) { if (S.own[id]) { S.sel = id; save(); } }
+  };
+})();
+
+/* ---- параметри авто з урахуванням прокачки ---- */
+function carParams(id, up) {
+  var s = RCARS[id]; up = up || {}; var e = up.eng | 0, t = up.tire | 0, b = up.brk | 0, w = up.wgt | 0, g = up.gear | 0;
+  var P = { id: id, hp: s.hp * (1 + 0.05 * e), rpmP: s.rpmP, rpmR: s.rpmR, rpmI: 900, m: s.kg * (1 - 0.035 * w), mu: s.mu * (1 + 0.035 * t), brk: 1 + 0.07 * b, vlim: s.vmax * (1 + 0.03 * g) / 3.6, cda: s.cda, cla: s.cla, h: s.h, wf: s.wf, drv: s.drv, n: s.gears, R: 0.33, L: 2.7 };
+  return P;
+}
+var RHO = 1.2, GR = 9.81;
+function engT(P, rpm) { /* момент, Нм: з кривої потужності P(x)=Pmax·x(1+x−x²) */
+  var x = Math.max(0.25, rpm) / P.rpmP, pw = P.hp * 745.7 * x * (1 + x - x * x); if (pw < 0) pw = 0;
+  var om = Math.max(60, rpm) * Math.PI / 30; return pw / om;
+}
+
+/* ---- траса ---- */
+var RMAPS = [
+  { id: 0, name: 'Долина вітру', target: 3800, harm: [[2, 0.2, 0.3], [3, 0.15, 1.7], [5, 0.06, 0.9]], elev: 9, tint: 0x5a8f3c, d: 'Плавна траса з довгими прямими й широкими поворотами.' },
+  { id: 1, name: 'Гірський хребет', target: 4900, harm: [[2, 0.18, 2.0], [3, 0.2, 0.4], [4, 0.1, 3.0], [7, 0.04, 1.0]], elev: 26, tint: 0x6d8a4a, d: 'Довга технічна траса зі спусками й підйомами.' },
+  { id: 2, name: 'Grand Valley Speedway', glb: 1, target: 0, d: 'Карта з вашої папки (потребує окремого перенесення).' },
+  { id: 3, name: 'Tahiti Maze', glb: 1, target: 0, d: 'Карта з вашої папки (потребує окремого перенесення).' }
+];
+function sstep(a, b, x) { var t = Math.max(0, Math.min(1, (x - a) / (b - a))); return t * t * (3 - 2 * t); }
+
+function makeTrack(mapId, reverse) {
+  var M = RMAPS[mapId], K = 1600, i, k, pts = [];
+  for (i = 0; i < K; i++) {
+    var th = 2 * Math.PI * i / K, r = 1; M.harm.forEach(function (h) { r += h[1] * Math.cos(h[0] * th + h[2]); });
+    pts.push([r * Math.cos(th), r * Math.sin(th)]);
+  }
+  var len = 0; for (i = 0; i < K; i++) { var a = pts[i], b = pts[(i + 1) % K]; len += Math.hypot(b[0] - a[0], b[1] - a[1]); }
+  var sc = M.target / len; pts = pts.map(function (p) { return [p[0] * sc, p[1] * sc]; });
+  /* рівномірна вибірка кожні ~4 м */
+  var N = Math.round(M.target / 4), ds = M.target / N, cum = [0]; for (i = 0; i < K; i++) { var a2 = pts[i], b2 = pts[(i + 1) % K]; cum.push(cum[i] + Math.hypot(b2[0] - a2[0], b2[1] - a2[1])); }
+  var S = [], j = 0; for (i = 0; i < N; i++) { var s = i * ds; while (cum[j + 1] < s) j++; var f = (s - cum[j]) / (cum[j + 1] - cum[j] || 1), p0 = pts[j % K], p1 = pts[(j + 1) % K]; S.push([p0[0] + (p1[0] - p0[0]) * f, p0[1] + (p1[1] - p0[1]) * f]); }
+  var H = []; for (i = 0; i < N; i++) { var t = 2 * Math.PI * i / N; H.push(M.elev * (0.55 * Math.sin(t + 0.5) + 0.3 * Math.sin(2 * t + 2) + 0.2 * Math.sin(3 * t + 4))); }
+  if (reverse) { S.reverse(); H.reverse(); }
+  var T = { map: M, N: N, ds: ds, L: M.target, hw: 6.5, pts: S, h: H, tx: [], tz: [], nx: [], nz: [], kap: [] };
+  for (i = 0; i < N; i++) {
+    var p = S[i], q = S[(i + 1) % N], dx = q[0] - p[0], dz = q[1] - p[1], l = Math.hypot(dx, dz) || 1; T.tx.push(dx / l); T.tz.push(dz / l); T.nx.push(-dz / l); T.nz.push(dx / l); /* n = ліворуч від напрямку руху (xz) */
+  }
+  /* "ліворуч" для автомобіля: напрямок руху (tx,tz); ліво = (tz, -tx)? у нашій системі forward=(−sinψ,−cosψ), left=(−cosψ, sinψ) = (tz·?, ...) */
+  for (i = 0; i < N; i++) { var tx = T.tx[i], tz = T.tz[i]; T.nx[i] = tz; T.nz[i] = -tx; }
+  T.left = function (i) { return [T.nx[i], T.nz[i]]; };
+  for (i = 0; i < N; i++) { var a3 = Math.atan2(T.tx[i], T.tz[i]), b3 = Math.atan2(T.tx[(i + 1) % N], T.tz[(i + 1) % N]), d3 = b3 - a3; while (d3 > Math.PI) d3 -= 2 * Math.PI; while (d3 < -Math.PI) d3 += 2 * Math.PI; T.kap.push(d3 / ds); }
+  /* просторовий хеш */
+  var cell = 40, hash = {}; for (i = 0; i < N; i++) { var key = Math.floor(S[i][0] / cell) + ',' + Math.floor(S[i][1] / cell); (hash[key] = hash[key] || []).push(i); }
+  var mnx = 1e9, mxx = -1e9, mnz = 1e9, mxz = -1e9; S.forEach(function (p) { mnx = Math.min(mnx, p[0]); mxx = Math.max(mxx, p[0]); mnz = Math.min(mnz, p[1]); mxz = Math.max(mxz, p[1]); }); T.box = { x1: mnx, x2: mxx, z1: mnz, z2: mxz };
+  T.near = function (x, z) {
+    var cx = Math.floor(x / cell), cz = Math.floor(z / cell), best = -1, bd = 1e18;
+    for (var R = 1; R <= 4 && best < 0; R++) for (var ax = cx - R; ax <= cx + R; ax++) for (var az = cz - R; az <= cz + R; az++) { var c = hash[ax + ',' + az]; if (!c) continue; for (var q = 0; q < c.length; q++) { var ii = c[q], dx = S[ii][0] - x, dz = S[ii][1] - z, dd = dx * dx + dz * dz; if (dd < bd) { bd = dd; best = ii; } } }
+    if (best < 0) return { i: 0, d: 1e5, t: 0, h: 0 };
+    /* уточнення по відрізках */
+    var res = null;
+    [best - 1, best].forEach(function (i0) {
+      i0 = (i0 + N) % N; var i1 = (i0 + 1) % N, ax = S[i0][0], az = S[i0][1], bx = S[i1][0], bz = S[i1][1], ex = bx - ax, ez = bz - az, l2 = ex * ex + ez * ez, t = Math.max(0, Math.min(1, ((x - ax) * ex + (z - az) * ez) / l2)), px = ax + ex * t, pz = az + ez * t, dd = Math.hypot(x - px, z - pz);
+      if (!res || dd < res.dist) res = { i: i0, t: t, dist: dd, px: px, pz: pz };
+    });
+    var lf = T.left(res.i), sg = ((x - res.px) * lf[0] + (z - res.pz) * lf[1]) >= 0 ? 1 : -1, i1 = (res.i + 1) % N;
+    return { i: res.i, t: res.t, d: sg * res.dist, h: H[res.i] + (H[i1] - H[res.i]) * res.t, nx: lf[0], nz: lf[1] };
+  };
+  var mean = 0; H.forEach(function (v) { mean += v; }); mean /= N;
+  function baseH(x, z) { return mean + 7 * Math.sin(x * 0.0042 + 1) * Math.cos(z * 0.0036) + 4 * Math.sin(x * 0.012 + z * 0.0095) + 2 * Math.sin(z * 0.03 + x * 0.02); }
+  T.ground = function (x, z, nr) { nr = nr || T.near(x, z); var k = sstep(9, 75, Math.abs(nr.d)); return nr.h + (baseH(x, z) - nr.h) * k; };
+  return T;
+}
+function trackCheck(T) { var mnr = 1e9, mg = 0, i; for (i = 0; i < T.N; i++) { mnr = Math.min(mnr, 1 / Math.max(1e-6, Math.abs(T.kap[i]))); mg = Math.max(mg, Math.abs(T.h[(i + 1) % T.N] - T.h[i]) / T.ds); } return { minR: mnr, maxGrade: mg }; }
+
+/* ---- 3D-сцена траси ---- */
+var RTRK = { loc: null, grp: null };
+function trackScene(T) {
+  if (!RTRK.loc) { var g0 = new THREE.Group(); scene.add(g0); RTRK.loc = addLoc('f3_track', g0, { x1: -1e5, x2: 1e5, z1: -1e5, z2: 1e5 }, { x: 0, z: 0, yaw: 0 }); RTRK.loc.X = 0; }
+  var loc = RTRK.loc, G = new THREE.Group(); if (RTRK.grp) { loc.group.remove(RTRK.grp); RTRK.grp.traverse(function (o) { if (o.geometry) o.geometry.dispose(); }); }
+  RTRK.grp = G; loc.group.add(G); loc.bg = 0x9cc7ec; loc.fogN = 140; loc.fogF = 1150; loc.obst = [];
+  while (loc.group.children.length > 1) loc.group.remove(loc.group.children[0]); loc.group.add(G);
+  var hemi = new THREE.HemisphereLight(0xdfeeff, 0x4a5a38, 0.85); loc.group.add(hemi); var sun = new THREE.DirectionalLight(0xfff2d8, 0.95); sun.position.set(300, 500, 200); loc.group.add(sun);
+  var N = T.N, hw = T.hw, i;
+  /* дорога */
+  var cv = document.createElement('canvas'); cv.width = 128; cv.height = 256; var x = cv.getContext('2d');
+  x.fillStyle = '#4b4d51'; x.fillRect(0, 0, 128, 256); for (i = 0; i < 1600; i++) { x.fillStyle = 'rgba(' + (i % 2 ? '255,255,255' : '0,0,0') + ',' + (0.03 + Math.random() * 0.05) + ')'; x.fillRect(Math.random() * 128, Math.random() * 256, 2, 2); }
+  x.fillStyle = '#e8e8e8'; x.fillRect(5, 0, 5, 256); x.fillRect(118, 0, 5, 256); x.fillStyle = '#e6c84a'; x.fillRect(62, 0, 4, 100); x.fillRect(62, 128, 4, 100);
+  var rt = new THREE.CanvasTexture(cv); rt.wrapS = rt.wrapT = THREE.RepeatWrapping; rt.anisotropy = 8;
+  var pos = [], uv = [], idx = [], kpos = [], kcol = [], kidx = [];
+  for (i = 0; i <= N; i++) {
+    var a = i % N, c = T.pts[a], nl = T.left(a), y = T.h[a] + 0.04;
+    pos.push(c[0] + nl[0] * hw, y, c[1] + nl[1] * hw, c[0] - nl[0] * hw, y, c[1] - nl[1] * hw); uv.push(0, i * T.ds / 12, 1, i * T.ds / 12);
+    if (i < N) { var b = i * 2; idx.push(b, b + 1, b + 2, b + 1, b + 3, b + 2); }
+    /* поребрик */
+    var w2 = hw + 0.9, col = (Math.floor(i / 2) % 2) ? [0.85, 0.12, 0.1] : [0.95, 0.95, 0.95];
+    kpos.push(c[0] + nl[0] * hw, y + 0.01, c[1] + nl[1] * hw, c[0] + nl[0] * w2, y + 0.01, c[1] + nl[1] * w2, c[0] - nl[0] * hw, y + 0.01, c[1] - nl[1] * hw, c[0] - nl[0] * w2, y + 0.01, c[1] - nl[1] * w2);
+    for (var q = 0; q < 4; q++) kcol.push(col[0], col[1], col[2]);
+    if (i < N) { var kb = i * 4; kidx.push(kb, kb + 4, kb + 1, kb + 1, kb + 4, kb + 5, kb + 2, kb + 3, kb + 6, kb + 3, kb + 7, kb + 6); }
+  }
+  var rg = new THREE.BufferGeometry(); rg.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); rg.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); rg.setIndex(idx); rg.computeVertexNormals();
+  var rm = new THREE.Mesh(rg, new THREE.MeshStandardMaterial({ map: rt, roughness: 0.92, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 })); G.add(rm);
+  var kg = new THREE.BufferGeometry(); kg.setAttribute('position', new THREE.Float32BufferAttribute(kpos, 3)); kg.setAttribute('color', new THREE.Float32BufferAttribute(kcol, 3)); kg.setIndex(kidx); kg.computeVertexNormals();
+  G.add(new THREE.Mesh(kg, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.8, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3 })));
+  /* рельєф */
+  var B = T.box, cell = 14, x0 = B.x1 - 380, z0 = B.z1 - 380, nx = Math.ceil((B.x2 - B.x1 + 760) / cell), nz = Math.ceil((B.z2 - B.z1 + 760) / cell), tp = [], tc = [], ti = [], tint = new THREE.Color(T.map.tint), gx, gz;
+  for (gz = 0; gz <= nz; gz++) for (gx = 0; gx <= nx; gx++) {
+    var wx = x0 + gx * cell, wz = z0 + gz * cell, h = T.ground(wx, wz) - 0.12; tp.push(wx, h, wz);
+    var nz2 = Math.sin(wx * 0.05) * Math.cos(wz * 0.043) * 0.5 + Math.sin(wx * 0.17 + wz * 0.13) * 0.25, f = 0.78 + nz2 * 0.3, hh = Math.max(0, Math.min(1, (h - 8) / 30));
+    tc.push(tint.r * f * (1 - hh) + 0.5 * hh, tint.g * f * (1 - hh) + 0.47 * hh, tint.b * f * (1 - hh) + 0.42 * hh);
+  }
+  for (gz = 0; gz < nz; gz++) for (gx = 0; gx < nx; gx++) { var a1 = gz * (nx + 1) + gx, b1 = a1 + 1, c1 = a1 + nx + 1, d1 = c1 + 1; ti.push(a1, c1, b1, b1, c1, d1); }
+  var tg = new THREE.BufferGeometry(); tg.setAttribute('position', new THREE.Float32BufferAttribute(tp, 3)); tg.setAttribute('color', new THREE.Float32BufferAttribute(tc, 3)); tg.setIndex(ti); tg.computeVertexNormals();
+  G.add(new THREE.Mesh(tg, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1, side: THREE.DoubleSide })));
+  /* огорожа */
+  var fp = [], fi = [], wd = hw + 15;
+  for (var side = -1; side <= 1; side += 2) {
+    var base = fp.length / 3;
+    for (i = 0; i <= N; i++) { var a4 = i % N, c4 = T.pts[a4], n4 = T.left(a4), px = c4[0] + n4[0] * wd * side, pz = c4[1] + n4[1] * wd * side, gh = T.ground(px, pz); fp.push(px, gh, pz, px, gh + 1.1, pz); if (i < N) { var bb = base + i * 2; fi.push(bb, bb + 1, bb + 2, bb + 1, bb + 3, bb + 2); } }
+  }
+  var fg = new THREE.BufferGeometry(); fg.setAttribute('position', new THREE.Float32BufferAttribute(fp, 3)); fg.setIndex(fi); fg.computeVertexNormals();
+  G.add(new THREE.Mesh(fg, new THREE.MeshStandardMaterial({ color: 0xd8d4c8, roughness: 0.9, side: THREE.DoubleSide })));
+  T.wallD = wd;
+  /* дерева (instanced) */
+  var NT = 650, trunk = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.25, 0.35, 3, 6), new THREE.MeshStandardMaterial({ color: 0x5a3d26, roughness: 1 }), NT), crown = new THREE.InstancedMesh(new THREE.ConeGeometry(2.4, 7, 7), new THREE.MeshStandardMaterial({ color: 0x2f6a34, roughness: 1 }), NT), m4 = new THREE.Matrix4(), cnt = 0, rnd = (function (s) { return function () { s = (s * 16807) % 2147483647; return s / 2147483647; }; })(7 + T.map.id * 13);
+  for (i = 0; i < 4000 && cnt < NT; i++) {
+    var tx = B.x1 - 300 + rnd() * (B.x2 - B.x1 + 600), tz = B.z1 - 300 + rnd() * (B.z2 - B.z1 + 600), nr = T.near(tx, tz); if (Math.abs(nr.d) < wd + 4) continue;
+    var gy = T.ground(tx, tz, nr), sc2 = 0.7 + rnd() * 1.1; m4.makeScale(sc2, sc2, sc2); m4.setPosition(tx, gy + 1.5 * sc2, tz); trunk.setMatrixAt(cnt, m4); m4.makeScale(sc2, sc2, sc2); m4.setPosition(tx, gy + 6 * sc2, tz); crown.setMatrixAt(cnt, m4); cnt++;
+  }
+  trunk.count = crown.count = cnt; G.add(trunk, crown);
+  /* гори на обрії */
+  var mm = new THREE.MeshStandardMaterial({ color: 0x8a97a6, roughness: 1, flatShading: true });
+  for (i = 0; i < 18; i++) { var ang = i / 18 * Math.PI * 2, rr = Math.max(B.x2 - B.x1, B.z2 - B.z1) * 0.5 + 900 + (i % 3) * 120, ph = 260 + (i * 53 % 160), m = new THREE.Mesh(new THREE.ConeGeometry(220 + (i % 4) * 40, ph, 6), mm); m.position.set((B.x1 + B.x2) / 2 + Math.cos(ang) * rr, ph / 2 - 20, (B.z1 + B.z2) / 2 + Math.sin(ang) * rr); G.add(m); }
+  /* старт-фініш: шаховий рядок і арка */
+  var cv2 = document.createElement('canvas'); cv2.width = 128; cv2.height = 32; var x2 = cv2.getContext('2d'); for (var cx = 0; cx < 16; cx++) for (var cy = 0; cy < 4; cy++) { x2.fillStyle = (cx + cy) % 2 ? '#111' : '#f4f4f4'; x2.fillRect(cx * 8, cy * 8, 8, 8); }
+  var ct = new THREE.CanvasTexture(cv2); var c0 = T.pts[0], n0 = T.left(0), y0 = T.h[0];
+  var line = new THREE.Mesh(new THREE.PlaneGeometry(hw * 2, 2.4), new THREE.MeshBasicMaterial({ map: ct, polygonOffset: true, polygonOffsetFactor: -5, polygonOffsetUnits: -5 })); line.rotation.x = -Math.PI / 2; line.rotation.z = -Math.atan2(T.tx[0], T.tz[0]) + Math.PI / 2 * 0; line.position.set(c0[0], y0 + 0.07, c0[1]);
+  line.rotation.set(-Math.PI / 2, 0, 0); line.rotation.order = 'YXZ'; line.rotation.y = Math.atan2(T.tx[0], T.tz[0]) + Math.PI; G.add(line);
+  var arch = new THREE.Group(); arch.position.set(c0[0], y0, c0[1]); arch.rotation.y = Math.atan2(T.tx[0], T.tz[0]) + Math.PI;
+  [-1, 1].forEach(function (s) { var p = new THREE.Mesh(new THREE.BoxGeometry(0.6, 7, 0.6), new THREE.MeshStandardMaterial({ color: 0x333a44 })); p.position.set(s * (hw + 1.6), 3.5, 0); arch.add(p); });
+  var ban = new THREE.Mesh(new THREE.BoxGeometry((hw + 1.6) * 2, 1.4, 0.4), new THREE.MeshBasicMaterial({ map: ct })); ban.position.y = 7; arch.add(ban); G.add(arch);
+  return loc;
+}
+
+/* ====== Перегони, частина 2: модель авто, фізика, ШІ ====== */
+var RCM = {};
+function rcDec(d) {
+  var b = function (s, T2) { var bin = atob(s), u = new Uint8Array(bin.length); for (var i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i); return new T2(u.buffer); };
+  var p = b(d.p, Int16Array), nn = b(d.nn, Int8Array), c = b(d.c, Uint8Array), ix = b(d.i, d.big ? Uint32Array : Uint16Array), n = d.n, pf = new Float32Array(n * 3), nf = new Float32Array(n * 3), cf = new Float32Array(n * 3);
+  for (var i = 0; i < n * 3; i++) { pf[i] = p[i] / d.k; nf[i] = nn[i] / 127; cf[i] = c[i] / 255; }
+  var g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(pf, 3)); g.setAttribute('normal', new THREE.BufferAttribute(nf, 3)); g.setAttribute('color', new THREE.BufferAttribute(cf, 3)); g.setIndex(new THREE.BufferAttribute(ix, 1)); return g;
+}
+var RCMAT = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.55, metalness: 0.15, side: THREE.DoubleSide });
+var RTIREMAT = new THREE.MeshStandardMaterial({ color: 0x151515, roughness: 0.95 });
+function carModel(id, cb) {
+  var mk = function (d) {
+    var g = new THREE.Group(), body = new THREE.Mesh(rcDec(d.body), RCMAT); g.add(body); var wh = {};
+    Object.keys(d.wheels).forEach(function (k) {
+      var wd = d.wheels[k], pv = new THREE.Group(), st = new THREE.Group(), sp = new THREE.Group(), gm = rcDec(wd); gm.computeBoundingBox(); var bb = gm.boundingBox, wdt = Math.max(0.2, bb.max.x - bb.min.x), rad = d.R || 0.33;
+      sp.add(new THREE.Mesh(gm, RCMAT));
+      var tire = new THREE.Mesh(new THREE.TorusGeometry(rad - 0.07, 0.07, 8, 20), RTIREMAT); tire.rotation.y = Math.PI / 2; tire.scale.set(wdt / 0.14, 1, 1); /* тор: вісь Z, повертаємо до X */ tire.scale.set(1, 1, Math.max(1, wdt / 0.14)); sp.add(tire);
+      st.add(sp); pv.add(st); pv.position.set(wd.pos[0], wd.pos[1], wd.pos[2]); g.add(pv); wh[k] = { piv: pv, st: st, sp: sp };
+    });
+    return { g: g, wheels: wh, R: d.R || 0.33, wb: d.wb || 2.7, tr: d.tr || 1.55 };
+  };
+  P2.file('car_' + id, function (d) { cb(mk(d)); });
+}
+
+function Veh(id, up, isAI) {
+  this.id = id; this.P = carParams(id, up); var P = this.P; P.a = P.L * (1 - P.wf); P.b = P.L * P.wf; P.Iz = P.m * 1.8 * Math.pow(P.L / 2.7, 2);
+  /* передачі: загальне передавальне число верхньої передачі з паспортної швидкості */
+  var FD = 3.4; P.FD = FD; var gT = (P.rpmR * Math.PI / 30) * P.R / P.vlim / FD, spread = P.n >= 6 ? 4.2 : 3.0, sp2 = Math.pow(spread, 1 / (P.n - 1)); P.g = []; for (var i = 0; i < P.n; i++) P.g.push(gT * Math.pow(sp2, P.n - 1 - i));
+  P.gR = P.g[0] * 1.05;
+  this.x = 0; this.z = 0; this.psi = 0; this.u = 0; this.v = 0; this.r = 0; this.steer = 0; this.thr = 0; this.brk = 0; this.gear = 1; this.shiftT = 0; this.rpm = 900; this.rev = false; this.axs = 0; this.ays = 0; this.y = 0; this.pitch = 0; this.roll = 0;
+  this.pg = 0; this.lastI = null; this.fin = 0; this.best = 0; this.lapT0 = 0; this.lapN = 0; this.isAI = !!isAI; this.slip = 0; this.hit = 0; this.nr = null; this.wspin = 0; this.name = '';
+}
+Veh.prototype.place = function (T, i, off, back) {
+  var p = T.pts[i], lf = T.left(i); this.x = p[0] + lf[0] * off; this.z = p[1] + lf[1] * off; this.psi = Math.atan2(-T.tx[i], -T.tz[i]); this.u = 0; this.v = 0; this.r = 0; this.nr = T.near(this.x, this.z); this.lastI = this.nr.i; this.pg = back; this.y = T.ground(this.x, this.z, this.nr);
+};
+Veh.prototype.step = function (dt, inp, T) {
+  var P = this.P, u = this.u, v = this.v, r = this.r, m = P.m, sgu = u >= 0 ? 1 : -1;
+  var nr = T.near(this.x, this.z); this.nr = nr; var dAbs = Math.abs(nr.d);
+  var surf = dAbs <= T.hw + 0.9 ? 1 : (dAbs < T.hw + 13 ? 0.62 : 0.5), crr = surf === 1 ? 0.014 : 0.09;
+  /* керування */
+  var th = inp.th, br = inp.br;
+  if (!this.rev && br > 0.1 && u < 0.6 && th < 0.1) this.rev = true; if (this.rev && th > 0.1 && u > -0.6) this.rev = false;
+  var drive = this.rev ? -br : th, brakeIn = 0;
+  if (!this.rev) brakeIn = (u > 0.5) ? br : 0; else brakeIn = (u < -0.5) ? th : 0;
+  this.thr += (Math.abs(drive) - this.thr) * Math.min(1, dt * 9); this.brk += (brakeIn - this.brk) * Math.min(1, dt * 12);
+  var dmax = 0.6 / (1 + Math.pow(Math.abs(u) / 20, 2)) + 0.05; this.steer += (inp.st - this.steer) * Math.min(1, dt * 7); var del = this.steer * dmax;
+  /* передачі й обороти */
+  var G = this.rev ? P.gR : P.g[this.gear - 1], rpmC = Math.abs(u) / P.R * G * P.FD * 30 / Math.PI;
+  if (!this.rev && u > 1) {
+    if (this.shiftT <= 0) {
+      if (rpmC > P.rpmR * 0.95 && this.gear < P.n) { this.gear++; this.shiftT = 0.16; }
+      else if (this.gear > 1 && Math.abs(u) / P.R * P.g[this.gear - 2] * P.FD * 30 / Math.PI < P.rpmR * 0.88 && rpmC < P.rpmR * 0.5) { this.gear--; this.shiftT = 0.1; }
+    }
+  } else if (!this.rev && u < 1) this.gear = 1;
+  this.shiftT = Math.max(0, this.shiftT - dt);
+  var rpmE = Math.max(rpmC, P.rpmR * 0.32); this.rpm += (Math.max(P.rpmI, Math.min(P.rpmR, rpmE)) - this.rpm) * Math.min(1, dt * 14);
+  var tq = engT(P, Math.min(rpmE, P.rpmR)), lim = rpmC > P.rpmR ? 0 : 1; if (Math.abs(u) > P.vlim * 1.0 && !this.rev) lim = 0; if (this.rev && Math.abs(u) > 11) lim = 0;
+  var Fdem = this.thr * tq * G * P.FD * 0.88 / P.R * (this.shiftT > 0 ? 0.1 : 1) * lim * (this.rev ? -0.8 : 1);
+  /* навантаження осей */
+  var Fdown = 0.5 * RHO * P.cla * u * u, ax = this.axs, Fzf = m * GR * P.wf - m * ax * P.h / P.L + 0.4 * Fdown, Fzr = m * GR * (1 - P.wf) + m * ax * P.h / P.L + 0.6 * Fdown, mn = m * GR * 0.08; Fzf = Math.max(mn, Fzf); Fzr = Math.max(mn, Fzr);
+  var mu = P.mu * surf, Ff = 0, Fr = 0;
+  if (P.drv === 'AWD') { Ff = Fdem * 0.38; Fr = Fdem * 0.62; } else Fr = Fdem;
+  Ff = Math.max(-0.93 * mu * Fzf, Math.min(0.93 * mu * Fzf, Ff)); Fr = Math.max(-0.93 * mu * Fzr, Math.min(0.93 * mu * Fzr, Fr));
+  var Fb = this.brk * Math.min(1, 0.84 * P.brk) * mu * (Fzf + Fzr), bf = Math.max(0.62, Fzf / (Fzf + Fzr)), Fbf = Math.min(Fb * bf, mu * Fzf), Fbr = Math.min(Fb * (1 - bf), mu * Fzr);
+  if (inp.hb) Fbr = Math.min(mu * Fzr, Fbr + 0.9 * mu * Fzr * 0.6);
+  var sgb = sgu; Ff -= sgb * Fbf; Fr -= sgb * Fbr;
+  var rearGrip = inp.hb ? 0.38 : 1;
+  /* бічні сили шин (коло тертя) */
+  var ud = Math.max(Math.abs(u), 3) * sgu, af = Math.atan2(v + P.a * r, ud) - del * (sgu), ar = Math.atan2(v - P.b * r, ud);
+  var Fyfm = Math.sqrt(Math.max(0, Math.pow(mu * Fzf, 2) - Ff * Ff)), Fyrm = Math.sqrt(Math.max(0, Math.pow(mu * Fzr * rearGrip, 2) - Fr * Fr));
+  var Fyf = -mu * Fzf * Math.sin(1.45 * Math.atan(9 * af)), Fyr = -1.12 * mu * Fzr * rearGrip * Math.sin(1.45 * Math.atan(12 * ar)); if (Math.abs(Fyf) > Fyfm) Fyf = Fyf < 0 ? -Fyfm : Fyfm; if (Math.abs(Fyr) > Fyrm) Fyr = Fyr < 0 ? -Fyrm : Fyrm;
+  /* опір */
+  var Fdrag = 0.5 * RHO * P.cda * u * Math.abs(u), Froll = crr * m * GR * (Math.abs(u) > 0.05 ? sgu : 0) * Math.min(1, Math.abs(u) / 1.5);
+  var cd = Math.cos(del), sd = Math.sin(del);
+  var Fx = Ff * cd + Fr - Fdrag - Froll - Fyf * sd, Fy = Fyf * cd + Fr * 0 + Fyr + Ff * sd, Mz = P.a * (Fyf * cd + Ff * sd) - P.b * Fyr;
+  var du = Fx / m + v * r, dv = Fy / m - u * r, dr = Mz / P.Iz;
+  this.axs += (Fx / m - this.axs) * Math.min(1, dt * 6); this.ays += ((Fy / m) - this.ays) * Math.min(1, dt * 6);
+  u += du * dt; v += dv * dt; r += dr * dt;
+  /* стабілізація на малих швидкостях */
+  var k0 = Math.max(0, 1 - Math.abs(u) / 4); if (k0 > 0) { v -= v * Math.min(1, dt * 6 * k0); r -= r * Math.min(1, dt * 4 * k0); }
+  r -= r * dt * 0.12;
+  this.slip = Math.min(1, Math.abs(af) * 4 + Math.abs(ar) * 4 + (Ff + Fr > mu * (Fzf + Fzr) * 0.9 ? 0.3 : 0));
+  this.psi += r * dt; var cp = Math.cos(this.psi), sp = Math.sin(this.psi), fx = -sp, fz = -cp, lx = -cp, lz = sp;
+  this.x += (u * fx + v * lx) * dt; this.z += (u * fz + v * lz) * dt;
+  /* огорожа */
+  var nr2 = T.near(this.x, this.z), lim2 = T.wallD - 1.4;
+  if (Math.abs(nr2.d) > lim2) {
+    var sg = nr2.d > 0 ? 1 : -1, ex = Math.abs(nr2.d) - lim2; this.x -= nr2.nx * sg * ex; this.z -= nr2.nz * sg * ex;
+    var vx = u * fx + v * lx, vz = u * fz + v * lz, vn = vx * nr2.nx * sg + vz * nr2.nz * sg; if (vn > 0) { vx -= nr2.nx * sg * vn * 1.3; vz -= nr2.nz * sg * vn * 1.3; u = vx * fx + vz * fz; v = vx * lx + vz * lz; u *= 0.7; r *= 0.5; this.hit = Math.max(this.hit, Math.min(1, vn / 20)); }
+    nr2 = T.near(this.x, this.z);
+  }
+  this.u = u; this.v = v; this.r = r; this.nr = nr2;
+  /* прогрес кола */
+  var di = nr2.i - this.lastI; if (di < -T.N / 2) di += T.N; else if (di > T.N / 2) di -= T.N; this.pg += di; this.lastI = nr2.i;
+  this.wspin += (u / P.R) * dt;
+};
+Veh.prototype.updateModel = function (T, mdl, dt) {
+  if (!mdl) return; var g = mdl.g, P = this.P, cp = Math.cos(this.psi), sp = Math.sin(this.psi), fx = -sp, fz = -cp, lx = -cp, lz = sp;
+  var yc = T.ground(this.x, this.z), yf = T.ground(this.x + fx * 1.4, this.z + fz * 1.4), yr = T.ground(this.x - fx * 1.4, this.z - fz * 1.4), yl = T.ground(this.x + lx * 0.9, this.z + lz * 0.9), yrr = T.ground(this.x - lx * 0.9, this.z - lz * 0.9);
+  this.y += (yc - this.y) * Math.min(1, dt * 20); var ptc = Math.atan((yf - yr) / 2.8), rl = Math.atan((yl - yrr) / 1.8) * -1;
+  this.pitch += ((ptc + this.axs * 0.004) - this.pitch) * Math.min(1, dt * 6); this.roll += ((rl + this.ays * 0.006) - this.roll) * Math.min(1, dt * 6);
+  g.position.set(this.x, this.y, this.z); g.rotation.order = 'YXZ'; g.rotation.y = this.psi; g.rotation.x = this.pitch; g.rotation.z = this.roll;
+  var del = this.steer * (0.6 / (1 + Math.pow(Math.abs(this.u) / 20, 2)) + 0.05);
+  Object.keys(mdl.wheels).forEach(function (k) { var w = mdl.wheels[k]; w.sp.rotation.x = -this.wspin; if (k[1] === 'f') w.st.rotation.y = del; }, this);
+};
+
+Veh.prototype.recover = function (T) { var i = this.nr ? this.nr.i : 0, pg = this.pg, p = T.pts[i]; this.x = p[0]; this.z = p[1]; this.psi = Math.atan2(-T.tx[i], -T.tz[i]); this.u = 8; this.v = 0; this.r = 0; this.axs = 0; this.ays = 0; this.stuck = 0; this.nr = T.near(this.x, this.z); this.lastI = this.nr.i; this.pg = pg; };
+/* ---- ШІ ---- */
+function aiProfile(T, P, skill) {
+  var N = T.N, a = P.mu * GR * skill * 0.78, vp = new Float32Array(N), i; for (i = 0; i < N; i++) { var k = Math.abs(T.kap[i]), vc = k < 1e-4 ? P.vlim : Math.sqrt(a / k); vp[i] = Math.min(P.vlim * 0.99, vc * (1 + 0.0)); }
+  var ab = P.mu * GR * 0.55 * skill; for (var it = 0; it < 2; it++) for (i = N - 1; i >= 0; i--) { var nx = vp[(i + 1) % N]; vp[i] = Math.min(vp[i], Math.sqrt(nx * nx + 2 * ab * T.ds)); }
+  return vp;
+}
+function aiDrive(v, T, vp, skill, target) {
+  var P = v.P, i = v.nr ? v.nr.i : 0, look = Math.max(9, 7 + v.u * 0.42), j = (i + Math.round(look / T.ds)) % T.N, tx = T.pts[j][0] + T.left(j)[0] * (v.off || 0), tz = T.pts[j][1] + T.left(j)[1] * (v.off || 0);
+  if (target) { tx = target.x + (-Math.sin(target.psi)) * target.u * 0.5; tz = target.z + (-Math.cos(target.psi)) * target.u * 0.5; }
+  var dx = tx - v.x, dz = tz - v.z, want = Math.atan2(-dx, -dz), err = want - v.psi; while (err > Math.PI) err -= 2 * Math.PI; while (err < -Math.PI) err += 2 * Math.PI;
+  var Ld = Math.hypot(dx, dz) || 1, dl = Math.atan(2 * P.L * Math.sin(err) / Ld), dmax = 0.6 / (1 + Math.pow(Math.abs(v.u) / 20, 2)) + 0.05, kf = T.kap[j] * P.L * (1 + Math.min(1.2, v.u * v.u / 900)), beta = Math.atan2(v.v, Math.max(6, Math.abs(v.u)));
+  if (!target) dl = 0.55 * dl + 0.9 * Math.atan(kf) ; dl += -beta * 1.6 * 0 + 0;
+  var st = Math.max(-1, Math.min(1, (dl - beta * 1.2 * 0 + (-beta) * 0.0) / dmax)); /* керування за курсом */
+  st = Math.max(-1, Math.min(1, st + (-Math.sign(v.v) * Math.min(1, Math.abs(beta) * 4)) * -1));
+  var Lk = Math.round((v.u * 0.35) / T.ds) + 3, vt = vp[(i + Lk) % T.N] * skill; if (target) vt = Math.min(P.vlim, Math.max(vt, 12)) * (1.02);
+  var off = Math.abs(v.nr ? v.nr.d : 0); if (off > T.hw) vt = Math.min(vt, 22);
+  var th = Math.max(0, Math.min(1, (vt - v.u) * 0.4)) * Math.max(0.15, 1 - Math.abs(beta) * 7), br = (v.u > vt + 1.5) ? Math.min(1, (v.u - vt) * 0.25) : 0; if (br > 0) th = 0;
+  return { th: th, br: br, st: st, hb: 0 };
+}
+
+/* ====== Перегони, частина 3: сесія гонки, камера, HUD, звук, автоцентр, гараж ====== */
+var RCS = { on: false };
+var RCTL = { l: 0, r: 0, g: 0, b: 0, hb: 0 };
+var RHUD = null, RMAPCACHE = null;
+
+/* ---- звук двигуна й шин ---- */
+var RSND = (function () {
+  var ac = null, o1, o2, gn, fl, ns, ng, on = false;
+  function start() {
+    try { ac = ac || new (window.AudioContext || window.webkitAudioContext)(); if (ac.state === 'suspended') ac.resume(); } catch (e) { return; }
+    if (on) return; on = true;
+    o1 = ac.createOscillator(); o2 = ac.createOscillator(); gn = ac.createGain(); fl = ac.createBiquadFilter(); o1.type = 'sawtooth'; o2.type = 'square'; fl.type = 'lowpass'; fl.frequency.value = 900; gn.gain.value = 0.0;
+    o1.connect(fl); o2.connect(fl); fl.connect(gn); gn.connect(ac.destination); o1.start(); o2.start();
+    var len = ac.sampleRate, b = ac.createBuffer(1, len, ac.sampleRate), d = b.getChannelData(0); for (var i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+    ns = ac.createBufferSource(); ns.buffer = b; ns.loop = true; var bp = ac.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 2200; bp.Q.value = 2; ng = ac.createGain(); ng.gain.value = 0; ns.connect(bp); bp.connect(ng); ng.connect(ac.destination); ns.start();
+  }
+  function upd(rpm, thr, slip, spd) {
+    if (!on) return; var f = rpm / 60 * 2.2, t = ac.currentTime; o1.frequency.setTargetAtTime(f, t, 0.03); o2.frequency.setTargetAtTime(f * 0.5, t, 0.03); fl.frequency.setTargetAtTime(500 + rpm * 0.35 + thr * 600, t, 0.05);
+    gn.gain.setTargetAtTime(0.035 + 0.06 * thr, t, 0.05); ng.gain.setTargetAtTime(Math.max(0, slip - 0.25) * 0.12 * Math.min(1, spd / 12), t, 0.05);
+  }
+  function stop() { if (!on) return; on = false; try { o1.stop(); o2.stop(); ns.stop(); } catch (e) {} }
+  function beep(f, d) { try { ac = ac || new (window.AudioContext || window.webkitAudioContext)(); var o = ac.createOscillator(), g = ac.createGain(); o.frequency.value = f; g.gain.value = 0.12; o.connect(g); g.connect(ac.destination); o.start(); o.stop(ac.currentTime + d); } catch (e) {} }
+  return { start: start, upd: upd, stop: stop, beep: beep };
+})();
+
+/* ---- HUD ---- */
+function rhud() {
+  if (RHUD) return RHUD;
+  var d = document.createElement('div'); d.id = 'rc'; d.style.cssText = 'position:fixed;inset:0;z-index:30;pointer-events:none;color:#fff;font-family:Georgia,serif;display:none;text-shadow:0 1px 3px #000';
+  d.innerHTML = '<div id="rc_tl" style="position:absolute;left:12px;top:10px;font-size:18px;line-height:1.35"></div>' +
+    '<div id="rc_msg" style="position:absolute;left:0;right:0;top:22%;text-align:center;font-size:72px;font-weight:bold"></div>' +
+    '<div id="rc_sub" style="position:absolute;left:0;right:0;top:12%;text-align:center;font-size:22px"></div>' +
+    '<canvas id="rc_map" width="150" height="150" style="width:150px;height:150px;position:absolute;right:10px;top:10px;background:rgba(0,0,0,.35);border-radius:8px"></canvas>' +
+    '<div id="rc_sp" style="position:absolute;left:50%;transform:translateX(-50%);bottom:16px;text-align:center"><div style="font-size:44px;font-weight:bold" id="rc_kmh">0</div><div style="font-size:14px">км/год · передача <b id="rc_gear">1</b></div><div style="width:200px;height:8px;background:rgba(0,0,0,.5);margin:4px auto"><div id="rc_rpm" style="height:8px;width:10%;background:#7bd36a"></div></div></div>' +
+    '<button id="rc_x" style="position:absolute;right:12px;top:170px;pointer-events:auto;padding:6px 12px;background:rgba(0,0,0,.55);color:#fff;border:1px solid #888;font-size:16px">Вийти</button>' +
+    '<button id="rc_cam" style="position:absolute;right:12px;top:212px;pointer-events:auto;padding:6px 12px;background:rgba(0,0,0,.55);color:#fff;border:1px solid #888;font-size:16px">Камера</button>' +
+    '<div id="rc_ar" style="position:absolute;left:50%;transform:translateX(-50%);top:62px;width:240px;height:12px;background:rgba(0,0,0,.5);display:none"><div id="rc_arf" style="height:12px;width:0;background:#e44"></div></div>' +
+    '<div id="rc_t" style="position:absolute;left:0;right:0;bottom:0;pointer-events:none;display:none"></div>';
+  document.body.appendChild(d);
+  var t = $('rc_t');
+  function btn(id, txt, css) { var b = document.createElement('div'); b.id = id; b.textContent = txt; b.style.cssText = 'position:absolute;pointer-events:auto;touch-action:none;user-select:none;background:rgba(255,255,255,.18);border:2px solid rgba(255,255,255,.5);border-radius:14px;font-size:30px;display:flex;align-items:center;justify-content:center;' + css; t.appendChild(b); return b; }
+  var bl = btn('rc_bl', '◀', 'left:12px;bottom:22px;width:84px;height:84px'), br = btn('rc_br', '▶', 'left:108px;bottom:22px;width:84px;height:84px'), bg = btn('rc_bg', 'ГАЗ', 'right:12px;bottom:112px;width:104px;height:84px;font-size:22px'), bb = btn('rc_bb', 'ГАЛЬМО', 'right:12px;bottom:12px;width:104px;height:84px;font-size:20px');
+  [[bl, 'l'], [br, 'r'], [bg, 'g'], [bb, 'b']].forEach(function (p) { p[0].addEventListener('pointerdown', function (e) { RCTL[p[1]] = 1; try { p[0].setPointerCapture(e.pointerId); } catch (x) {} e.preventDefault(); }); ['pointerup', 'pointercancel'].forEach(function (ev) { p[0].addEventListener(ev, function () { RCTL[p[1]] = 0; }); }); });
+  $('rc_x').addEventListener('click', function () {
+    if (!RCS.on) return; var b = modal('<h3>Вийти з заїзду?</h3><p class="muted">Прогрес заїзду буде втрачено, нагороди не буде.</p><p><button class="btn" id="rc_q1">Вийти</button> <button class="btn" id="rc_q2">Продовжити</button></p>');
+    $('rc_q1').addEventListener('click', function () { closeModal(); raceEnd(); }); $('rc_q2').addEventListener('click', closeModal);
+  });
+  $('rc_cam').addEventListener('click', function () { RCS.view = (RCS.view + 1) % 2; });
+  if ('ontouchstart' in window || navigator.maxTouchPoints > 0) t.style.display = 'block';
+  RHUD = d; return d;
+}
+function fmtT(s) { if (!s || s < 0) return '--:--.-'; var m = Math.floor(s / 60), x = s - m * 60; return m + ':' + (x < 10 ? '0' : '') + x.toFixed(1); }
+
+/* ---- запуск гонки ---- */
+function raceStart(cfg) {
+  if (RCS.on) return; closeModal();
+  var map = RMAPS[cfg.map]; if (map.glb) { toast('Ця карта ще готується. Оберіть одну з двох трас.', 3500); return; }
+  toast('Готуємо трасу…', 2500);
+  var T = makeTrack(cfg.map, !!cfg.rev);
+  var my = GAR.sel(), pv = new Veh(my, GAR.up(my), false); pv.name = 'Ви';
+  var list = [pv], nAI = cfg.mode === 'chase' ? (cfg.role === 'runner' ? 2 : 1) : Math.max(0, Math.min(4, cfg.ai | 0));
+  var skillBase = [0.8, 0.9, 0.97][cfg.diff == null ? 1 : cfg.diff];
+  var pw = pv.P.hp / pv.P.m, pool = RCAR_IDS.filter(function (id) { var P = carParams(id), q = P.hp / P.m; return q > pw * 0.6 && q < pw * 1.45; }); if (!pool.length) pool = RCAR_IDS.slice(0, 4);
+  var names = ['Макс', 'Олег', 'Іра', 'Влад', 'Софія', 'Тарас'];
+  for (var i = 0; i < nAI; i++) { var id = pool[Math.floor(Math.random() * pool.length)], v = new Veh(id, { eng: Math.floor(Math.random() * 2), tire: Math.floor(Math.random() * 2) }, true); v.skill = skillBase * (0.95 + Math.random() * 0.08); v.name = names[i % names.length]; v.off = (Math.random() - 0.5) * 3; list.push(v); }
+  var loaded = 0;
+  list.forEach(function (v) { carModel(v.id, function (m) { v.mdl = m; if (++loaded === list.length) ready(); }); });
+  function ready() {
+    var loc = trackScene(T), n = list.length; list.forEach(function (v) { loc.group.add(v.mdl.g); });
+    if (cfg.mode === 'chase') {
+      var runner = cfg.role === 'runner' ? list[0] : list[1], cops = list.filter(function (v) { return v !== runner; }), st = Math.round(160 / T.ds);
+      runner.place(T, st, 0, st); runner.isRunner = true;
+      cops.forEach(function (c, k) { var bk = Math.round((8 + k * 8) / T.ds); c.place(T, (T.N - bk) % T.N, k % 2 ? 2.6 : -2.6, -bk); c.isCop = true; });
+      RCS.runner = runner;
+    } else {
+      var order = []; for (var k = 1; k < n; k++) order.push(k); order.splice(Math.floor(n / 2), 0, 0);
+      order.forEach(function (li, slot) { var v = list[li], bk = Math.round((6 + slot * 7) / T.ds); v.place(T, (T.N - bk) % T.N, slot % 2 ? 2.8 : -2.8, -bk); });
+    }
+    list.forEach(function (v) { if (v.isAI) v.vp = aiProfile(T, v.P, v.skill); });
+    var runnerKeep = RCS.runner;
+    RCS = { on: true, cfg: cfg, T: T, cars: list, p: pv, runner: runnerKeep, state: 'grid', t: -3.6, el: 0, view: 0, camYaw: pv.psi, loc: loc, wrong: 0, done: false, arrest: 0, fovBase: 66, last: performance.now() };
+    showLoc('f3_track'); busy = true; camera.far = 2600; camera.updateProjectionMatrix();
+    ['hud', 'hbtn', 'hint', 'stick', 'tip', 'chat'].forEach(function (id) { var e = $(id); if (e) { e.dataset.rcd = e.style.display || '-'; e.style.display = 'none'; } });
+    rhud().style.display = 'block'; $('rc_ar').style.display = cfg.mode === 'chase' ? 'block' : 'none'; $('rc_msg').textContent = ''; RSND.start();
+  }
+}
+function raceEnd() {
+  if (!RCS.on && !RCS.fin) return; RCS.on = false; RCS.fin = 0; RSND.stop(); if (RHUD) RHUD.style.display = 'none';
+  ['hud', 'hbtn', 'hint', 'stick', 'tip', 'chat'].forEach(function (id) { var e = $(id); if (e) e.style.display = (e.dataset.rcd && e.dataset.rcd !== '-') ? e.dataset.rcd : ''; });
+  camera.far = 80; camera.fov = 72; camera.updateProjectionMatrix(); busy = false; pitch = 0; teleport('f3_auto', LOC.f3_auto.spawn, true);
+  if (RCS.cars) RCS.cars.forEach(function (v) { if (v.mdl) RTRK.loc.group.remove(v.mdl.g); });
+}
+
+/* ---- щокадровий цикл гонки ---- */
+function rcInput() {
+  var kd = function (c) { return !!keys[c]; }, th = (kd('KeyW') || kd('ArrowUp') || RCTL.g) ? 1 : 0, br = (kd('KeyS') || kd('ArrowDown') || RCTL.b) ? 1 : 0, st = ((kd('KeyA') || kd('ArrowLeft') || RCTL.l) ? 1 : 0) - ((kd('KeyD') || kd('ArrowRight') || RCTL.r) ? 1 : 0);
+  return { th: th, br: br, st: st, hb: kd('Space') ? 1 : 0 };
+}
+addEventListener('keydown', function (e) { if (e.code === 'KeyR' && RCS.on && RCS.p && RCS.state === 'run') { RCS.p.recover(RCS.T); } });
+function _unused() {
+}
+function drawMap(R) {
+  var cv = $('rc_map'), x = cv.getContext('2d'), T = R.T, B = T.box, sc = 130 / Math.max(B.x2 - B.x1, B.z2 - B.z1), ox = 75 - (B.x1 + B.x2) / 2 * sc, oz = 75 - (B.z1 + B.z2) / 2 * sc;
+  if (!R.mapImg) { var c2 = document.createElement('canvas'); c2.width = c2.height = 150; var y = c2.getContext('2d'); y.strokeStyle = '#ddd'; y.lineWidth = 3; y.beginPath(); for (var i = 0; i <= T.N; i += 3) { var p = T.pts[i % T.N]; if (i === 0) y.moveTo(p[0] * sc + ox, p[1] * sc + oz); else y.lineTo(p[0] * sc + ox, p[1] * sc + oz); } y.closePath(); y.stroke(); R.mapImg = c2; }
+  x.clearRect(0, 0, 150, 150); x.drawImage(R.mapImg, 0, 0);
+  R.cars.forEach(function (v) { x.fillStyle = v === R.p ? '#ffd700' : (v.isCop ? '#4aa3ff' : (v.isRunner ? '#ff5a4a' : '#ff6666')); x.beginPath(); x.arc(v.x * sc + ox, v.z * sc + oz, v === R.p ? 4.5 : 3.2, 0, 7); x.fill(); });
+}
+function raceTick() {
+  var R = RCS; if (!R.on) return;
+  var now = performance.now(), dt = Math.min(0.05, (now - R.last) / 1000); R.last = now; if (modalOpen) { RSND.upd(1000, 0, 0, 0); return; }
+  var T = R.T, i, steps = Math.max(1, Math.ceil(dt / (1 / 200))), h = dt / steps;
+  R.t += dt; if (R.state === 'grid') {
+    var c = Math.ceil(-R.t + 0.5); var msg = R.t < -0.5 ? String(Math.ceil(-R.t)) : (R.t < 0.8 ? 'СТАРТ!' : ''); if (R.t < -0.5) { var cn = Math.ceil(-R.t); if (R.lastBeep !== cn) { R.lastBeep = cn; RSND.beep(440, 0.12); } } else if (R.lastBeep !== 0) { R.lastBeep = 0; RSND.beep(880, 0.35); }
+    $('rc_msg').textContent = msg; if (R.t >= 0) { R.state = 'run'; R.el = 0; R.cars.forEach(function (v) { v.lapT0 = 0; }); }
+  } else { R.el += dt; if (R.t > 0.8) $('rc_msg').textContent = ''; }
+  var inp = rcInput(), lock = R.state === 'grid' || R.done;
+  for (var s = 0; s < steps; s++) R.cars.forEach(function (v) {
+    var ii;
+    if (v === R.p) ii = lock ? { th: 0, br: R.done ? 0.3 : 0, st: 0, hb: lock && !R.done ? 1 : 0 } : inp;
+    else if (v.isAI) {
+      if (R.state === 'grid') ii = { th: 0, br: 0, st: 0, hb: 1 };
+      else if (v.fin) ii = { th: 0, br: 0.4, st: 0, hb: 0 };
+      else { var tg = null; if (v.isCop) tg = (R.cfg.role === 'runner') ? R.p : R.runner; ii = aiDrive(v, T, v.vp, v.skill, tg && Math.hypot(tg.x - v.x, tg.z - v.z) < 120 ? tg : null); if (v.isRunner) ii = aiDrive(v, T, v.vp, v.skill, null); }
+    } else ii = { th: 0, br: 0, st: 0, hb: 0 };
+    v.step(h, ii, T);
+    if (R.state === 'run' && (v.isAI || v === R.p && RCTL.rs)) { if (Math.abs(v.u) < 2.5 || Math.abs(v.nr.d) > T.wallD - 2) v.stuck = (v.stuck || 0) + h; else v.stuck = 0; if (v.stuck > (v.isAI ? 2.5 : 0.3)) v.recover(T); }
+  });
+  /* зіткнення авто */
+  for (i = 0; i < R.cars.length; i++) for (var j = i + 1; j < R.cars.length; j++) {
+    var a = R.cars[i], b = R.cars[j], dx = b.x - a.x, dz = b.z - a.z, d = Math.hypot(dx, dz), rr = 1.9; if (d < rr * 2 && d > 0.01) {
+      var pu = (rr * 2 - d) / 2, nx = dx / d, nz = dz / d; a.x -= nx * pu; a.z -= nz * pu; b.x += nx * pu; b.z += nz * pu;
+      var ma = a.P.m, mb = b.P.m, k = 0.15; a.u *= 1 - k * mb / (ma + mb); b.u *= 1 - k * ma / (ma + mb); a.v -= nx * 0.2; b.v += nx * 0.2; a.hit = 0.5; b.hit = 0.5;
+    }
+  }
+  /* кола, фініш, позиції */
+  var N = T.N, laps = R.cfg.laps;
+  R.cars.forEach(function (v) {
+    var lap = Math.floor(v.pg / N); if (lap > v.lapN && !v.fin) { if (v.lapN >= 0 && R.state === 'run') { var lt = R.el - v.lapT0; if (v.lapN > 0 || true) { if (lt > 8 && (!v.best || lt < v.best)) v.best = lt; } v.lapT0 = R.el; } v.lapN = lap; }
+    if (R.cfg.mode === 'race' && v.pg >= laps * N && !v.fin) { v.fin = R.el; v.fOrder = (R.fc = (R.fc || 0) + 1); }
+  });
+  var order = R.cars.slice().sort(function (a, b) { if (a.fin && b.fin) return a.fin - b.fin; if (a.fin) return -1; if (b.fin) return 1; return b.pg - a.pg; }); R.order = order;
+  var pplace = order.indexOf(R.p) + 1;
+  /* погоня */
+  if (R.cfg.mode === 'chase' && R.state === 'run' && !R.done) {
+    var close = 1e9; if (R.cfg.role === 'runner') R.cars.forEach(function (v) { if (v.isCop) close = Math.min(close, Math.hypot(v.x - R.p.x, v.z - R.p.z)); }); else close = Math.hypot(R.runner.x - R.p.x, R.runner.z - R.p.z);
+    R.arrest = Math.max(0, Math.min(1, R.arrest + (close < 16 ? dt / 7 : -dt * 0.07))); R.chaseDist = close;
+    $('rc_arf').style.width = (R.arrest * 100) + '%';
+    if (R.arrest >= 1) { R.done = true; R.endT = R.t; R.chaseWin = R.cfg.role !== 'runner'; }
+    else if (R.el > 210) { R.done = true; R.endT = R.t; R.chaseWin = R.cfg.role === 'runner'; }
+  }
+  if (R.cfg.mode === 'race' && R.p.fin && !R.done) { R.done = true; R.endT = R.t; }
+  if (R.done && !R.shown && R.t - R.endT > 1.8) { R.shown = true; raceResult(R, pplace); }
+  /* неправильний напрямок */
+  var dpg = R.p.pg - (R.p._pg0 || R.p.pg); R.p._pg0 = R.p.pg; if (R.state === 'run' && R.p.u > 4 && dpg < -0.01) R.wrong += dt; else R.wrong = Math.max(0, R.wrong - dt * 2); if (R.wrong > 1.2) $('rc_sub').textContent = 'НЕ ТОЙ НАПРЯМОК!'; else if (!R.done) $('rc_sub').textContent = R.cfg.mode === 'chase' ? (R.cfg.role === 'runner' ? 'Тікайте від поліції! Не дайте себе наздогнати' : 'Наздоженьте втікача й тримайтеся поруч') : '';
+  /* модель, камера, HUD */
+  R.cars.forEach(function (v) { v.updateModel(T, v.mdl, dt); if (v.hit > 0) v.hit = Math.max(0, v.hit - dt * 3); });
+  var p = R.p; R.p.mdl.g.visible = R.view === 0;
+  if (R.view === 0) {
+    R.camYaw += (function (a) { while (a > Math.PI) a -= 2 * Math.PI; while (a < -Math.PI) a += 2 * Math.PI; return a; })(p.psi - R.camYaw) * Math.min(1, dt * 5);
+    var dist = 6.4 + Math.min(2.2, Math.abs(p.u) * 0.018), cx = p.x + Math.sin(R.camYaw) * dist, cz = p.z + Math.cos(R.camYaw) * dist, g0 = T.ground(cx, cz), cy = Math.max(p.y + 2.2 + Math.min(0.8, Math.abs(p.u) * 0.008), g0 + 1.0);
+    camera.position.set(cx, cy, cz); yaw = R.camYaw; pitch = -Math.atan2(cy - (p.y + 1.1), dist) * 0.95;
+  } else { var fx = -Math.sin(p.psi), fz = -Math.cos(p.psi); camera.position.set(p.x + fx * 0.25, p.y + 1.15, p.z + fz * 0.25); yaw = p.psi; pitch = -0.04; R.camYaw = p.psi; }
+  var fov = R.fovBase + Math.min(14, Math.abs(p.u) * 0.14); if (Math.abs(camera.fov - fov) > 0.2) { camera.fov = fov; camera.updateProjectionMatrix(); }
+  var kmh = Math.abs(p.u) * 3.6; $('rc_kmh').textContent = Math.round(kmh); $('rc_gear').textContent = p.rev ? 'R' : p.gear; $('rc_rpm').style.width = Math.round(p.rpm / p.P.rpmR * 100) + '%'; $('rc_rpm').style.background = p.rpm > p.P.rpmR * 0.92 ? '#e44' : '#7bd36a';
+  var lapShow = Math.max(1, Math.min(R.cfg.laps, Math.floor(p.pg / N) + 1));
+  $('rc_tl').innerHTML = R.cfg.mode === 'race' ? ('Коло <b>' + lapShow + '/' + laps + '</b><br>Позиція <b>' + pplace + '/' + R.cars.length + '</b><br>Час ' + fmtT(Math.max(0, R.el)) + '<br>Кращe коло ' + fmtT(p.best)) : ('Погоня · ' + (R.cfg.role === 'runner' ? 'ви втікач' : 'ви переслідувач') + '<br>Дистанція <b>' + Math.round(R.chaseDist || 0) + ' м</b><br>Час ' + fmtT(Math.max(0, R.el)) + ' / 3:30');
+  RSND.upd(p.rpm, p.thr, p.slip + (p.hit ? 0.3 : 0), Math.abs(p.u)); drawMap(R);
+}
+updaters.push(raceTick);
+
+function raceResult(R, place) {
+  var cfg = R.cfg, T = R.T, km = cfg.laps * T.L / 1000, reward = 0, h = '';
+  GAR.S.races++;
+  if (cfg.mode === 'race') {
+    var n = R.cars.length, mult = [1, 0.7, 0.5, 0.4, 0.3][Math.min(4, place - 1)]; reward = n > 1 ? Math.round(km * 25 * mult) : Math.round(km * 8); if (place === 1 && n > 1) GAR.S.wins++;
+    h = '<h3>Результат гонки</h3><p>Ваше місце: <b>' + place + ' з ' + n + '</b>. Траса «' + T.map.name + '»' + (cfg.rev ? ' (реверс)' : '') + ', ' + cfg.laps + ' кіл, ' + km.toFixed(1) + ' км.</p><table style="width:100%;text-align:left;border-collapse:collapse">' + R.order.map(function (v, i) { return '<tr><td>' + (i + 1) + '</td><td>' + (v === R.p ? '<b>Ви</b>' : v.name) + '</td><td>' + RCARS[v.id].n + '</td><td>' + (v.fin ? fmtT(v.fin) : 'не фінішував') + '</td></tr>'; }).join('') + '</table>';
+    if (R.p.best) h += '<p>Найкраще коло: <b>' + fmtT(R.p.best) + '</b></p>';
+  } else {
+    var win = R.chaseWin; reward = win ? 250 : 60; if (win) GAR.S.wins++;
+    h = '<h3>' + (win ? 'Перемога!' : 'Поразка') + '</h3><p>' + (cfg.role === 'runner' ? (win ? 'Ви вислизнули від поліції.' : 'Вас наздогнали.') : (win ? 'Втікача затримано.' : 'Втікач втік.')) + '</p>';
+  }
+  GAR.save(); if (reward) WAL.add(reward, 'нагорода');
+  h += '<p>Нагорода: <b>+' + reward + '</b> балів. Усього: <b>' + WAL.get() + '</b>.</p><p class="muted">Бали йдуть на прокачку авто та покупку нових машин у гаражі автоцентру.</p><p><button class="btn" id="rr_again">Ще раз</button> <button class="btn" id="rr_exit">До автоцентру</button></p>';
+  modal(h); $('rr_again').addEventListener('click', function () { var c = RCS.cfg; closeModal(); raceEnd(); setTimeout(function () { raceStart(c); }, 800); }); $('rr_exit').addEventListener('click', function () { closeModal(); raceEnd(); });
+}
+
+/* ====== Перегони, частина 4: автоцентр (кімната), гараж, меню заїзду ====== */
+var RAUTO = null;
+(function () {
+  var W = 22, D = 14;
+  var loc = RAUTO = newRoom('f3_auto', W, D, 4.2, { floor: TX.tile, wall: TX.wall2, ceil: 0xdfe3e2, amb: 0xf4f7f6, ambI: 0.7, bg: 0x0e1316 }), G = loc.group;
+  var back = { id: 'f3', sp: { x: F3.X - 6.9, z: 0.4, yaw: -Math.PI / 2 } };
+  pubLoc(loc, 'Автоцентр: перегони', back);
+  loc.spawn = { x: loc.X + W / 2 - 2.6, z: 0, yaw: Math.PI / 2 };
+  var ex = pdoor(loc, 1, 0, ['Вихід'], function () { walkIn(ex.leaf, function () { teleport('f3', back.sp); }); });
+  pl(loc, 0xfff0d8, 0.9, 14, -6, 3.6, 0); pl(loc, 0xfff0d8, 0.9, 14, 6, 3.6, 0); pl(loc, 0xfff0d8, 0.9, 14, 0, 3.6, -4);
+  /* двері з коридору 3 поверху (ліва стіна) */
+  var dd = pdoor(F3, 3, 0, ['Автоцентр', 'Перегони'], function () { walkIn(dd.leaf, function () { teleport('f3_auto', loc.spawn); }); });
+  f3Door.f3_auto = dd;
+  var tt = signPlane(['АВТОЦЕНТР · ПЕРЕГОНИ'], 6, 0.8, { bg: '#17110b', fg: '#ffd36b', px: 120 }); tt.position.set(0, 3.5, -D / 2 + 0.1); G.add(tt);
+  /* подіуми з авто */
+  RAUTO.pods = [];
+  RCAR_IDS.forEach(function (id, k) {
+    var x = -9.1 + k * 2.6, z = -4.6, pod = new THREE.Mesh(new THREE.CylinderGeometry(1.25, 1.3, 0.2, 24), mat(0x2b3640, { rough: 0.5 })); pod.position.set(x, 0.1, z); G.add(pod);
+    obs(loc, x, z, 1.1, 2.3);
+    var hb = hit(G, 2.2, 1.6, 4.4, x, 0.9, z); act(hb, RCARS[id].n + ': характеристики', function () { carCard(id); }, { reach: 7 });
+    var lb = signPlane([RCARS[id].n.replace('BMW ', '').replace('Dodge ', '').slice(0, 22)], 2.3, 0.4, { bg: '#17110b', fg: '#f2d9a0', px: 60 }); lb.position.set(x, 2.3, -D / 2 + 0.12); G.add(lb);
+    RAUTO.pods.push({ id: id, x: x, z: z });
+  });
+  var loaded = false;
+  loc.onEnter = function () {
+    if (loaded) return; loaded = true;
+    RAUTO.pods.forEach(function (p) { carModel(p.id, function (m) { m.g.position.set(p.x, 0.2, p.z); m.g.rotation.y = 0; p.g = m.g; G.add(m.g); }); });
+  };
+  updaters.push(function (s) { if (!loaded || RCS.on || !cur || cur.id !== 'f3_auto') return; RAUTO.pods.forEach(function (p, i) { if (p.g) p.g.rotation.y += s * 0.35; }); });
+  /* кіоски */
+  function kiosk(x, z, lines, color, label, fn) {
+    var b = box(1.4, 1.1, 0.7, mat(0x3a4650, { rough: 0.5 }), x, 0.55, z, G); var sg = signPlane(lines, 1.3, 0.55, { bg: color, fg: '#fff', px: 70 }); sg.position.set(x, 1.4, z); G.add(sg);
+    obs(loc, x, z, 0.8, 0.45); act(b, label, fn, { reach: 3.8 }); act(sg, label, fn, { reach: 4.5 });
+  }
+  kiosk(-3, 2.2, ['ГАРАЖ'], '#243b55', 'Гараж: мої авто і прокачка', function () { garageUI(); });
+  kiosk(3, 2.2, ['ЗАЇЗД'], '#6b1f1f', 'Заїзд: обрати трасу й режим', function () { setupUI(); });
+  plant(loc, -10, 5.8); plant(loc, 10, 5.8);
+})();
+
+/* ---- картка авто ---- */
+function carCard(id) {
+  var s = RCARS[id], P = carParams(id), own = GAR.S.own[id];
+  modal('<h3>' + s.n + ' (' + s.y + ')</h3><table style="width:100%;text-align:left"><tr><td>Потужність</td><td><b>' + s.hp + ' к.с.</b> при ' + s.rpmP + ' об/хв</td></tr><tr><td>Момент</td><td>' + s.nm + ' Нм</td></tr><tr><td>Маса</td><td>' + s.kg + ' кг</td></tr><tr><td>Привід</td><td>' + s.drv + ', ' + s.gears + ' передач</td></tr><tr><td>Максимальна</td><td>' + s.vmax + ' км/год</td></tr><tr><td>Розгін 0–100</td><td>' + s.acc + '</td></tr><tr><td>Ціна</td><td>' + (s.price ? s.price + ' балів' : 'базове авто') + '</td></tr></table><p class="muted" style="font-size:12px">Джерело даних: ' + s.src + '</p><p>' + (own ? 'Це авто у вашому гаражі.' : '<button class="btn" id="cc_buy">Купити за ' + s.price + '</button>') + ' <button class="btn" id="cc_x">Закрити</button></p>');
+  var bb = $('cc_buy'); if (bb) bb.addEventListener('click', function () { var r = GAR.buy(id); if (r === 'ok') { toast('Куплено: ' + s.n); carCard(id); } else toast('Не вистачає балів (є ' + WAL.get() + ').'); });
+  $('cc_x').addEventListener('click', closeModal);
+}
+
+/* ---- гараж ---- */
+function garageUI(selId) {
+  var S = GAR.S, id = selId || S.sel; if (!S.own[id]) id = S.sel;
+  var s = RCARS[id], up = S.own[id], P = carParams(id, up);
+  var tabs = RCAR_IDS.map(function (c) { return '<button class="btn" data-c="' + c + '" style="' + (c === id ? 'outline:2px solid #ffd36b;' : '') + (S.own[c] ? '' : 'opacity:.55;') + '">' + RCARS[c].n.replace('BMW ', '').replace('Dodge ', '') + (S.sel === c ? ' ★' : '') + '</button>'; }).join(' ');
+  var rows = RUP.map(function (u) { var l = up ? up[u[0]] : 0, cost = rupCost(id, l); return '<tr><td><b>' + u[1] + '</b><br><span class="muted" style="font-size:12px">' + u[2] + '</span></td><td>' + l + '/5</td><td>' + (up ? (l >= 5 ? 'максимум' : '<button class="btn" data-u="' + u[0] + '">' + cost + ' б.</button>') : '') + '</td></tr>'; }).join('');
+  var b = modal('<h3>Гараж</h3><p>Ваші бали: <b>' + WAL.get() + '</b></p><p>' + tabs + '</p><h4>' + s.n + '</h4>' + (up ? '<table style="width:100%;text-align:left">' + rows + '</table><p class="muted">Зараз: ' + Math.round(P.hp) + ' к.с., ' + Math.round(P.m) + ' кг, макс. ' + Math.round(P.vlim * 3.6) + ' км/год, зчеплення ×' + P.mu.toFixed(2) + '</p><p>' + (S.sel === id ? 'Це ваше обране авто.' : '<button class="btn" id="g_sel">Обрати для заїздів</button>') + '</p>' : '<p>Це авто ще не куплене. Ціна: <b>' + s.price + '</b> балів.</p><p><button class="btn" id="g_buy">Купити</button> <button class="btn" id="g_info">Характеристики</button></p>') + '<p><button class="btn" id="g_x">Закрити</button></p>');
+  Array.prototype.forEach.call(b.querySelectorAll('[data-c]'), function (e) { e.addEventListener('click', function () { garageUI(e.dataset.c); }); });
+  Array.prototype.forEach.call(b.querySelectorAll('[data-u]'), function (e) { e.addEventListener('click', function () { var r = GAR.upgrade(id, e.dataset.u); if (r === 'no') toast('Не вистачає балів.'); garageUI(id); }); });
+  var q = $('g_sel'); if (q) q.addEventListener('click', function () { GAR.choose(id); garageUI(id); });
+  q = $('g_buy'); if (q) q.addEventListener('click', function () { var r = GAR.buy(id); if (r !== 'ok') toast('Не вистачає балів (є ' + WAL.get() + ').'); garageUI(id); });
+  q = $('g_info'); if (q) q.addEventListener('click', function () { carCard(id); });
+  $('g_x').addEventListener('click', closeModal);
+}
+
+/* ---- меню заїзду ---- */
+var RSET = { map: 0, rev: false, laps: 3, mode: 'race', ai: 3, diff: 1, role: 'runner' };
+function setupUI() {
+  var c = RSET, M = RMAPS[c.map], my = GAR.sel();
+  var maps = RMAPS.map(function (m) { return '<button class="btn" data-m="' + m.id + '" style="' + (m.id === c.map ? 'outline:2px solid #ffd36b;' : '') + (m.glb ? 'opacity:.5;' : '') + '">' + m.name + (m.glb ? ' (скоро)' : '') + '</button>'; }).join(' ');
+  var km = M.glb ? 0 : (c.laps * M.target / 1000);
+  var h = '<h3>Заїзд</h3><p>Авто: <b>' + RCARS[my].n + '</b> <button class="btn" id="s_gar">Гараж</button></p>' +
+    '<p>Режим: <button class="btn" data-mo="race" style="' + (c.mode === 'race' ? 'outline:2px solid #ffd36b' : '') + '">Гонка</button> <button class="btn" data-mo="chase" style="' + (c.mode === 'chase' ? 'outline:2px solid #ffd36b' : '') + '">Погоня</button></p>' +
+    '<p>Траса: ' + maps + '</p><p class="muted">' + M.d + (M.glb ? '' : ' Довжина кола ≈ ' + (M.target / 1000).toFixed(1) + ' км.') + '</p>' +
+    '<p>Напрямок: <button class="btn" data-rv="0" style="' + (!c.rev ? 'outline:2px solid #ffd36b' : '') + '">Звичайний</button> <button class="btn" data-rv="1" style="' + (c.rev ? 'outline:2px solid #ffd36b' : '') + '">Реверс</button></p>';
+  if (c.mode === 'race') h += '<p>Кола: <button class="btn" id="s_lm">−</button> <b>' + c.laps + '</b> <button class="btn" id="s_lp">+</button> <span class="muted">≈ ' + km.toFixed(1) + ' км</span></p><p>Суперники (ШІ): <button class="btn" id="s_am">−</button> <b>' + c.ai + '</b> <button class="btn" id="s_ap">+</button></p>';
+  else h += '<p>Ваша роль: <button class="btn" data-ro="runner" style="' + (c.role === 'runner' ? 'outline:2px solid #ffd36b' : '') + '">Втікач</button> <button class="btn" data-ro="cop" style="' + (c.role === 'cop' ? 'outline:2px solid #ffd36b' : '') + '">Поліція</button></p><p class="muted">Втікач тримається подалі 3,5 хвилини; поліція має наздогнати й утримувати дистанцію 16 м близько 7 секунд.</p>';
+  h += '<p>Складність ШІ: ' + ['Легко', 'Середньо', 'Складно'].map(function (n, i) { return '<button class="btn" data-df="' + i + '" style="' + (c.diff === i ? 'outline:2px solid #ffd36b' : '') + '">' + n + '</button>'; }).join(' ') + '</p>' +
+    '<p class="muted" style="font-size:12px">Керування: W/↑ газ, S/↓ гальмо і задній хід, A D / ← → кермо, Пробіл ручне гальмо, на телефоні — кнопки на екрані. За гонку нараховуються бали на прокачку.</p><p><button class="btn" id="s_go">Старт</button> <button class="btn" id="s_x">Закрити</button></p>';
+  var b = modal(h);
+  function on(sel, fn) { Array.prototype.forEach.call(b.querySelectorAll(sel), function (e) { e.addEventListener('click', function () { fn(e); }); }); }
+  on('[data-m]', function (e) { c.map = +e.dataset.m; setupUI(); }); on('[data-mo]', function (e) { c.mode = e.dataset.mo; setupUI(); }); on('[data-rv]', function (e) { c.rev = e.dataset.rv === '1'; setupUI(); });
+  on('[data-ro]', function (e) { c.role = e.dataset.ro; setupUI(); }); on('[data-df]', function (e) { c.diff = +e.dataset.df; setupUI(); });
+  var q;
+  if ((q = $('s_lm'))) q.addEventListener('click', function () { c.laps = Math.max(1, c.laps - 1); setupUI(); }); if ((q = $('s_lp'))) q.addEventListener('click', function () { c.laps = Math.min(20, c.laps + 1); setupUI(); });
+  if ((q = $('s_am'))) q.addEventListener('click', function () { c.ai = Math.max(0, c.ai - 1); setupUI(); }); if ((q = $('s_ap'))) q.addEventListener('click', function () { c.ai = Math.min(4, c.ai + 1); setupUI(); });
+  $('s_gar').addEventListener('click', function () { garageUI(); }); $('s_x').addEventListener('click', closeModal);
+  $('s_go').addEventListener('click', function () { raceStart({ map: c.map, rev: c.rev, laps: c.laps, mode: c.mode, ai: c.ai, diff: c.diff, role: c.role }); });
+}
+window.__race = { start: raceStart, tick: raceTick, state: function () { return RCS; }, track: makeTrack, check: trackCheck, setup: setupUI, garage: garageUI, Veh: Veh, aiProfile: aiProfile, aiDrive: aiDrive };
+
 var CODES={};
 /* ====== СТАН ГРИ, ТАЙМЕРИ, БАЛИ, ПЕРЕХОДИ, ЗВ'ЯЗОК ІЗ САЙТОМ ====== */
 /* У кабінеті (iframe) бали й час рахує сервер сайту: ті самі завдання z1..z5.
