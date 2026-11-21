@@ -2859,7 +2859,7 @@ Veh.prototype.step = function (dt, inp, T) {
   var mu = P.mu * surf, Ff = 0, Fr = 0;
   if (P.drv === 'AWD') { Ff = Fdem * 0.38; Fr = Fdem * 0.62; } else Fr = Fdem;
   Ff = Math.max(-0.93 * mu * Fzf, Math.min(0.93 * mu * Fzf, Ff)); Fr = Math.max(-0.93 * mu * Fzr, Math.min(0.93 * mu * Fzr, Fr));
-  var Fb = this.brk * Math.min(1, 0.84 * P.brk) * mu * (Fzf + Fzr), bf = Math.max(0.62, Fzf / (Fzf + Fzr)), Fbf = Math.min(Fb * bf, mu * Fzf), Fbr = Math.min(Fb * (1 - bf), mu * Fzr);
+  var Fb = this.brk * Math.min(1, 0.84 * P.brk) * mu * (Fzf + Fzr), bf = Math.max(0.62, Fzf / (Fzf + Fzr)), Fbf = Math.min(Fb * bf, 0.8 * mu * Fzf), Fbr = Math.min(Fb * (1 - bf), 0.78 * mu * Fzr); /* ABS: гальмівна сила не вибирає все зчеплення, колеса не блокуються і кермо працює */
   if (inp.hb) Fbr = Math.min(mu * Fzr, Fbr + 0.9 * mu * Fzr * 0.6);
   var sgb = sgu; Ff -= sgb * Fbf; Fr -= sgb * Fbr;
   var rearGrip = inp.hb ? 0.38 : 1;
