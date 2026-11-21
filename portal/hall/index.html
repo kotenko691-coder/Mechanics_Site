@@ -2859,7 +2859,7 @@ Veh.prototype.step = function (dt, inp, T) {
   var mu = P.mu * surf, Ff = 0, Fr = 0;
   if (P.drv === 'AWD') { Ff = Fdem * 0.38; Fr = Fdem * 0.62; } else Fr = Fdem;
   Ff = Math.max(-0.93 * mu * Fzf, Math.min(0.93 * mu * Fzf, Ff)); Fr = Math.max(-0.93 * mu * Fzr, Math.min(0.93 * mu * Fzr, Fr));
-  var Fb = this.brk * Math.min(1, 0.84 * P.brk) * mu * (Fzf + Fzr), bf = Math.max(0.62, Fzf / (Fzf + Fzr)), Fbf = Math.min(Fb * bf, 0.8 * mu * Fzf), Fbr = Math.min(Fb * (1 - bf), 0.78 * mu * Fzr); /* ABS: гальмівна сила не вибирає все зчеплення, колеса не блокуються і кермо працює */
+  var Fb = this.brk * Math.min(1, 0.84 * P.brk) * mu * (Fzf + Fzr), bf = Math.max(0.72, Fzf / (Fzf + Fzr)), Fbf = Math.min(Fb * bf, 0.93 * mu * Fzf), Fbr = Math.min(Fb * (1 - bf), 0.5 * mu * Fzr); /* ABS: гальмівна сила не вибирає все зчеплення, колеса не блокуються і кермо працює */
   if (inp.hb) Fbr = Math.min(mu * Fzr, Fbr + 0.9 * mu * Fzr * 0.6);
   var sgb = sgu; Ff -= sgb * Fbf; Fr -= sgb * Fbr;
   var rearGrip = inp.hb ? 0.38 : 1;
@@ -2876,7 +2876,7 @@ Veh.prototype.step = function (dt, inp, T) {
   u += du * dt; v += dv * dt; r += dr * dt;
   /* стабілізація на малих швидкостях */
   var k0 = Math.max(0, 1 - Math.abs(u) / 4); if (k0 > 0) { v -= v * Math.min(1, dt * 6 * k0); r -= r * Math.min(1, dt * 4 * k0); }
-  r -= r * dt * 0.12;
+  r -= r * dt * (0.12 + (this.brk > 0.05 && !inp.hb && Math.abs(u) > 6 ? 0.9 * this.brk : 0));
   this.slip = Math.min(1, Math.abs(af) * 4 + Math.abs(ar) * 4 + (Ff + Fr > mu * (Fzf + Fzr) * 0.9 ? 0.3 : 0));
   this.psi += r * dt; var cp = Math.cos(this.psi), sp = Math.sin(this.psi), fx = -sp, fz = -cp, lx = -cp, lz = sp;
   this.x += (u * fx + v * lx) * dt; this.z += (u * fz + v * lz) * dt;
@@ -3057,11 +3057,23 @@ function raceTick() {
     v.step(h, ii, T);
     if (R.state === 'run' && (v.isAI || v === R.p && RCTL.rs)) { var hd = v.psi - Math.atan2(-T.tx[v.nr.i], -T.tz[v.nr.i]); hd = Math.abs(Math.atan2(Math.sin(hd), Math.cos(hd))); if (v.isAI && hd > 1.6 || Math.abs(v.u) < 2.5 || Math.abs(v.nr.d) > T.wallD - 2) v.stuck = (v.stuck || 0) + h; else v.stuck = 0; if (v.stuck > (v.isAI ? 1.5 : 0.3)) v.recover(T); }
   });
-  /* зіткнення авто */
+  /* зіткнення авто: 3 кола на авто (корпус), імпульс без зупинки */
+  var cpts = function (c) { var f0 = -Math.sin(c.psi), f1 = -Math.cos(c.psi); return [[c.x + f0 * 1.4, c.z + f1 * 1.4], [c.x, c.z], [c.x - f0 * 1.4, c.z - f1 * 1.4]]; };
   for (i = 0; i < R.cars.length; i++) for (var j = i + 1; j < R.cars.length; j++) {
-    var a = R.cars[i], b = R.cars[j]; if (a.isRemote && b.isRemote) continue; var dx = b.x - a.x, dz = b.z - a.z, d = Math.hypot(dx, dz), rr = 1.9; if (d < rr * 2 && d > 0.01) {
-      var pu = (rr * 2 - d) / 2, nx = dx / d, nz = dz / d; var sa = a.isRemote ? 0 : (b.isRemote ? 2 : 1), sb = b.isRemote ? 0 : (a.isRemote ? 2 : 1); a.x -= nx * pu * sa; a.z -= nz * pu * sa; b.x += nx * pu * sb; b.z += nz * pu * sb;
-      var ma = a.P.m, mb = b.P.m, k = 0.15; if (!a.isRemote) { a.u *= 1 - k * mb / (ma + mb); a.v -= nx * 0.2; } if (!b.isRemote) { b.u *= 1 - k * ma / (ma + mb); b.v += nx * 0.2; } a.hit = 0.5; b.hit = 0.5;
+    var a = R.cars[i], b = R.cars[j]; if (a.isRemote && b.isRemote) continue; if (Math.hypot(b.x - a.x, b.z - a.z) > 6.5) continue;
+    var pa = cpts(a), pb = cpts(b), bd = 1e9, bx = 0, bz = 0, q, w;
+    for (q = 0; q < 3; q++) for (w = 0; w < 3; w++) { var ddx = pb[w][0] - pa[q][0], ddz = pb[w][1] - pa[q][1], dd = Math.hypot(ddx, ddz); if (dd < bd && dd > 0.001) { bd = dd; bx = ddx / dd; bz = ddz / dd; } }
+    var RR = 2.0; if (bd >= RR) continue;
+    var pu = RR - bd, sa = a.isRemote ? 0 : (b.isRemote ? 1 : 0.5), sb = b.isRemote ? 0 : (a.isRemote ? 1 : 0.5);
+    a.x -= bx * pu * sa; a.z -= bz * pu * sa; b.x += bx * pu * sb; b.z += bz * pu * sb;
+    var ca = Math.cos(a.psi), sa2 = Math.sin(a.psi), cb = Math.cos(b.psi), sb2 = Math.sin(b.psi);
+    var avx = a.u * -sa2 + a.v * -ca, avz = a.u * -ca + a.v * sa2, bvx = b.u * -sb2 + b.v * -cb, bvz = b.u * -cb + b.v * sb2;
+    var rv = (avx - bvx) * bx + (avz - bvz) * bz; /* швидкість зближення вздовж нормалі */
+    if (rv > 0) {
+      var ima = a.isRemote ? 0 : 1 / a.P.m, imb = b.isRemote ? 0 : 1 / b.P.m, jj = (1.25 * rv) / (ima + imb);
+      if (!a.isRemote) { avx -= jj * ima * bx; avz -= jj * ima * bz; a.u = avx * -sa2 + avz * -ca; a.v = avx * -ca + avz * sa2; }
+      if (!b.isRemote) { bvx += jj * imb * bx; bvz += jj * imb * bz; b.u = bvx * -sb2 + bvz * -cb; b.v = bvx * -cb + bvz * sb2; }
+      a.hit = Math.max(a.hit, Math.min(1, rv / 15)); b.hit = Math.max(b.hit, Math.min(1, rv / 15));
     }
   }
   /* кола, фініш, позиції */
@@ -5608,6 +5620,80 @@ window.__RB = RB;
       }
       if (st === 'p1sum') {
         ttl('Практична 1: головне'); [['поверхова схема: спершу другорядна, потім основні', ink], ['реакцію другорядної прикладаємо до основної в протилежний бік', grn], ['л.вп. будуємо від еталонних ліній, продовжуючи їх прямими', blu], ['перевірка: аналітика і л.вп. дають однакові числа', red]].forEach(function (r, i) { pill(40, 100 + i * 110, 820, 84, r[0], r[1]); }); x.restore(); return;
+      }
+    }
+    if (st.indexOf('p3') === 0) {
+      var AX = function (m) { return 150 + 50 * m; }, AB = 410, AY = function (m) { return AB - 50 * m; }, yy = function (m) { return m * (12 - m) / 9; };
+      var curve = function (a, b, col, w) { var m; x.strokeStyle = col || brn; x.lineWidth = w || 10; x.beginPath(); for (m = a; m <= b + 0.001; m += 0.25) { if (m === a) x.moveTo(AX(m), AY(yy(m))); else x.lineTo(AX(m), AY(yy(m))); } x.stroke(); };
+      var parch = function (labs) { curve(0, 12); pin(AX(0), AY(0)); pin(AX(12), AY(0)); hn(AX(6), AY(4), '#333'); if (labs !== false) { tx('A', AX(0) - 26, AY(0) - 4, ink, 'bold 24px Georgia'); tx('C', AX(6), AY(4) - 18, ink, 'bold 24px Georgia'); tx('B', AX(12) + 26, AY(0) - 4, ink, 'bold 24px Georgia'); } };
+      var pload = function (a, b, col) { var m; for (m = a + 0.5; m <= b - 0.2; m += 1) ar(AX(m), AY(yy(m)) - 70, AX(m), AY(yy(m)) - 8, col || red, 3); ln(AX(a), AY(yy(a)) - 70 + 0, AX(b), AY(yy(b)) - 70, col || red, 3); };
+      var pforce = function (col) { var px = AX(9), py = AY(3); ar(px - 54, py - 72, px - 4, py - 6, col || red, 6); tx('P = 10 кН', px + 8, py - 62, col || red, 'bold 22px Georgia', 'left'); };
+      var Mf = function (m, after) { var y = yy(m), xq = Math.min(m, 6), r = 9.5 * m - 5.25 * y - 2 * xq * (m - xq / 2); if (after) r += (9 - m) * 8 + (3 - y) * 6; return r; };
+      var dims = function () { harrow(AX(0), AX(12), AB + 100, ink, '12 м'); ln(AX(12) + 70, AY(0), AX(12) + 70, AY(4), ink, 2); ar(AX(12) + 70, AY(2) + 12, AX(12) + 70, AY(0), ink, 2); ar(AX(12) + 70, AY(2) - 12, AX(12) + 70, AY(4), ink, 2); tx('4 м', AX(12) + 82, AY(2) + 8, ink, 'italic 22px Georgia', 'left'); };
+      if (st === 'p3task') {
+        ttl('Задача: тришарнірна арка'); parch(); pload(0, 6); tx('q = 2 кН/м', AX(3), AY(yy(3)) - 90, red, 'bold 22px Georgia'); pforce(); dims(); tx('парабола, шарніри A, C, B', 450, 560, gry, 'italic 24px Georgia'); tx('cos α = 0,6;  sin α = 0,8;  P на відстані 9 м від A', 450, 596, ink, 'bold 24px Georgia'); x.restore(); return;
+      }
+      if (st === 'p3arch') {
+        ttl('Арка і розпір'); var bx = 230; ln(bx - 100, 190, bx + 100, 190, brn, 12); pin(bx - 100, 190); roller(bx + 100, 190); ar(bx, 80, bx, 176, red, 6); tx('балка', bx, 300, ink, 'bold 26px Georgia'); tx('опори тільки вертикальні', bx, 336, gry, 'italic 22px Georgia');
+        var cx2 = 660, k2 = function (m) { return cx2 - 130 + m * 43.3; }; x.strokeStyle = brn; x.lineWidth = 10; x.beginPath(); var mm; for (mm = 0; mm <= 6; mm += 0.2) { if (mm === 0) x.moveTo(k2(mm), 300 - 40 * 4 * mm * (6 - mm) / 9); else x.lineTo(k2(mm), 300 - 40 * 4 * mm * (6 - mm) / 9); } x.stroke();
+        pin(k2(0), 300); pin(k2(6), 300); ar(cx2, 70, cx2, 122, red, 6); ar(k2(0) - 70, 326, k2(0) - 12, 326, grn, 6); ar(k2(6) + 70, 326, k2(6) + 12, 326, grn, 6); tx('H', k2(0) - 40, 312, grn, 'bold 24px Georgia'); tx('H', k2(6) + 40, 312, grn, 'bold 24px Georgia'); tx('арка', cx2, 430, ink, 'bold 26px Georgia'); tx('розпір H — всередину прольоту', cx2, 466, grn, 'bold 22px Georgia'); tx('Розпір стискає арку й зменшує моменти', 450, 520, red, 'bold 26px Georgia'); x.restore(); return;
+      }
+      if (st === 'p3count') {
+        ttl('Скільки невідомих'); parch(false); tx('A', AX(0) - 26, AY(0) - 4, ink, 'bold 22px Georgia'); tx('B', AX(12) + 26, AY(0) - 4, ink, 'bold 22px Georgia'); ar(AX(0), AY(0) + 110, AX(0), AY(0) + 52, grn, 6); tx('VA', AX(0) + 22, AY(0) + 112, grn, 'bold 24px Georgia', 'left'); ar(AX(0) - 80, AY(0) + 70, AX(0) - 20, AY(0) + 70, grn, 6); tx('HA', AX(0) - 86, AY(0) + 62, grn, 'bold 24px Georgia', 'right');
+        ar(AX(12), AY(0) + 110, AX(12), AY(0) + 52, grn, 6); tx('VB', AX(12) + 22, AY(0) + 112, grn, 'bold 24px Georgia', 'left'); ar(AX(12) + 80, AY(0) + 70, AX(12) + 20, AY(0) + 70, grn, 6); tx('HB', AX(12) + 90, AY(0) + 62, grn, 'bold 24px Georgia', 'left');
+        tx('4 невідомі: VA, HA, VB, HB', 450, 100, red, 'bold 30px Georgia'); tx('3 рівняння рівноваги + 1 рівняння: M(C) = 0', 450, 138, grn, 'bold 28px Georgia'); tx('4 = 4: арка статично визначена', 450, 176, ink, 'bold 26px Georgia'); x.restore(); return;
+      }
+      if (st === 'p3p') {
+        ttl('Розкладання похилої сили'); var ox = 480, oy = 430; ar(ox - 200, oy - 266, ox, oy, red, 7); tx('P = 10 кН', ox - 210, oy - 280, red, 'bold 26px Georgia', 'right'); ln(ox - 200, oy - 266, ox - 200, oy, gry, 3, true); ln(ox - 200, oy, ox, oy, gry, 3, true); ar(ox - 200, oy - 266, ox - 200, oy - 20, blu, 5); ar(ox - 200, oy - 266, ox - 4, oy - 266, grn, 5);
+        tx('Py = P·sin α = 8 кН', ox - 214, oy - 130, blu, 'bold 24px Georgia', 'right'); tx('Px = P·cos α = 6 кН', ox - 100, oy - 282, grn, 'bold 24px Georgia'); tx('sin α = 0,8;  cos α = 0,6', 740, 210, ink, 'bold 26px Georgia'); tx('Px діє на висоті 3 м', 740, 260, gry, 'italic 24px Georgia'); tx('√(8² + 6²) = 10 ✓', 740, 320, grn, 'bold 26px Georgia'); x.restore(); return;
+      }
+      if (st === 'p3vert') {
+        ttl('Вертикальні реакції'); parch(); pload(0, 6); pforce(); tx('12 кН', AX(3), AY(yy(3)) - 90, red, 'bold 22px Georgia'); ar(AX(0), AY(0) + 110, AX(0), AY(0) + 52, grn, 6); tx('VA', AX(0) + 22, AY(0) + 112, grn, 'bold 24px Georgia', 'left'); ar(AX(12), AY(0) + 110, AX(12), AY(0) + 52, grn, 6); tx('VB', AX(12) + 22, AY(0) + 112, grn, 'bold 24px Georgia', 'left');
+        tx('ΣM(B) = 0:  VA·12 − 12·9 − 8·3 + 6·3 = 0', 450, 92, ink, 'bold 24px Georgia'); tx('VA = 114 / 12 = 9,5 кН', 450, 126, grn, 'bold 24px Georgia'); tx('ΣM(A) = 0:  VB·12 − 12·3 − 8·9 − 6·3 = 0', 450, 530, ink, 'bold 24px Georgia'); tx('VB = 126 / 12 = 10,5 кН;  ΣY: 9,5 + 10,5 = 12 + 8 ✓', 450, 564, grn, 'bold 24px Georgia'); x.restore(); return;
+      }
+      if (st === 'p3hor') {
+        ttl('Розпір з умови M(C) = 0'); var hx = function (m) { return 140 + 70 * m; }, hy = function (m) { return 400 - 70 * m; };
+        x.strokeStyle = brn; x.lineWidth = 10; x.beginPath(); var q1; for (q1 = 0; q1 <= 6.01; q1 += 0.25) { if (!q1) x.moveTo(hx(q1), hy(yy(q1))); else x.lineTo(hx(q1), hy(yy(q1))); } x.stroke(); pin(hx(0), hy(0)); hn(hx(6), hy(4), '#333'); tx('C', hx(6), hy(4) - 18, ink, 'bold 24px Georgia'); tx('A', hx(0) - 24, hy(0) - 4, ink, 'bold 22px Georgia');
+        ar(hx(0), hy(0) + 100, hx(0), hy(0) + 52, grn, 5); tx('VA = 9,5', hx(0) + 14, hy(0) + 100, grn, 'bold 22px Georgia', 'left'); ar(hx(0) - 80, hy(0) + 70, hx(0) - 20, hy(0) + 70, grn, 5); tx('HA', hx(0) - 86, hy(0) + 62, grn, 'bold 22px Georgia', 'right'); var u3; for (u3 = 0.5; u3 <= 5.8; u3 += 1) ar(hx(u3), hy(yy(u3)) - 55, hx(u3), hy(yy(u3)) - 8, red, 3); tx('12 кН', hx(3), hy(yy(3)) - 68, red, 'bold 22px Georgia');
+        ln(hx(0), hy(4), hx(6), hy(4), gry, 2, true); tx('4 м', hx(0) + 18, hy(2), ink, 'italic 22px Georgia', 'left'); tx('ліва половина', 300, 540, ink, 'bold 26px Georgia');
+        tx('ΣM(C) = 0:  VA·6 − 12·3 − HA·4 = 0', 640, 190, ink, 'bold 24px Georgia'); tx('57 − 36 = 4·HA   →   HA = 5,25 кН', 640, 226, grn, 'bold 24px Georgia'); tx('ΣX:  HA + 6 − HB = 0', 640, 290, ink, 'bold 24px Georgia'); tx('HB = 11,25 кН', 640, 326, grn, 'bold 24px Georgia'); tx('перевірка, права половина: 63 − 45 − 24 + 6 = 0 ✓', 450, 560, red, 'bold 24px Georgia'); x.restore(); return;
+      }
+      if (st === 'p3react') {
+        ttl('Опорні реакції арки'); parch(); pload(0, 6); pforce(); ar(AX(0), AY(0) + 110, AX(0), AY(0) + 52, grn, 6); tx('VA = 9,5', AX(0) + 22, AY(0) + 144, grn, 'bold 24px Georgia', 'left'); ar(AX(0) - 90, AY(0) + 70, AX(0) - 20, AY(0) + 70, grn, 6); tx('HA = 5,25', AX(0) - 70, AY(0) + 112, grn, 'bold 22px Georgia');
+        ar(AX(12), AY(0) + 110, AX(12), AY(0) + 52, grn, 6); tx('VB = 10,5', AX(12) + 22, AY(0) + 144, grn, 'bold 24px Georgia', 'left'); ar(AX(12) + 90, AY(0) + 70, AX(12) + 20, AY(0) + 70, grn, 6); tx('HB = 11,25', AX(12) + 72, AY(0) + 112, grn, 'bold 22px Georgia'); tx('усі реакції в кН', 450, 120, ink, 'bold 24px Georgia'); x.restore(); return;
+      }
+      if (st === 'p3axis') {
+        ttl('Форма осі: парабола'); parch(); tx('y = 4f·x·(l − x) / l² = x·(12 − x) / 9', 450, 108, ink, 'bold 26px Georgia'); tx('tg φ = y′ = (12 − 2x) / 9', 450, 142, grn, 'bold 24px Georgia'); var kx = AX(3), ky = AY(3); ln(kx - 90, ky + 60, kx + 90, ky - 60, red, 4); x.fillStyle = red; x.beginPath(); x.arc(kx, ky, 8, 0, 6.3); x.fill(); tx('K', kx - 18, ky - 14, red, 'bold 24px Georgia');
+        ln(kx, ky, kx + 100, ky, gry, 2, true); tx('φ = 33,69°', kx + 108, ky + 4, red, 'bold 22px Georgia', 'left'); tx('x = 3 м,  y = 3 м,  tg φ = 2/3', 450, 500, ink, 'bold 24px Georgia'); tx('sin φ = 0,555;  cos φ = 0,832', 450, 536, grn, 'bold 24px Georgia'); tx('на опорі φ = 53°, у замку φ = 0', 450, 572, gry, 'italic 24px Georgia'); x.restore(); return;
+      }
+      if (st === 'p3secs') {
+        ttl('Три внутрішні зусилля'); parch(); var kx2 = AX(3), ky2 = AY(3), ph = Math.atan(2 / 3), tc = [Math.cos(ph), -Math.sin(ph)], nc = [Math.sin(ph), Math.cos(ph)]; x.fillStyle = red; x.beginPath(); x.arc(kx2, ky2, 8, 0, 6.3); x.fill(); tx('K', kx2 - 18, ky2 - 14, red, 'bold 24px Georgia');
+        ar(kx2, ky2, kx2 + tc[0] * 100, ky2 + tc[1] * 100, grn, 5); tx('N', kx2 + tc[0] * 106, ky2 + tc[1] * 106 + 4, grn, 'bold 24px Georgia', 'left'); tx('N — поздовжня сила (по дотичній)', 450, 500, grn, 'bold 24px Georgia'); ar(kx2, ky2, kx2 + nc[0] * 90, ky2 - nc[1] * 90 + 0, blu, 5); tx('Q', kx2 + nc[0] * 96 - 6, ky2 - nc[1] * 96 - 6, blu, 'bold 24px Georgia', 'right'); tx('Q — поперечна сила (⟂ осі)', 450, 536, blu, 'bold 24px Georgia'); tx('M — згинальний момент', 450, 572, red, 'bold 24px Georgia'); x.strokeStyle = red; x.lineWidth = 4; x.beginPath(); x.arc(kx2, ky2, 34, 3.4, 5.6); x.stroke(); x.restore(); return;
+      }
+      if (st === 'p3sec') {
+        ttl('Переріз K: ліва частина'); var sx = function (m) { return 140 + 90 * m; }, sy = function (m) { return 420 - 90 * m; }; x.strokeStyle = brn; x.lineWidth = 10; x.beginPath(); var q2; for (q2 = 0; q2 <= 3.01; q2 += 0.25) { if (!q2) x.moveTo(sx(q2), sy(yy(q2))); else x.lineTo(sx(q2), sy(yy(q2))); } x.stroke(); pin(sx(0), sy(0)); var u4;
+        for (u4 = 0.5; u4 <= 2.8; u4 += 1) ar(sx(u4), sy(yy(u4)) - 50, sx(u4), sy(yy(u4)) - 8, red, 3); tx('6 кН', sx(1.5), sy(yy(1.5)) - 62, red, 'bold 22px Georgia'); ar(sx(0), sy(0) + 100, sx(0), sy(0) + 52, grn, 5); tx('9,5', sx(0) + 14, sy(0) + 100, grn, 'bold 22px Georgia', 'left'); ar(sx(0) - 80, sy(0) + 70, sx(0) - 20, sy(0) + 70, grn, 5); tx('5,25', sx(0) - 86, sy(0) + 62, grn, 'bold 22px Georgia', 'right');
+        x.fillStyle = red; x.beginPath(); x.arc(sx(3), sy(3), 8, 0, 6.3); x.fill(); tx('K', sx(3) + 16, sy(3) - 12, red, 'bold 24px Georgia', 'left');
+        tx('M = 9,5·3 − 5,25·3 − 6·1,5', 640, 150, ink, 'bold 24px Georgia'); tx('= 3,75 кН·м', 640, 184, grn, 'bold 24px Georgia'); tx('Q = 3,5·0,832 − 5,25·0,555 ≈ 0', 640, 240, ink, 'bold 24px Georgia'); tx('N = −(3,5·0,555 + 5,25·0,832)', 640, 300, ink, 'bold 24px Georgia'); tx('= −6,31 кН (стиск)', 640, 334, grn, 'bold 24px Georgia'); x.restore(); return;
+      }
+      if (st === 'p3tab') {
+        ttl('Зусилля в перерізах'); var hd = ['x, м', 'y, м', 'M, кН·м', 'Q, кН', 'N, кН'], cw = [100, 100, 160, 140, 160], rws = [['0', '0', '0', '1,50', '−10,75'], ['3 (K)', '3,00', '3,75', '0', '−6,31'], ['6 (C)', '4,00', '0', '−2,50', '−5,25'], ['9 ліво', '3,00', '−2,25', '0,83', '−5,76'], ['9 право', '3,00', '−2,25', '−2,50', '−15,19'], ['12', '0', '0', '2,70', '−15,15']], tx0 = 90, ty = 110;
+        var xs = tx0; hd.forEach(function (h, i) { rc(xs, ty, cw[i], 52, '#eaf0f8', ink, 2); tx(h, xs + cw[i] / 2, ty + 34, ink, 'bold 22px Georgia'); xs += cw[i]; });
+        rws.forEach(function (r, j) { var xs2 = tx0; r.forEach(function (c, i) { rc(xs2, ty + 52 + j * 52, cw[i], 52, j % 2 ? '#fff' : '#f7f4ea', '#999', 1.5); tx(c, xs2 + cw[i] / 2, ty + 52 + j * 52 + 34, (i === 2 && j === 1) ? red : ink, 'bold 22px Georgia'); xs2 += cw[i]; }); });
+        tx('під силою M не стрибає, Q і N — стрибають', 450, 560, gry, 'italic 24px Georgia'); x.restore(); return;
+      }
+      if (st === 'p3m') {
+        ttl('Епюра згинальних моментів'); var ax0 = 150, ay0 = 300, sc2 = 42; ln(AX(0), ay0, AX(12), ay0, ink, 3); var m2, first = true; x.strokeStyle = red; x.lineWidth = 5; x.beginPath(); for (m2 = 0; m2 <= 12.001; m2 += 0.2) { var v = Mf(m2, m2 > 9); if (first) { x.moveTo(AX(m2), ay0 + sc2 * v); first = false; } else x.lineTo(AX(m2), ay0 + sc2 * v); } x.stroke();
+        [[0, 0], [3, 3.75], [6, 0], [10.2, -4.05], [12, 0]].forEach(function (p) { x.fillStyle = red; x.beginPath(); x.arc(AX(p[0]), ay0 + sc2 * p[1], 6, 0, 6.3); x.fill(); }); tx('+3,75', AX(3), ay0 + sc2 * 3.75 + 30, red, 'bold 22px Georgia'); tx('0 (шарнір C)', AX(6) - 70, ay0 + 30, ink, 'bold 20px Georgia'); tx('−4,05', AX(10.2), ay0 + sc2 * -4.05 - 14, red, 'bold 22px Georgia'); tx('−2,25 під P', AX(9) - 8, ay0 - 14, gry, 'italic 20px Georgia'); tx('M, кН·м (+ вниз)', 450, 120, ink, 'bold 24px Georgia'); tx('нуль на опорах і в замку; екстремуми там, де Q = 0', 450, 520, gry, 'italic 24px Georgia'); x.restore(); return;
+      }
+      if (st === 'p3beam') {
+        ttl('Арка проти балки'); tx('Момент у перерізі K (x = 3 м)', 450, 120, ink, 'bold 26px Georgia'); rc(150, 170, 24 * 22, 64, '#e8c9c4', red, 3); tx('балка: 24 кН·м', 150 + 24 * 11, 212, red, 'bold 28px Georgia'); rc(150, 280, 3.75 * 22, 64, '#cfe8d6', grn, 3); tx('арка: 3,75 кН·м', 150 + 3.75 * 22 + 20, 322, grn, 'bold 28px Georgia', 'left'); tx('M(арки) = M(балки) − H·y', 450, 440, ink, 'bold 28px Georgia'); tx('менше більш ніж у 6 разів', 450, 490, red, 'bold 28px Georgia'); x.restore(); return;
+      }
+      if (st === 'p3rat') {
+        ttl('Раціональна вісь'); parch(); var u5; for (u5 = 0.5; u5 <= 11.6; u5 += 1) ar(AX(u5), AY(yy(u5)) - 70, AX(u5), AY(yy(u5)) - 8, red, 3); tx('q на всьому прольоті', 450, 92, red, 'bold 24px Georgia'); tx('V = ql/2 = 12 кН;  H = ql²/(8f) = 9 кН', 450, 124, ink, 'bold 24px Georgia'); tx('x = 3:  M(балки) = 27,  H·y = 27  →  M = 0', 450, 530, grn, 'bold 24px Georgia'); tx('парабола працює тільки на стиск', 450, 564, gry, 'italic 24px Georgia'); x.restore(); return;
+      }
+      if (st === 'p3sum') {
+        ttl('Практична 3: головне'); [['4 реакції: три рівняння рівноваги + M(C) = 0', ink], ['V — з цілої арки, H (розпір) — з половини арки', grn], ['y і φ — з рівняння параболи; Q ⟂ осі, N по дотичній', blu], ['M(арки) = M(балки) − H·y: розпір гасить момент', red]].forEach(function (r, i) { pill(40, 100 + i * 110, 820, 84, r[0], r[1]); }); x.restore(); return;
       }
     }
     if (st.indexOf('p2') === 0) {
